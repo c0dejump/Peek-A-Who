@@ -29,7 +29,7 @@ def google_s(identity, phone_n, mail, pseudo, city):
             queries.append("intext:{} site:pastebin.com".format(v))
     try:
         for q in queries:
-            print("[i] Google search {}".format(q))
+            print(" [i] Google search {}".format(q))
             for j in search(q, tld="com", num=max_search, stop=stop_search, pause=2.6):
                 #num: Number of results we want.
                 #stop: The last result to retrieve. Use None to keep searching forever.

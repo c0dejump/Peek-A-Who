@@ -38,7 +38,7 @@ def whitepage_search(dir_name, firstname, lastname, city):
                     if a.text not in completed_addr:
                         completed_addr.append(a.text)
                         results = "{}\t{}".format(n.text.replace("   ","").replace("\n",""), a.text.replace("   ","").replace("\n","").lower())
-                        print("\u251c {}".format(results))
+                        print(" \u251c {}".format(results))
                         raw_output(dir_name, "whitepage_search", results)
     except:
         traceback.print_exc() #DEBUG

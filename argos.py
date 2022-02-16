@@ -14,9 +14,9 @@ import traceback
 
 #external modules
 from static.banner import banner
-from modules import google_search, whitepage,
+from modules import google_search, whitepage
 from modules.social_media import facebook, linkedin
-from module.email import mail_search
+from modules.email import mail_search, email_guesser
 
 
 def linkedin_parsing(firstname, lastname):
@@ -38,6 +38,7 @@ def run_modules():
         facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo)
         whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
         linkedin_parsing(firstname, lastname)
+        email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo)
         print("\033[36m Pseudo search \033[0m")
@@ -51,6 +52,7 @@ def run_modules():
         except Exception:
             #pass
             traceback.print_exc()
+        email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if mail:
         mail_search.mail_actions(mail, dir_name)
 
@@ -86,7 +88,7 @@ if __name__ == '__main__':
     group = parser.add_argument_group('\033[34m> Assistance\033[0m')
     group.add_argument("-c", help="City adress, exemple: -c Paris", dest='city', required=False)
     group.add_argument("-b", help="birth year, exemple: -b 1999 (yeah my birth year)", dest='birth_year', required=False)
-    group.add_argument("-k", help="Keyword, the script will be based on this, exemple: -k security", dest='city', required=False)
+    group.add_argument("-k", help="Keyword, the script will be based on this, exemple: -k security", dest='keyword', required=False)
 
     results = parser.parse_args()
 
@@ -103,6 +105,7 @@ if __name__ == '__main__':
     city = results.city
     pseudo = results.pseudo
     birth_year = results.birth_year
+    keyword = results.keyword
 
     if identity and not "_" in identity:
         print("Please put a _ under firstname and lastname.")
