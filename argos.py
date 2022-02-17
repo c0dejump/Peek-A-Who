@@ -33,14 +33,14 @@ def run_modules():
     """
     run_modules: run all module
     """
-    google_search.google_s(identity, phone_n, mail, pseudo, city)
+    #google_search.google_s(identity, phone_n, mail, pseudo, city)
     if identity:
-        facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo)
-        whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
-        linkedin_parsing(firstname, lastname)
-        email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
+        facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city)
+        #whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
+        #linkedin_parsing(firstname, lastname)
+        #email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if pseudo:
-        facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo)
+        facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city)
         print("\033[36m Pseudo search \033[0m")
         try:
             os.system("python3 tools/sherlock/sherlock/sherlock.py {} -o tools/sherlock/results/{}.txt >/dev/null 2>&1".format(pseudo, pseudo))
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     firstname = identity.split("_")[0] if identity else None
     lastname = identity.split("_")[1] if identity else None
 
-    dir_name = "reports/"+sys.argv[2]
+    dir_name = "reports/results/"+sys.argv[2]
 
     resume()
     if not os.path.exists(dir_name):

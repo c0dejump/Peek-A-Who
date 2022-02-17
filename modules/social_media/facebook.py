@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys
+import sys, re
 import requests
 import time
 import traceback
@@ -11,7 +11,20 @@ from output import raw_output
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
-def facebook_search(dir_name, firstname, lastname, pseudo):
+def get_facebook_id(account):
+    facebook_id_url = "https://lookup-id.com/"
+    account = "https://www.facebook.com/{}".format(account)
+    datas = {
+            "fburl": "{}".format(account),
+            "check": "Lookup"
+            }
+    get_id = requests.post(facebook_id_url, data=datas, verify=False)
+    soup = BeautifulSoup(get_id.text, "html.parser")
+    find_id = soup.find('span', {'id': 'code'})
+    return(find_id.text)
+
+
+def facebook_search(dir_name, firstname, lastname, pseudo, city):
 
     if FB_USERNAME == "" and FB_PASSWORD == "":
 
@@ -20,19 +33,30 @@ def facebook_search(dir_name, firstname, lastname, pseudo):
         if firstname and lastname:
             count_result = 0
 
-            account = ""
-
-            exclude_word = ["photo", "cursor", "login"]
+            account_found = []
 
             url = "https://m.facebook.com/public/{}-{}".format(firstname, lastname)
             req = requests.get(url, verify=False, timeout=15)
             soup = BeautifulSoup(req.text, "html.parser")
             find_link = soup.find_all('a')
             for s in find_link:
-                if firstname.lower() in s.get('href') and "login" not in s.get('href') and "cursor" not in s.get('href') and "login" not in s.get('href') and "next" not in s.get('href'):
+                if firstname.lower() in s.get('href') and "login" not in s.get('href') and "cursor" not in s.get('href') and \
+                 "login" not in s.get('href') and "next" not in s.get('href'):
                     account = s.get('href')
-                    print(" [+] Potential account found: {}".format(s.get('href')))
-                    count_result += 1
+                    facebook_id = get_facebook_id(account)
+                    if account not in account_found:
+                        print(" [+] Potential account found: {} with id: {}".format(account, facebook_id))
+                        account_found.append(account)
+                        count_result += 1
+                    """
+                    #TODO
+                    get city:
+                    find_city = soup.find("div", class_="_59k _2rgt _1j-f _2rgt") => quelque chose comme ça mais ne fonctionne pas :/
+                    <div class="_59k _2rgt _1j-f _2rgt" style="font-size: 14px;font-weight: 400;text-align: left;color: #050505;display: -webkit-box;-webkit-line-clamp: 2;-webkit-box-orient: vertical;overflow: hidden;text-overflow: ellipsis" id="u_0_60_bB" data-nt="FB:TEXT4">Habite à Rotterdam</div>
+                    elif account not in account_found and city:
+                        if find_city.text == city:
+                            print(" [+] Potential account found: {} with id: {} and the same city: {}".format(account, facebook_id, find_city))
+                    """
             if count_result > 0:
                 print(" + {} account found\n".format(count_result))
             else:
@@ -41,7 +65,8 @@ def facebook_search(dir_name, firstname, lastname, pseudo):
             url = "https://www.facebook.com/{}".format(pseudo)
             req = requests.get(url, verify=False, timeout=15)
             if req.status_code == 200:
-                print(" [+] Potential account found: https://m.facebook.com/{}\n".format(pseudo))
+                facebook_id = get_facebook_id(pseudo)
+                print(" [+] Potential account found: https://m.facebook.com/{} with id: {}\n".format(pseudo, facebook_id))
             else:
                 print(" [-] No account found with this pseudo\n")
     else:
