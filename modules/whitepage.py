@@ -12,6 +12,7 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 
 def whitepage_search(dir_name, firstname, lastname, city):
     print("\033[36m Whitepage search \033[0m")
+    print("\033[36m-\033[0m"*30)
 
     city = city if city else ""
     url = "https://www.pages-annuaire.net/res/search?q={}+{}&w={}".format(firstname, lastname, city)

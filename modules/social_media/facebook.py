@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import sys, re
@@ -29,6 +29,7 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city):
     if FB_USERNAME == "" and FB_PASSWORD == "":
 
         print("\033[36m Facebook search without account\033[0m")
+        print("\033[36m-\033[0m"*30)
 
         if firstname and lastname:
             count_result = 0

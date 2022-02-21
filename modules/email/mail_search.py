@@ -26,7 +26,9 @@ def mail_breach(mail, dir_name):
 
 
 def skypli(mail_adress, dir_name):
-    print("Searching Skype users...")
+    print("Searching Skype users")
+    print("\033[36m-\033[0m"*30)
+    
     url = "https://www.skypli.com/search/{}".format(mail_adress) 
     print(url)
     page = s.get(url, verify=False)

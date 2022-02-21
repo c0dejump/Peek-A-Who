@@ -145,6 +145,9 @@ def email_validation(i, q, requestPwnedStartTimer, s):
 # User inputs
 def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
 
+    print("\033[36m Email search \n\033[0m")
+    print("\033[36m-\033[0m"*30)
+
     global identity
     identity = "{}_{}".format(firstname, lastname) if firstname and lastname else None
 
@@ -162,7 +165,10 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
 
     # for every domain specified by user, make combinations and add them to the list
     for dom in domain:
-        structure = ["f!!last!!", "f!!.last!!", "f!!_last!!", "last!!f!!", "last!!.f!!", "last!!_f!!", "l!!first!!", "l!!.first!!", "l!!_first!!", "first!!l!!", "first!!.l!!", "first!!_l!!", "last!!first!!", "last!!.first!!", "last!!_first!!", "first!!last!!", "first!!.last!!", "first!!_last!!", "first!!last!!1", "first!!last!!.1", "f!!last!!1", "f!!last!!.1", "first!!.last!!1", "first!!.last!!.1"]
+        structure = ["f!!last!!", "f!!.last!!", "f!!_last!!", "last!!f!!", "last!!.f!!", "last!!_f!!", "l!!first!!", "l!!.first!!", "l!!_first!!", "first!!l!!", 
+        "first!!.l!!", "first!!_l!!", "last!!first!!", "last!!.first!!", "last!!_first!!", "first!!last!!", "first!!.last!!", "first!!_last!!", "first!!last!!1", 
+        "first!!last!!.1", "f!!last!!1", "f!!last!!.1", "first!!.last!!1", "first!!.last!!.1", "first!!last!!2", "first!!last!!.2", "f!!last!!2", "f!!last!!.2", 
+        "first!!.last!!2", "first!!.last!!.2"]
 
         # Add formats using birth year if specified by the user
         if birth_input:

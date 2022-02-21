@@ -15,7 +15,7 @@ import traceback
 #external modules
 from static.banner import banner
 from modules import google_search, whitepage
-from modules.social_media import facebook, linkedin
+from modules.social_media import facebook, linkedin, snapchat
 from modules.email import mail_search, email_guesser
 
 
@@ -33,14 +33,16 @@ def run_modules():
     """
     run_modules: run all module
     """
-    #google_search.google_s(identity, phone_n, mail, pseudo, city)
+    google_search.google_s(identity, phone_n, mail, pseudo, city)
     if identity:
         facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city)
-        #whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
-        #linkedin_parsing(firstname, lastname)
-        #email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
+        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
+        linkedin_parsing(firstname, lastname)
+        email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city)
+        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
         print("\033[36m Pseudo search \033[0m")
         try:
             os.system("python3 tools/sherlock/sherlock/sherlock.py {} -o tools/sherlock/results/{}.txt >/dev/null 2>&1".format(pseudo, pseudo))

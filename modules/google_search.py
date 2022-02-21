@@ -21,6 +21,8 @@ def google_s(identity, phone_n, mail, pseudo, city):
     """
     args = locals()
     print("\033[36m Google search \033[0m")
+    print("\033[36m-\033[0m"*30)
+
     queries = []
 
     for k, v in args.items():
@@ -55,4 +57,4 @@ def google_s(identity, phone_n, mail, pseudo, city):
                     print("  {}Error with URL {}".format(WARNING, j))
             print("")
     except:
-        print("  {} Google captcha seem to be activated, try it later...\n".format(WARNING))
+        print("\033[31m {}Google captcha seem to be activated, try it later...\n\033[0m".format(WARNING))
