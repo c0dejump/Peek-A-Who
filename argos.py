@@ -33,17 +33,18 @@ def run_modules():
     """
     run_modules: run all module
     """
-    google_search.google_s(identity, phone_n, mail, pseudo, city)
+    #google_search.google_s(identity, phone_n, mail, pseudo, city)
     if identity:
-        facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city)
-        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
-        whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
-        linkedin_parsing(firstname, lastname)
-        email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
+        facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
+        #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        #whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
+        #linkedin_parsing(firstname, lastname)
+        #email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if pseudo:
-        facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city)
+        facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
         snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
         print("\033[36m Pseudo search \033[0m")
+        print("\033[36m-\033[0m"*30)
         try:
             os.system("python3 tools/sherlock/sherlock/sherlock.py {} -o tools/sherlock/results/{}.txt >/dev/null 2>&1".format(pseudo, pseudo))
             with open("tools/sherlock/results/{}.txt".format(pseudo), "r") as result:
@@ -72,7 +73,7 @@ def resume():
  \033[36m Birth year:       \033[0m {}
 
 \033[31m____________________________________________\033[0m
-    """.format(pseudo if pseudo else "N/A", firstname if firstname else "N/A", lastname if lastname else "N/A", phone_n if phone_n else "N/A", 
+    """.format(pseudo if pseudo else "N/A", firstname if firstname else "N/A", lastname if lastname else "", phone_n if phone_n else "N/A", 
         mail if mail else "N/A", city if city else "N/A", birth_year if birth_year else "N/A"))
 
 
@@ -91,6 +92,7 @@ if __name__ == '__main__':
     group.add_argument("-c", help="City adress, exemple: -c Paris", dest='city', required=False)
     group.add_argument("-b", help="birth year, exemple: -b 1999 (yeah my birth year)", dest='birth_year', required=False)
     group.add_argument("-k", help="Keyword, the script will be based on this, exemple: -k security", dest='keyword', required=False)
+    group.add_argument("--pic", help="Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png", dest='picture', required=False)
 
     results = parser.parse_args()
 
@@ -108,10 +110,17 @@ if __name__ == '__main__':
     pseudo = results.pseudo
     birth_year = results.birth_year
     keyword = results.keyword
+    picture = results.picture
 
     if identity and not "_" in identity:
         print("Please put a _ under firstname and lastname.")
         sys.exit()
+
+    if picture:
+        if os.path.isfile(picture):
+            print("file exist")
+        else:
+            print("file not exist")
 
     firstname = identity.split("_")[0] if identity else None
     lastname = identity.split("_")[1] if identity else None

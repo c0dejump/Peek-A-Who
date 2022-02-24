@@ -8,8 +8,25 @@ import traceback
 from bs4 import BeautifulSoup
 from config import FB_USERNAME, FB_PASSWORD
 from output import raw_output
+from modules.facial_recognition import face_identification
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+
+
+
+def check_facial_reco(dir_name, account, picture):
+    get_profile = requests.get("https://www.facebook.com{}".format(account), verify=False)
+    soup = BeautifulSoup(get_profile.text, "html.parser")
+    #print(soup)
+    profile_image = soup.find('meta', {'property': 'og:image'})
+    link_image = profile_image.get("content")
+    img_data = requests.get(link_image, verify=False).content
+    with open("{}/{}.jpg".format(dir_name, account.split("/")[1]), 'wb') as handler:
+        handler.write(img_data)
+    fid = face_identification(picture, "{}/{}.jpg".format(dir_name, account.split("/")[1]))
+    if fid:
+        print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
+
 
 def get_facebook_id(account):
     facebook_id_url = "https://lookup-id.com/"
@@ -24,7 +41,7 @@ def get_facebook_id(account):
     return(find_id.text)
 
 
-def facebook_search(dir_name, firstname, lastname, pseudo, city):
+def facebook_search(dir_name, firstname, lastname, pseudo, city, picture):
 
     if FB_USERNAME == "" and FB_PASSWORD == "":
 
@@ -46,9 +63,11 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city):
                     account = s.get('href')
                     facebook_id = get_facebook_id(account)
                     if account not in account_found:
-                        print(" [+] Potential account found: {} with id: {}".format(account, facebook_id))
+                        print(" \u251c Potential account found: {} with id: {}".format(account, facebook_id))
                         account_found.append(account)
                         count_result += 1
+                        if picture:
+                            check_facial_reco(dir_name, account, picture)
                     """
                     #TODO
                     get city:
@@ -68,6 +87,9 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city):
             if req.status_code == 200:
                 facebook_id = get_facebook_id(pseudo)
                 print(" [+] Potential account found: https://m.facebook.com/{} with id: {}\n".format(pseudo, facebook_id))
+                if picture:
+                    account = "/{}".format(pseudo)
+                    check_facial_reco(dir_name, account, picture)
             else:
                 print(" [-] No account found with this pseudo\n")
     else:
