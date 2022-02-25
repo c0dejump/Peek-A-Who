@@ -43,4 +43,5 @@ def whitepage_search(dir_name, firstname, lastname, city):
                         raw_output(dir_name, "whitepage_search", results)
     except:
         traceback.print_exc() #DEBUG
-    print("\n [i] you can check too here: https://www.pagesjaunes.fr/pagesblanches/recherche?quoiqui={}+{}&ou={}".format(firstname, lastname, city))
+    print(" [i] you can check too here: https://www.pagesjaunes.fr/pagesblanches/recherche?quoiqui={}+{}&ou={}".format(firstname, lastname, city))
+    print("\033[36m-\033[0m"*30)

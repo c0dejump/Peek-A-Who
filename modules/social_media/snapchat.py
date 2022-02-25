@@ -35,9 +35,9 @@ def get_snapchat(endpoint, s):
         soup = BeautifulSoup(req_snapchat.text, "html.parser")
         try:
             find_name = soup.find('span', {'class': re.compile(r'UserDetailsCard_title*')})
-            print(" \033[32m+ {}\033[0m snapchat username seem exit with real name {} on https://www.snapchat.com/add/{}".format(endpoint, "\033[32m{}\033[0m".format(find_name.text if find_name.text else "\033[31mNone\033[0m"), endpoint))
+            print(" \033[32m\u251c {}\033[0m snapchat username seem exit with real name {} on https://www.snapchat.com/add/{}".format(endpoint, "\033[32m{}\033[0m".format(find_name.text if find_name.text else "\033[31mNone\033[0m"), endpoint))
         except AttributeError:
-            print(" \033[32m+ {}\033[0m snapchat seem exit with real name \033[31mNone\033[0m".format(endpoint))
+            print(" \033[32m\u251c {}\033[0m snapchat seem exit with real name \033[31mNone\033[0m".format(endpoint))
 
 
 def parse_snapchat_username(identity, pseudo, city, keyword):
@@ -65,7 +65,9 @@ def parse_snapchat_username(identity, pseudo, city, keyword):
                 "{}.{}".format(firstname, lastname), "{}-{}".format(firstname, lastname), "{}{}".format(firstname, lastname),
                 "{}.{}".format(lastname, firstname), "{}-{}".format(lastname, firstname), "{}{}".format(lastname, firstname),  
                 "{}.{}".format(firstname, bigram_lastname), "{}-{}".format(firstname, bigram_lastname), "{}{}".format(firstname, bigram_lastname),
-                "{}.{}".format(bigram_lastname, firstname), "{}-{}".format(bigram_lastname, firstname), "{}{}".format(bigram_lastname, firstname)]
+                "{}.{}".format(bigram_lastname, firstname), "{}-{}".format(bigram_lastname, firstname), "{}{}".format(bigram_lastname, firstname),
+                "{}_{}".format(lastname, firstname), "{}_{}".format(firstname, lastname), "_{}{}".format(firstname, lastname), "_{}{}".format(lastname, firstname),
+                "{}_{}".format(firstname, bigram_lastname), "{}_{}".format(bigram_lastname, firstname), "_{}{}".format(firstname, bigram_lastname), "_{}{}".format(bigram_lastname, firstname),]
             for li in list_identity:
                 endpoints.append(li)
         if city and pseudo:
@@ -114,6 +116,7 @@ def parse_snapchat_username(identity, pseudo, city, keyword):
                 endpoints.append(ki)
         for endpoint in endpoints:
             get_snapchat(endpoint, s)
+    print("\033[36m-\033[0m"*30)
 
 
 

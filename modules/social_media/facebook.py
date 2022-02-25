@@ -45,7 +45,7 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture):
 
     if FB_USERNAME == "" and FB_PASSWORD == "":
 
-        print("\033[36m Facebook search without account\033[0m")
+        print("\033[36m Unauthentification Facebook search\033[0m")
         print("\033[36m-\033[0m"*30)
 
         if firstname and lastname:
@@ -64,6 +64,7 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture):
                     facebook_id = get_facebook_id(account)
                     if account not in account_found:
                         print(" \u251c Potential account found: {} with id: {}".format(account, facebook_id))
+                        #fuckfacebook
                         account_found.append(account)
                         count_result += 1
                         if picture:

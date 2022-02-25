@@ -14,19 +14,21 @@ import traceback
 
 #external modules
 from static.banner import banner
-from modules import google_search, whitepage
+from modules import google_search, whitepage, phone_number
 from modules.social_media import facebook, linkedin, snapchat
 from modules.email import mail_search, email_guesser
 
 
-def linkedin_parsing(firstname, lastname):
+def linkedin_parsing(firstname, lastname, dir_name, picture):
     print("\033[36m Linkedin search \033[0m")
+    print("\033[36m-\033[0m"*30)
     list_user = [
     "{}{}".format(firstname, lastname), "{}-{}".format(firstname, lastname), "{}.{}".format(firstname, lastname),
     "{}{}".format(lastname, firstname), "{}-{}".format(lastname, firstname), "{}.{}".format(lastname, firstname)
     ]
     for u in list_user:
-        linkedin.linkedin_scraping(u, True)
+        linkedin.linkedin_scraping(u, picture, dir_name, True)
+    print("\033[36m-\033[0m"*30)
 
 
 def run_modules():
@@ -36,10 +38,10 @@ def run_modules():
     #google_search.google_s(identity, phone_n, mail, pseudo, city)
     if identity:
         facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
-        #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
-        #whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
-        #linkedin_parsing(firstname, lastname)
-        #email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
+        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
+        linkedin_parsing(firstname, lastname, dir_name, picture=picture)
+        email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
         snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
@@ -58,6 +60,10 @@ def run_modules():
         email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if mail:
         mail_search.mail_actions(mail, dir_name)
+    if phone_n:
+        phone_number.phone_number_actions(phone_n, dir_name)
+        
+
 
 
 def resume():

@@ -45,7 +45,7 @@ def face_identification(known_image, unkown_image):
             if float(score) > 0.7:
                 print("   \033[34m\u251c\033[0m Score: {} between {} and {}, that's seem the same person !".format(score, known_image.split("/")[-1], unkown_image.split("/")[-1]))
                 return True
-    except requests.exceptions.RequestException:
+    except:
         pass
         #print(response.text)
 

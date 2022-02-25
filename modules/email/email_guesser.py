@@ -404,6 +404,7 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
                             structure.append(test_text)
             else:
                 print("No results on Skype for this name!")
+    print("\033[36m-\033[0m"*30)
 
 
 if __name__ == '__main__':
