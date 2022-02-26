@@ -13,3 +13,4 @@ torrequest>=0.1.0
 validate_email_address
 queuelib
 ignorant
+py3DNS
