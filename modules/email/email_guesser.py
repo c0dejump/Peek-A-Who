@@ -145,7 +145,7 @@ def email_validation(i, q, requestPwnedStartTimer, s):
 # User inputs
 def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
 
-    print("\033[36m Email search \n\033[0m")
+    print("\033[36m Email search\033[0m")
     print("\033[36m-\033[0m"*30)
 
     global identity

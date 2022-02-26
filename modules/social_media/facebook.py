@@ -13,7 +13,6 @@ from modules.facial_recognition import face_identification
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 
-
 def check_facial_reco(dir_name, account, picture):
     get_profile = requests.get("https://www.facebook.com{}".format(account), verify=False)
     soup = BeautifulSoup(get_profile.text, "html.parser")
@@ -58,17 +57,20 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture):
             soup = BeautifulSoup(req.text, "html.parser")
             find_link = soup.find_all('a')
             for s in find_link:
-                if firstname.lower() in s.get('href') and "login" not in s.get('href') and "cursor" not in s.get('href') and \
-                 "login" not in s.get('href') and "next" not in s.get('href'):
-                    account = s.get('href')
-                    facebook_id = get_facebook_id(account)
-                    if account not in account_found:
-                        print(" \u251c Potential account found: {} with id: {}".format(account, facebook_id))
-                        #fuckfacebook
-                        account_found.append(account)
-                        count_result += 1
-                        if picture:
-                            check_facial_reco(dir_name, account, picture)
+                try:
+                    if firstname.lower() in s.get('href') and "login" not in s.get('href') and "cursor" not in s.get('href') and \
+                     "login" not in s.get('href') and "next" not in s.get('href'):
+                        account = s.get('href')
+                        facebook_id = get_facebook_id(account)
+                        if account not in account_found:
+                            print(" \u251c Potential account found: {} with id: {}".format(account, facebook_id))
+                            #fuckfacebook
+                            account_found.append(account)
+                            count_result += 1
+                            if picture:
+                                check_facial_reco(dir_name, account, picture)
+                except:
+                    pass
                     """
                     #TODO
                     get city:
@@ -86,11 +88,14 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture):
             url = "https://www.facebook.com/{}".format(pseudo)
             req = requests.get(url, verify=False, timeout=15)
             if req.status_code == 200:
-                facebook_id = get_facebook_id(pseudo)
-                print(" [+] Potential account found: https://m.facebook.com/{} with id: {}\n".format(pseudo, facebook_id))
-                if picture:
-                    account = "/{}".format(pseudo)
-                    check_facial_reco(dir_name, account, picture)
+                try:
+                    facebook_id = get_facebook_id(pseudo)
+                    print(" [+] Potential account found: https://m.facebook.com/{} with id: {}\n".format(pseudo, facebook_id))
+                    if picture:
+                        account = "/{}".format(pseudo)
+                        check_facial_reco(dir_name, account, picture)
+                except:
+                    print(" [-] No account found with this pseudo\n")
             else:
                 print(" [-] No account found with this pseudo\n")
     else:

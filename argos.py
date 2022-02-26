@@ -15,7 +15,7 @@ import traceback
 #external modules
 from static.banner import banner
 from modules import google_search, whitepage, phone_number
-from modules.social_media import facebook, linkedin, snapchat
+from modules.social_media import facebook, linkedin, snapchat, tiktok
 from modules.email import mail_search, email_guesser
 
 
@@ -37,14 +37,16 @@ def run_modules():
     """
     #google_search.google_s(identity, phone_n, mail, pseudo, city)
     if identity:
-        facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
-        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
-        whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
-        linkedin_parsing(firstname, lastname, dir_name, picture=picture)
-        email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
+        #facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
+        #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
+        #whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
+        #linkedin_parsing(firstname, lastname, dir_name, picture=picture)
+        #email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
         snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
         print("\033[36m Pseudo search \033[0m")
         print("\033[36m-\033[0m"*30)
         try:
