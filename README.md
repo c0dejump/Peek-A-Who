@@ -33,7 +33,7 @@
 - Ignorant
 
 ## Donation
-<img src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg" width="64px">
+<img src="https://cdn4.iconfinder.com/data/icons/cryptocoins/227/ETH-64.png">
 
 BTC : bc1qv7lxqczukam7vq626chvhfyxth9y582rpfwm8q
 
