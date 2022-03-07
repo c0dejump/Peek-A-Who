@@ -40,3 +40,7 @@ BTC : bc1qv7lxqczukam7vq626chvhfyxth9y582rpfwm8q
 <img src="https://cdn4.iconfinder.com/data/icons/cryptocoins/227/ETH-64.png">
 
 ETH : 0x406A1d5BE7185e045c2c19dFc493f03dB07b9006
+
+<img src="src="https://cdn3.iconfinder.com/data/icons/logos-brands-3/24/logo_brand_brands_logos_paypal-64.png">
+                                                                                                              
+PAYPAL :                                                                                                              
