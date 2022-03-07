@@ -35,4 +35,8 @@
 ## Donation
 <img src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg">
 
-BTC : 
+BTC : bc1qv7lxqczukam7vq626chvhfyxth9y582rpfwm8q
+
+<img src="https://cdn.worldvectorlogo.com/logos/ethereum-gold.svg">
+
+ETH : 0x406A1d5BE7185e045c2c19dFc493f03dB07b9006
