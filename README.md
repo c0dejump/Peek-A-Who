@@ -33,10 +33,10 @@
 - Ignorant
 
 ## Donation
-<img src="https://cdn4.iconfinder.com/data/icons/cryptocoins/227/ETH-64.png">
+<img src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg">
 
 BTC : bc1qv7lxqczukam7vq626chvhfyxth9y582rpfwm8q
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Ethereum_logo_2014.svg">
+<img src="https://cdn4.iconfinder.com/data/icons/cryptocoins/227/ETH-64.png">
 
 ETH : 0x406A1d5BE7185e045c2c19dFc493f03dB07b9006
