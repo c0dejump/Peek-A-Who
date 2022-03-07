@@ -1,6 +1,6 @@
 # Argos_dev
 
-![alt tag](https://github.com/c0dejump/Argos/blob/master/static/Logo_Argos.png)
+![alt tag](https://github.com/c0dejump/Argos_dev/blob/master/static/Logo_Argos.png)
 
 <img src="https://img.shields.io/badge/-Disclaimer-red">       
 
