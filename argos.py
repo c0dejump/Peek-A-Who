@@ -10,6 +10,7 @@ from time import strftime
 import argparse
 import json
 import traceback
+from PIL import Image
 
 
 #external modules
@@ -37,12 +38,12 @@ def run_modules():
     """
     #google_search.google_s(identity, phone_n, mail, pseudo, city)
     if identity:
-        #facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
-        #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
+        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
         tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
-        #whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
-        #linkedin_parsing(firstname, lastname, dir_name, picture=picture)
-        #email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
+        whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
+        linkedin_parsing(firstname, lastname, dir_name, picture=picture)
+        email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
         snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
@@ -92,7 +93,7 @@ if __name__ == '__main__':
 
     group = parser.add_argument_group('\033[34m> General\033[0m')
     group.add_argument("-i", help="Identity, exemple: -i john_doe", dest='identity', required=False)
-    group.add_argument("-n", help="Phone number, exemple: -p +337000000", dest='phone_number', required=False)
+    group.add_argument("-n", help="Phone number, exemple: -n +337000000", dest='phone_number', required=False)
     group.add_argument("-m", help="Mail adress, exemple: -m toto@gmail.com", dest='mail', required=False)
     group.add_argument("-p", help="Pseudo, exemple: -p codejump", dest='pseudo', required=False)
 
@@ -125,10 +126,14 @@ if __name__ == '__main__':
         sys.exit()
 
     if picture:
-        if os.path.isfile(picture):
-            print("file exist")
-        else:
-            print("file not exist")
+        if not os.path.isfile(picture):
+            print("The image seem not exist")
+            sys.exit()
+        image_size = Image.open(picture)
+        width, height = image_size.size
+        if width <= 200 or height <= 200:
+            print("The size of the image is too small: width: {} / height: {}".format(width, height))
+            sys.exit()
 
     firstname = identity.split("_")[0] if identity else None
     lastname = identity.split("_")[1] if identity else None

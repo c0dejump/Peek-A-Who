@@ -26,8 +26,6 @@ def get_snapchat(endpoint, s):
             print(" \033[32m\u251c {}\033[0m snapchat username seem exit with real name {} on https://www.snapchat.com/add/{}".format(endpoint, "\033[32m{}\033[0m".format(find_name.text if find_name.text else "\033[31mNone\033[0m"), endpoint))
         except AttributeError:
             print(" \033[32m\u251c {}\033[0m snapchat seem exit with real name \033[31mNone\033[0m".format(endpoint))
-    else:
-        print(" Snapchat not found")
 
 
 def parse_snapchat_username(identity, pseudo, city, keyword):

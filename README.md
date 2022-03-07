@@ -1,6 +1,9 @@
 # Argos_dev
 
-<img src="https://img.shields.io/badge/-Disclaimer-red">    
+![alt tag](https://github.com/c0dejump/Argos/blob/master/static/Logo_Argos.png)
+
+<img src="https://img.shields.io/badge/-Disclaimer-red">       
+
 *Argos developers are not responsible for misuse or abuse of the tool, this is the responsibility of the end user.*
 
 **For the moment most of the personal tools (except ghunt, toutatis, holehe...) that use "city" or "phone number" will be for french search**
