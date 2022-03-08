@@ -24,8 +24,6 @@ def skypli(phone_number, dir_name):
                     if test_text.find("live:") != -1:
                         if len(test_text) != 21:
                             structure.append(test_text[5:])
-                            # find account using same e-mail username as someone else in skype (only look for underscore followed by last 1 or 2 chars being digits)
-                            # then add them also to the pool (original string is also added before reduced in size)
                             if test_text[-1].isdigit() == True and test_text[-2] == "_":
                                 structure.append(test_text[5:-2])
                             if test_text[-1].isdigit() == True and test_text[-2].isdigit() == True and test_text[-3] == "_":

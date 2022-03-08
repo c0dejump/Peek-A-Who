@@ -21,17 +21,47 @@
 ## TODO
 
 - [ ] Sraping Facebook, linkedin, whitepage (pageblanche FR), Instagram... [In progress]
-- [ ] Checking qualifications/graduation
+- [ ] Checking qualifications/graduation (etudiant.aujourdhui.fr)
 - [ ] OCR
 - [ ] Image template matching
 - [ ] Exif Image
 - [ ] Reduce FP number with connections
+
+## TODO Scraping sites:
+- [ ] https://copainsdavant.linternaute.com/
+- [ ] Apple music, spotify, youtube, twitch, deezer, 
+- [ ] annuaire, societe.com, Airbnb (like), 
+- [ ] telegram.me, vk.com, steam
+- [ ] https://resultat-brevet.linternaute.com/
 
 ## Tools used
 
 - Holehe
 - Sherlock
 - Ignorant
+
+## Usage
+
+```
+usage: argos.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c CITY] [-b BIRTH_YEAR] [-k KEYWORD] [--pic PICTURE]
+````
+
+```
+> General:
+	-i IDENTITY      Identity, exemple: -i john_doe
+	-n PHONE_NUMBER  Phone number, exemple: -n +337000000
+	-m MAIL          Mail adress, exemple: -m toto@gmail.com
+	-p PSEUDO        Pseudo, exemple: -p codejump
+> Assistance:
+    -c CITY          City adress, exemple: -c Paris
+	-b BIRTH_YEAR    birth year, exemple: -b 1999 (yeah my birth year)
+	-k KEYWORD       Keyword, the script will be based on this, exemple: -k security
+	--pic PICTURE    Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png
+````
+
+### Config
+
+> You can put your credentials or other config in ```config.py``` file.
 
 ## Donation
 <img src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg">

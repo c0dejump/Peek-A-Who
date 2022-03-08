@@ -28,7 +28,8 @@ def google_s(identity, phone_n, mail, pseudo, city):
     for k, v in args.items():
         if v != None and k != "city":
             queries.append("{}".format(v))
-            queries.append("intext:{} site:pastebin.com".format(v))
+            queries.append("inurl:resume \"{}\"".format(v))
+            queries.append("site:(linkedin.com/in | zoominfo.com/p | rocketreach.co | xing.com/people | contactout.com) \"{}\"".format(v))
     try:
         for q in queries:
             print(" [i] Google search {}".format(q))

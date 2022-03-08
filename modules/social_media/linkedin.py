@@ -87,5 +87,17 @@ def linkedin_scraping(url, picture, dir_name, username=False):
         print(" [i] This module need to login for search informations, please define it config.py")
 
 
+def linkedin_parsing(firstname, lastname, dir_name, picture):
+    print("\033[36m Linkedin search \033[0m")
+    print("\033[36m-\033[0m"*30)
+    list_user = [
+    "{}{}".format(firstname, lastname), "{}-{}".format(firstname, lastname), "{}.{}".format(firstname, lastname),
+    "{}{}".format(lastname, firstname), "{}-{}".format(lastname, firstname), "{}.{}".format(lastname, firstname)
+    ]
+    for u in list_user:
+        linkedin_scraping(u, picture, dir_name, True)
+    print("\033[36m-\033[0m"*30)
+
+
 if __name__ == '__main__':
     linkedin_scraping("https://www.linkedin.com/in/emna-rekik", None, "reports/results/emna_rekik/") #"/mnt/c/Users/NathanFAILLENOT/OneDrive - Constellation/Images/OSINT_image/test_linkedin.jpg")

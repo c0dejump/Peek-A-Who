@@ -39,7 +39,7 @@ def check_instagram(identity, pseudo, city, keyword, picture):
     s = requests.session()
 
     if pseudo:
-        get_ig_info(pseudo)
+        get_ig_info(pseudo, s, picture)
     else:
         datas = parsing_data(identity, pseudo, city, keyword)
         for endpoint in datas:
