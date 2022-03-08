@@ -12,10 +12,10 @@
 
 ## Features
 
-- [x] Facial recognition by microsoft tool
+- [x] Facial recognition by Microsoft tool
 - [x] Email & Snapchat guessing
 - [x] Phone number information
-- [x] Holehe, Sherlock
+- [x] Holehe, Sherlock, Ignorant
 - [x] Google dork
 
 ## TODO
