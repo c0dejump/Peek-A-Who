@@ -58,20 +58,13 @@ usage: argos.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c C
 	-k KEYWORD       Keyword, the script will be based on this, exemple: -k security
 	--pic PICTURE    Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png
 ````
-
 ### Config
 
 > You can put your credentials or other config in ```config.py``` file.
 
 ## Donation
-<img src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg">
+<img src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg"> BTC : bc1qv7lxqczukam7vq626chvhfyxth9y582rpfwm8q
 
-BTC : bc1qv7lxqczukam7vq626chvhfyxth9y582rpfwm8q
+<img src="https://cdn4.iconfinder.com/data/icons/cryptocoins/227/ETH-64.png"> ETH : 0x406A1d5BE7185e045c2c19dFc493f03dB07b9006
 
-<img src="https://cdn4.iconfinder.com/data/icons/cryptocoins/227/ETH-64.png">
-
-ETH : 0x406A1d5BE7185e045c2c19dFc493f03dB07b9006
-
-<img src="https://cdn3.iconfinder.com/data/icons/logos-brands-3/24/logo_brand_brands_logos_paypal-64.png">
-                                                                                                              
-KO-FI : https://ko-fi.com/c0dejump                                                                                                            
+<img src="https://cdn4.iconfinder.com/data/icons/office-25/63/coffee-cup-64.png"> KO-FI : https://ko-fi.com/c0dejump
