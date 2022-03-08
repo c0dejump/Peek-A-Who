@@ -5,9 +5,9 @@ import sys, re
 import requests
 import time
 import traceback
-import requests
 from bs4 import BeautifulSoup
 from modules.parsing import parsing_data
+from modules.facial_recognition import face_identification
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 

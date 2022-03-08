@@ -28,18 +28,22 @@ def parsing_data(identity, pseudo, city, keyword):
         lastname = identity.split("_")[1] if identity else None
 
         bigram_lastname = "{}{}".format(lastname[0], lastname[-1])
-        trigtam_lastname = "{}".format(lastname[0:3])
+        trigram_lastname = "{}".format(lastname[0:3])
 
         list_identity = [
             "{}".format(identity), "{}".format(firstname), "{}".format(lastname),
             "{}.{}".format(firstname, lastname), "{}-{}".format(firstname, lastname), "{}{}".format(firstname, lastname),
             "{}.{}".format(lastname, firstname), "{}-{}".format(lastname, firstname), "{}{}".format(lastname, firstname),  
             "{}.{}".format(firstname, bigram_lastname), "{}-{}".format(firstname, bigram_lastname), "{}{}".format(firstname, bigram_lastname),
-            "{}.{}".format(firstname, trigtam_lastname), "{}-{}".format(firstname, trigtam_lastname), "{}{}".format(firstname, trigtam_lastname),
+            "{}.{}".format(firstname, trigram_lastname), "{}-{}".format(firstname, trigram_lastname), "{}{}".format(firstname, trigram_lastname),
             "{}.{}".format(bigram_lastname, firstname), "{}-{}".format(bigram_lastname, firstname), "{}{}".format(bigram_lastname, firstname),
             "{}_{}".format(lastname, firstname), "{}_{}".format(firstname, lastname), "_{}{}".format(firstname, lastname), "_{}{}".format(lastname, firstname),
             "{}_{}".format(firstname, bigram_lastname), "{}_{}".format(bigram_lastname, firstname), "_{}{}".format(firstname, bigram_lastname), "_{}{}".format(bigram_lastname, firstname),
-            "{}_{}".format(firstname, trigtam_lastname), "{}_{}".format(trigtam_lastname, firstname), "_{}{}".format(firstname, trigtam_lastname), "_{}{}".format(bigram_lastname, firstname),]
+            "{}_{}".format(firstname, trigram_lastname), "{}_{}".format(trigram_lastname, firstname), "_{}{}".format(firstname, trigram_lastname), "_{}{}".format(bigram_lastname, firstname),
+            "{}_{}1".format(firstname, lastname), "{}_{}1".format(lastname, firstname), 
+            "{}_{}.1".format(firstname, lastname), "{}_{}.1".format(lastname, firstname),
+            "{}_{}2".format(firstname, lastname), "{}_{}2".format(lastname, firstname),
+            "{}_{}.2".format(firstname, lastname), "{}_{}.2".format(lastname, firstname),]
         for li in list_identity:
             endpoints.append(li)
     if city and pseudo:

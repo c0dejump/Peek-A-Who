@@ -13,7 +13,6 @@
 ## Features
 
 - [x] Facial recognition by microsoft tool
-- [x] Sraping Facebook, linkedin, whitepage (pageblanche FR) [In progress]
 - [x] Email & Snapchat guessing
 - [x] Phone number information
 - [x] Holehe, Sherlock
@@ -21,7 +20,9 @@
 
 ## TODO
 
-- [ ] Scraping Instagram, TikTok...
+- [ ] Sraping Facebook, linkedin, whitepage (pageblanche FR), Instagram... [In progress]
+- [ ] Checking qualifications/graduation
+- [ ] OCR
 - [ ] Image template matching
 - [ ] Exif Image
 - [ ] Reduce FP number with connections
@@ -43,4 +44,4 @@ ETH : 0x406A1d5BE7185e045c2c19dFc493f03dB07b9006
 
 <img src="https://cdn3.iconfinder.com/data/icons/logos-brands-3/24/logo_brand_brands_logos_paypal-64.png">
                                                                                                               
-PAYPAL :                                                                                                              
+KO-FI : https://ko-fi.com/c0dejump                                                                                                            
