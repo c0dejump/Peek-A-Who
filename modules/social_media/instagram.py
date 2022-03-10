@@ -1,40 +1,82 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys, re
+import sys, re, os
 import requests
 import time
 import traceback
 from bs4 import BeautifulSoup
+
+from output import raw_output
 from modules.parsing import parsing_data
 from modules.facial_recognition import face_identification
+
+try:
+    from Queue import Queue
+except:
+    import queue as Queue
+import threading
+from threading import Thread
+
+try:
+    enclosure_queue = Queue()
+except:
+    enclosure_queue = Queue.Queue()
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 
-def get_ig_info(pseudo, s, picture):
-    url = "https://www.anonigviewer.com/profile.php?u={}".format(pseudo)
-    req_ig = s.get(url, verify=False, timeout=15)
-    if "Followers" in req_ig.text:
-        soup = BeautifulSoup(req_ig.text, "html.parser")
-        find_pic = soup.find('img', {'class': 'user-img'})
-        find_name = soup.find('div', {'class': re.compile(r'user-name*')})
-        find_desc = soup.find('p', {'class': re.compile(r'color-999*')})
-        print(""" \033[32m\u251c {}\033[0m Instagram username seem exit with on https://www.instagram.com/{}:
-    \u251c Real name: {}
-    \u251c Description: {}
-                """.format(pseudo, pseudo, find_name.text.replace("\n",""), find_desc.text if find_desc else "None"))
-        if picture:
-            img_data = requests.get(find_pic.text, verify=False).content
-            with open("{}/{}.jpg".format(dir_name, account.split("/")[1]), 'wb') as handler:
-                handler.write(img_data)
-            fid = face_identification(picture, "{}/{}.jpg".format(dir_name, account.split("/")[1]))
-            if fid:
-                print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
+def get_ig_info(i, q, s, city, keyword, picture):
+    global bar
+    bar = 0
+    for d in range(len_datas):
+        pseudo = q.get()
+        url = "https://www.anonigviewer.com/profile.php?u={}".format(pseudo)
+        try:
+            req_ig = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
+            if "user-img" in req_ig.text:
+                soup = BeautifulSoup(req_ig.text, "html.parser")
+
+                find_pic = soup.find('img', {'class': 'user-img'})
+                find_name = soup.find('div', {'class': re.compile(r'user-name*')})
+                find_desc = soup.find('p', {'class': re.compile(r'color-999*')})
+                real_name = find_name.text.replace("\n","")
+                desc = find_desc.text if find_desc else "None"
+
+                # filters
+                city = city.lower() if city else "n/a"
+                keyword = keyword.lower() if keyword else "n/a"
+                if city in desc.lower() or keyword in desc.lower():
+                    desc = "\033[32m{}\033[0m".format(desc)
+                if city in real_name.lower() or keyword in real_name.lower():
+                    real_name = "\033[32m{}\033[0m".format(real_name)
+
+                print(" \033[32m\u251c {}\033[0m Instagram username seem exit with on https://www.instagram.com/{}:".format(pseudo, pseudo))
+                print("   \u251c Real name: {}".format(real_name))
+                print("   \u251c Description: {}".format(desc))
+
+                if picture:
+                    img_data = requests.get(find_pic.text, verify=False).content
+                    with open("{}/{}.jpg".format(dir_name, account.split("/")[1]), 'wb') as handler:
+                        handler.write(img_data)
+                    fid = face_identification(picture, "{}/{}.jpg".format(dir_name, account.split("/")[1]))
+                    if fid:
+                        print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
+        except:
+            #traceback.print_exc()
+            pass
+        bar += 1
+        sys.stdout.write(" {}/{} | https://www.instagram.com/{} \r".format(bar, len_datas, pseudo))
+        q.task_done()
+
+
 
 def check_instagram(identity, pseudo, city, keyword, picture):
     print("\033[36m Instagram search\033[0m")
     print("\033[36m-\033[0m"*30)
+
+    global len_datas
+    len_datas = 0
 
     s = requests.session()
 
@@ -42,8 +84,23 @@ def check_instagram(identity, pseudo, city, keyword, picture):
         get_ig_info(pseudo, s, picture)
     else:
         datas = parsing_data(identity, pseudo, city, keyword)
-        for endpoint in datas:
-            get_ig_info(endpoint, s, picture)
+        for n in datas:
+            len_datas += 1
+        try:
+            #print(emails_for_verification)
+            for endpoint in datas:
+                enclosure_queue.put(endpoint)
+            for i in range(10):
+                worker = Thread(target=get_ig_info, args=(i, enclosure_queue, s, city, keyword, picture))
+                worker.setDaemon(True)
+                worker.start()
+            enclosure_queue.join()
+        except KeyboardInterrupt:
+            print(" Canceled by keyboard interrupt (Ctrl-C)")
+            sys.exit()
+        except Exception:
+            traceback.print_exc()
+            #pass
     print("\033[36m-\033[0m"*30)
 
 

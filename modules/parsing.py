@@ -39,11 +39,13 @@ def parsing_data(identity, pseudo, city, keyword):
             "{}.{}".format(bigram_lastname, firstname), "{}-{}".format(bigram_lastname, firstname), "{}{}".format(bigram_lastname, firstname),
             "{}_{}".format(lastname, firstname), "{}_{}".format(firstname, lastname), "_{}{}".format(firstname, lastname), "_{}{}".format(lastname, firstname),
             "{}_{}".format(firstname, bigram_lastname), "{}_{}".format(bigram_lastname, firstname), "_{}{}".format(firstname, bigram_lastname), "_{}{}".format(bigram_lastname, firstname),
-            "{}_{}".format(firstname, trigram_lastname), "{}_{}".format(trigram_lastname, firstname), "_{}{}".format(firstname, trigram_lastname), "_{}{}".format(bigram_lastname, firstname),
-            "{}_{}1".format(firstname, lastname), "{}_{}1".format(lastname, firstname), 
+            "{}_{}".format(firstname, trigram_lastname), "{}_{}".format(trigram_lastname, firstname), "_{}{}".format(firstname, trigram_lastname), "_{}{}".format(bigram_lastname, firstname)]
+        """
+             {}_{}1".format(firstname, lastname), "{}_{}1".format(lastname, firstname), 
             "{}_{}.1".format(firstname, lastname), "{}_{}.1".format(lastname, firstname),
             "{}_{}2".format(firstname, lastname), "{}_{}2".format(lastname, firstname),
-            "{}_{}.2".format(firstname, lastname), "{}_{}.2".format(lastname, firstname),]
+            "{}_{}.2".format(firstname, lastname), "{}_{}.2".format(lastname, firstname)] ==> useful?
+            """
         for li in list_identity:
             endpoints.append(li)
     if city and pseudo:

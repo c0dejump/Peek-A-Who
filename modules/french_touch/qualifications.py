@@ -1,0 +1,67 @@
+#! /usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import sys
+import requests
+import time
+import traceback
+import json
+from bs4 import BeautifulSoup
+
+requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+
+
+def get_infos(diplomas_type, identity, url, candidate, city, keyword):
+    print(" \033[32m\u251c {}\033[0m {} diplomas found: {}".format(identity, diplomas_type, url))
+
+    for c in candidate:
+        citylabel = c["cityLabel"] if "cityLabel" in c else "None"
+        academy = c["link"].split("/")[1] if "link" in c else "None"
+
+        if city:
+            if city.lower() == citylabel.lower():
+               citylabel = "\033[32m{}\033[0m".format(citylabel)
+        if keyword:
+            if keyword.lower() in citylabel:
+                citylabel = "\033[32m{}\033[0m".format(citylabel)
+            if keyword.lower() in academy:
+                academy = "\033[32m{}\033[0m".format(academy)
+        print("   \u251c Name: {}".format(c["name"]))
+        print("   \u251c City: {}".format(citylabel))
+        print("   \u251c Academy: {}".format(academy))
+
+
+
+def brevet(identity, city, keyword, s):
+    diplomas_type = "Brevet"
+    for year in range(2015,2022):
+        url = "https://search-candidate.linternaute.com/brevet/{}/1?candidate-name={}".format(year, identity.replace("_","%20"))
+        req = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
+        res = json.loads(req.text)
+        candidate = res["candidates"]
+        if candidate != []:
+            get_infos(diplomas_type, identity, url, candidate, city, keyword)
+
+def bac(identity, city, keyword, s):
+    diplomas_type = "Bac"
+    for year in range(2015,2022):
+        url = "https://search-candidate.linternaute.com/bac/{}/1?candidate-name={}".format(year, identity.replace("_","%20"))
+        req = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
+        res = json.loads(req.text)
+        candidate = res["candidates"]
+        if candidate != []:
+            get_infos(diplomas_type, identity, url, candidate, city, keyword)
+
+
+def qualifications_actions(identity, city, keyword):
+    print("\033[36m Qualifications search \033[0m")
+    print("\033[36m-\033[0m"*30)
+    s = requests.session()
+    brevet(identity, city, keyword, s)
+    bac(identity, city, keyword, s)
+    print("\033[36m-\033[0m"*30)
+
+
+if __name__ == '__main__':
+    identity = "hylel_belarbi"
+    run_actions(identity)

@@ -98,5 +98,6 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture):
                     print(" [-] No account found with this pseudo\n")
             else:
                 print(" [-] No account found with this pseudo\n")
+        print("\033[36m-\033[0m"*30)
     else:
-        print("\033[36m Facebook search with account \033[0m")
+        print("\033[36m Facebook search with account #TODO\033[0m")

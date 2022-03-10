@@ -17,22 +17,21 @@
 - [x] Phone number information
 - [x] Holehe, Sherlock, Ignorant
 - [x] Google dork
+- [x] Checking qualifications/graduation (etudiant.aujourdhui.fr)
 
 ## TODO
 
 - [ ] Sraping Facebook, linkedin, whitepage (pageblanche FR), Instagram... [In progress]
-- [ ] Checking qualifications/graduation (etudiant.aujourdhui.fr)
+- [ ] Do links/connection (same age/city...) (Reduce FP number)
 - [ ] OCR
 - [ ] Image template matching
 - [ ] Exif Image
-- [ ] Reduce FP number with connections
 
 ## TODO Scraping sites:
 - [ ] https://copainsdavant.linternaute.com/
 - [ ] Apple music, spotify, youtube, twitch, deezer, 
 - [ ] annuaire, societe.com, Airbnb (like), 
 - [ ] telegram.me, vk.com, steam
-- [ ] https://resultat-brevet.linternaute.com/
 
 ## Tools used
 
@@ -54,7 +53,7 @@ usage: argos.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c C
 	-p PSEUDO        Pseudo, exemple: -p codejump
 > Assistance:
     -c CITY          City adress, exemple: -c Paris
-	-b BIRTH_YEAR    birth year, exemple: -b 1999 (yeah my birth year)
+	-b BIRTH_YEAR    birth year, exemple: -b 1999
 	-k KEYWORD       Keyword, the script will be based on this, exemple: -k security
 	--pic PICTURE    Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png
 ````

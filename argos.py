@@ -16,7 +16,7 @@ from PIL import Image
 #external modules
 from static.banner import banner
 from modules import google_search, phone_number
-from modules.french_touch import whitepage
+from modules.french_touch import whitepage, qualifications
 from modules.social_media import facebook, linkedin, snapchat, tiktok, instagram
 from modules.email import mail_search, email_guesser
 
@@ -29,7 +29,8 @@ def run_modules():
     #google_search.google_s(identity, phone_n, mail, pseudo, city)
     if identity:
         #facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
-        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        qualifications.qualifications_actions(identity, city, keyword)
+        #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
         tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
         instagram.check_instagram(identity, pseudo, city, keyword, picture)
         whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
@@ -40,6 +41,7 @@ def run_modules():
         snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
         tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
         instagram.check_instagram(identity, pseudo, city, keyword, picture)
+        email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
         print("\033[36m Pseudo search \033[0m")
         print("\033[36m-\033[0m"*30)
         try:
@@ -52,7 +54,6 @@ def run_modules():
         except Exception:
             #pass
             traceback.print_exc()
-        email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if mail:
         mail_search.mail_actions(mail, dir_name)
     if phone_n:
@@ -68,14 +69,14 @@ def resume():
     print("""
  \033[36m Pseudo:           \033[0m {}       
  \033[36m Identity:         \033[0m {} {}
- \033[36m Phone number:     \033[0m {}
  \033[36m Mail adress:      \033[0m {}
- \033[36m City adress:      \033[0m {}
+ \033[36m Phone number:     \033[0m {}
  \033[36m Birth year:       \033[0m {}
+ \033[36m City adress:      \033[0m {}
+ \033[36m Keyword:          \033[0m {}
 
-\033[31m____________________________________________\033[0m
-    """.format(pseudo if pseudo else "N/A", firstname if firstname else "N/A", lastname if lastname else "", phone_n if phone_n else "N/A", 
-        mail if mail else "N/A", city if city else "N/A", birth_year if birth_year else "N/A"))
+\033[35m____________________________________________\033[0m
+    """.format("\033[32m{}\033[0m".format(pseudo) if pseudo else "N/A", "\033[32m{}\033[0m".format(firstname) if firstname else "N/A", "\033[32m{}\033[0m".format(lastname) if lastname else "", "\033[32m{}\033[0m".format(mail) if mail else "N/A","\033[32m{}\033[0m".format(phone_n) if phone_n else "N/A", "\033[32m{}\033[0m".format(birth_year) if birth_year else "N/A", "\033[32m{}\033[0m".format(city) if city else "N/A", "\033[32m{}\033[0m".format(keyword) if keyword else "N/A"))
 
 
 if __name__ == '__main__':
