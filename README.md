@@ -21,6 +21,7 @@
 
 ## TODO
 
+- [ ] Ghunt
 - [ ] Sraping Facebook, linkedin, whitepage (pageblanche FR), Instagram... [In progress]
 - [ ] Do links/connection (same age/city...) (Reduce FP number) [In progress]
 - [ ] OCR
@@ -30,14 +31,15 @@
 ## TODO Scraping sites:
 - [ ] https://copainsdavant.linternaute.com/
 - [ ] Apple music (https://iforgot.apple.com/appleid), spotify, youtube, twitch, deezer, discord 
-- [ ] annuaire, societe.com, Airbnb (like), 
+- [ ] annuaire, societe.com, Airbnb (like), fitbit
 - [ ] telegram.me, vk.com, steam
 
 ## Tools used
 
-- Holehe
-- Sherlock
-- Ignorant
+- Holehe (https://github.com/megadose/holehe)
+- Sherlock (https://github.com/sherlock-project/sherlock)
+- Ignorant (https://github.com/megadose/ignorant)
+- Ghunt (https://github.com/mxrch/GHunt)
 
 ## Usage
 

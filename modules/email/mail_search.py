@@ -4,6 +4,8 @@
 import os
 import requests
 
+#TODO Ghunt
+
 def mail_site(mail_adress, dir_name):
     os.system("holehe {} --only-used --no-color --no-clear >> {}/site_use_by_mail.txt".format(mail_adress, dir_name))
     with open("{}/site_use_by_mail.txt".format(dir_name), "r") as sites:

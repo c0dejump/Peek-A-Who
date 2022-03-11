@@ -6,9 +6,15 @@ import requests
 import time
 import traceback
 import json
+import datetime
 from bs4 import BeautifulSoup
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+
+currentDateTime = datetime.datetime.now()
+date = currentDateTime.date()
+global actual_year
+actual_year = date.year
 
 
 def get_infos(diplomas_type, identity, url, candidate, city, keyword):
@@ -29,12 +35,14 @@ def get_infos(diplomas_type, identity, url, candidate, city, keyword):
         print("   \u251c Name: {}".format(c["name"]))
         print("   \u251c City: {}".format(citylabel))
         print("   \u251c Academy: {}".format(academy))
+        if diplomas_type == "Bac":
+            print("   \u251c Type: {}".format(c["diplomaSerieLabel"]))   
 
 
 
 def brevet(identity, city, keyword, s):
     diplomas_type = "Brevet"
-    for year in range(2015,2022):
+    for year in range(2015,actual_year):
         url = "https://search-candidate.linternaute.com/brevet/{}/1?candidate-name={}".format(year, identity.replace("_","%20"))
         req = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
         res = json.loads(req.text)
@@ -44,7 +52,7 @@ def brevet(identity, city, keyword, s):
 
 def bac(identity, city, keyword, s):
     diplomas_type = "Bac"
-    for year in range(2015,2022):
+    for year in range(2015,actual_year):
         url = "https://search-candidate.linternaute.com/bac/{}/1?candidate-name={}".format(year, identity.replace("_","%20"))
         req = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
         res = json.loads(req.text)
