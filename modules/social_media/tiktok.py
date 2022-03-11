@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 
 from output import raw_output
 from modules.parsing import parsing_data
-from modules.facial_recognition import face_identification
+from modules.image_analysis.facial_recognition import face_identification
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 

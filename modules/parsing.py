@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 
 
 def get_postal_code(city):
+    # If the principal website dosn't work: https://www.dcode.fr/post-code-france
     url_geocode = "http://geofree.fr/gf/zipfinder.asp"
     datas = {"todo": "2", "runok": "1", "isdom": "0", "town": "{}".format(city), "deptnb": '', "rgroup1": ''}
     req_geo = requests.post(url_geocode, data=datas, verify=False)

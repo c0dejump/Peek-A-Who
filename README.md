@@ -22,14 +22,14 @@
 ## TODO
 
 - [ ] Sraping Facebook, linkedin, whitepage (pageblanche FR), Instagram... [In progress]
-- [ ] Do links/connection (same age/city...) (Reduce FP number)
+- [ ] Do links/connection (same age/city...) (Reduce FP number) [In progress]
 - [ ] OCR
 - [ ] Image template matching
 - [ ] Exif Image
 
 ## TODO Scraping sites:
 - [ ] https://copainsdavant.linternaute.com/
-- [ ] Apple music, spotify, youtube, twitch, deezer, 
+- [ ] Apple music (https://iforgot.apple.com/appleid), spotify, youtube, twitch, deezer, discord 
 - [ ] annuaire, societe.com, Airbnb (like), 
 - [ ] telegram.me, vk.com, steam
 

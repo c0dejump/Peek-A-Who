@@ -8,10 +8,11 @@ import traceback
 from bs4 import BeautifulSoup
 from config import FB_USERNAME, FB_PASSWORD
 from output import raw_output
-from modules.facial_recognition import face_identification
+from modules.image_analysis.facial_recognition import face_identification
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
+#TODO fuckfacebook
 
 def check_facial_reco(dir_name, account, picture):
     get_profile = requests.get("https://www.facebook.com{}".format(account), verify=False)
@@ -24,7 +25,7 @@ def check_facial_reco(dir_name, account, picture):
         handler.write(img_data)
     fid = face_identification(picture, "{}/{}.jpg".format(dir_name, account.split("/")[1]))
     if fid:
-        print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
+        print("     \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
 
 
 def get_facebook_id(account):

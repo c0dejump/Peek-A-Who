@@ -30,7 +30,7 @@ def run_modules():
     if identity:
         #facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
         qualifications.qualifications_actions(identity, city, keyword)
-        #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
         tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
         instagram.check_instagram(identity, pseudo, city, keyword, picture)
         whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)

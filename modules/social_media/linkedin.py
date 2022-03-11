@@ -8,7 +8,7 @@ import traceback
 
 from linkedin_api import Linkedin
 from config import LINKEDIN_USERNAME, LINKEDIN_PASSWORD
-from modules.facial_recognition import face_identification
+from modules.image_analysis.facial_recognition import face_identification
 
 
 #LINKEDIN_USERNAME = "codejumpdev@gmail.com"
@@ -76,7 +76,7 @@ def linkedin_scraping(url, picture, dir_name, username=False):
                 if picture:
                     glp = get_linkedin_picture(profile, picture, dir_name, linkedin_user)
                     if glp:
-                        print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(linkedin_user))
+                        print("     \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(linkedin_user))
             else:
                 pass
         except:
