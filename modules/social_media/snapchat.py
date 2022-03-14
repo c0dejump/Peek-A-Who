@@ -8,6 +8,7 @@ import time
 import traceback
 from bs4 import BeautifulSoup
 
+from static.colors import info, match, p_match, no_match, error, separator
 from output import raw_output
 from modules.parsing import parsing_data
 
@@ -25,7 +26,7 @@ def get_snapchat(endpoint, s):
         try:
             find_name = soup.find('span', {'class': re.compile(r'UserDetailsCard_title*')})
             if find_name.text:
-                print(" \033[32m\u251c {}\033[0m snapchat username seem exit with real name {} on https://www.snapchat.com/add/{}".format(endpoint, "\033[32m{}\033[0m".format(find_name.text), endpoint))
+                print(" {}\033[33m{}\033[0m snapchat seem exist with real name {} on https://www.snapchat.com/add/{}".format(p_match, endpoint, "\033[33m{}\033[0m".format(find_name.text), endpoint))
             else:
                 pass
         except AttributeError:
@@ -36,7 +37,7 @@ def get_snapchat(endpoint, s):
 def parse_snapchat_username(identity, pseudo, city, keyword):
 
     print("\033[36m Snapchat search\033[0m")
-    print("\033[36m-\033[0m"*30)
+    print(separator)
     
     s = requests.session()
 
@@ -48,7 +49,7 @@ def parse_snapchat_username(identity, pseudo, city, keyword):
         datas = parsing_data(identity, pseudo, city, keyword)
         for endpoint in datas:
             get_snapchat(endpoint, s)
-    print("\033[36m-\033[0m"*30)
+    print(separator)
 
 
 

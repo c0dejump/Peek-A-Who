@@ -6,6 +6,7 @@ import requests
 import time
 import traceback
 
+from static.colors import info, match, p_match, no_match, error, separator
 from linkedin_api import Linkedin
 from config import LINKEDIN_USERNAME, LINKEDIN_PASSWORD
 from modules.image_analysis.facial_recognition import face_identification
@@ -84,19 +85,19 @@ def linkedin_scraping(url, picture, dir_name, username=False):
             pass
     except:
         traceback.print_exc() #DEBUG
-        print(" [i] This module need to login for search informations, please define it config.py")
+        print(" {}This module need to login for search informations, please define it config.py".format(info))
 
 
 def linkedin_parsing(firstname, lastname, dir_name, picture):
     print("\033[36m Linkedin search \033[0m")
-    print("\033[36m-\033[0m"*30)
+    print(separator)
     list_user = [
     "{}{}".format(firstname, lastname), "{}-{}".format(firstname, lastname), "{}.{}".format(firstname, lastname),
     "{}{}".format(lastname, firstname), "{}-{}".format(lastname, firstname), "{}.{}".format(lastname, firstname)
     ]
     for u in list_user:
         linkedin_scraping(u, picture, dir_name, True)
-    print("\033[36m-\033[0m"*30)
+    print(separator)
 
 
 if __name__ == '__main__':

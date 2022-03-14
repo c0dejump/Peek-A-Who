@@ -3,11 +3,13 @@
 
 import os
 import requests
+
+from static.colors import info, match, p_match, no_match, error, separator
 from bs4 import BeautifulSoup
 
 def skypli(phone_number, dir_name):
     print("Searching Skype users")
-    print("\033[36m-\033[0m"*30)
+    print(separator)
     
     url = "https://www.skypli.com/search/{}".format(phone_number) 
     print(url)

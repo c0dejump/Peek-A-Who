@@ -8,6 +8,7 @@ import traceback
 import json
 from bs4 import BeautifulSoup
 
+from static.colors import info, match, p_match, no_match, error, separator
 from output import raw_output
 from modules.parsing import parsing_data
 from modules.image_analysis.facial_recognition import face_identification
@@ -43,17 +44,28 @@ url_tiktok = "https://www.tiktok.com/node/share/user/@{}".format(endpoint)
 def get_tiktok(endpoint, city, keyword, s):
     url_tiktok = "https://www.tiktok.com/@{}".format(endpoint)
     req_tiktok = s.get(url_tiktok, verify=False, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
+
+    matching = False
+
     if req_tiktok.status_code not in [404, 403, 401]:
         soup = BeautifulSoup(req_tiktok.text, "html.parser")
         find_name = soup.find('h1', {'data-e2e': 'user-subtitle'})
         description = soup.find('h2', {'data-e2e': 'user-bio'})
         site = soup.find('span', {'class': re.compile(r'tiktok-847r2g-SpanLink*')})
         desc = description.text.replace("\n", " ")
+
         if city:
-            desc = "\033[32m{}\033[0m".format(desc) if city.lower() in desc.lower() else desc
+            if city.lower() in desc.lower():
+                desc = "\033[32m{}\033[0m".format(desc)
+                matching = True
         if keyword:
-            desc = "\033[32m{}\033[0m".format(desc) if keyword.lower() in desc.lower() else desc
-        print(" \033[32m\u251c {}\033[0m TikTok username seem exit with on https://www.tiktok.com/@{}:".format(endpoint, endpoint))
+            if keyword.lower() in desc.lower():
+                desc = "\033[32m{}\033[0m".format(desc)
+                matching = True
+        if not matching:
+            print(" {}\033[33m{}\033[0m TikTok seem exist with on https://www.tiktok.com/@{}:".format(p_match, endpoint, endpoint))
+        else:
+            print(" {}\033[32m{}\033[0m TikTok seem exist with on https://www.tiktok.com/@{}:".format(match, endpoint, endpoint))
         print("   \u251c Real name: {}".format(find_name.text if find_name.text else "\033[31mNone\033[0m"))
         print("   \u251c Description: {}".format(desc))
         print("   \u251c Site: {}".format(site.text if site else "None"))
@@ -62,7 +74,7 @@ def get_tiktok(endpoint, city, keyword, s):
 def tiktok_username(identity, pseudo, city, keyword, picture):
 
     print("\033[36m TikTok search\033[0m")
-    print("\033[36m-\033[0m"*30)
+    print(separator)
     
     s = requests.session()
 
@@ -72,7 +84,7 @@ def tiktok_username(identity, pseudo, city, keyword, picture):
         datas = parsing_data(identity, pseudo, city, keyword)
         for endpoint in datas:
             get_tiktok(endpoint, city, keyword, s)
-    print("\033[36m-\033[0m"*30)
+    print(separator)
 
 
 if __name__ == '__main__':

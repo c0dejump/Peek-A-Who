@@ -8,12 +8,11 @@ import traceback
 from googlesearch import search 
 from config import max_search, stop_search
 
+from static.colors import info, match, p_match, no_match, error, separator
 from modules.social_media.linkedin import linkedin_scraping
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
-
-WARNING = "[!] "
 
 def google_s(identity, phone_n, mail, pseudo, city):
     """
@@ -21,7 +20,7 @@ def google_s(identity, phone_n, mail, pseudo, city):
     """
     args = locals()
     print("\033[36m Google search \033[0m")
-    print("\033[36m-\033[0m"*30)
+    print(separator)
 
     queries = []
 
@@ -55,7 +54,7 @@ def google_s(identity, phone_n, mail, pseudo, city):
                         print(" \033[31m[{}]\033[0m {}".format(req_url_found.status_code, j))
                 except:
                     #traceback.print_exc() #DEBUG
-                    print("  {}Error with URL {}".format(WARNING, j))
+                    print("  {}Error with URL {}".format(error, j))
             print("")
     except:
-        print("\033[31m {}Google captcha seem to be activated, try it later...\n\033[0m".format(WARNING))
+        print("\033[31m {}Google captcha seem to be activated, try it later...\n\033[0m".format(error))

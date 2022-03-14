@@ -11,6 +11,8 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import random
+
+from static.colors import info, match, error, separator
 from validate_email_address import validate_email
 
 try:
@@ -148,7 +150,7 @@ def email_validation(i, q, requestPwnedStartTimer, s):
 def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
 
     print("\033[36m Email search\033[0m")
-    print("\033[36m-\033[0m"*30)
+    print(separator)
 
     global identity
     identity = "{}_{}".format(firstname, lastname) if firstname and lastname else None
@@ -335,19 +337,6 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
             #traceback.print_exc()
 
 
-    if len(final_emails) != 0:
-        # Show user all e-mails that were found on skype or pwned
-        print("")
-        print("-------------------------------------")
-        print("")
-        print("Emails found:\n")
-        for finalEmail in final_emails:
-            if lastname in finalEmail:
-                print(finalEmail)
-    else:
-        print(red + "No e-mails leaking found " + reset)
-
-
         # Search Skype based on name and surname input to find hidden e-mail addresses
     if skype_input == "y":
         print("")
@@ -406,7 +395,7 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
                             structure.append(test_text)
             else:
                 print("No results on Skype for this name!")
-    print("\033[36m-\033[0m"*30)
+    print(separator)
 
 
 if __name__ == '__main__':

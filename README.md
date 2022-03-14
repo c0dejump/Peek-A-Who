@@ -27,6 +27,7 @@
 - [ ] OCR
 - [ ] Image template matching
 - [ ] Exif Image
+- [ ] Multiple keywords
 
 ## TODO Scraping sites:
 - [ ] https://copainsdavant.linternaute.com/

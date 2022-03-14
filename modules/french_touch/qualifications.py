@@ -9,6 +9,8 @@ import json
 import datetime
 from bs4 import BeautifulSoup
 
+from static.colors import info, match, p_match, no_match, error, separator
+
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 currentDateTime = datetime.datetime.now()
@@ -18,7 +20,9 @@ actual_year = date.year
 
 
 def get_infos(diplomas_type, identity, url, candidate, city, keyword):
-    print(" \033[32m\u251c {}\033[0m {} diplomas found: {}".format(identity, diplomas_type, url))
+    #print(" {}\033[33m{}\033[0m {} diplomas found: {}".format(p_match, identity, diplomas_type, url))
+
+    matching = False
 
     for c in candidate:
         citylabel = c["cityLabel"] if "cityLabel" in c else "None"
@@ -27,16 +31,25 @@ def get_infos(diplomas_type, identity, url, candidate, city, keyword):
         if city:
             if city.lower() == citylabel.lower():
                citylabel = "\033[32m{}\033[0m".format(citylabel)
+               matching = True
         if keyword:
             if keyword.lower() in citylabel:
                 citylabel = "\033[32m{}\033[0m".format(citylabel)
+                matching = True
             if keyword.lower() in academy:
                 academy = "\033[32m{}\033[0m".format(academy)
+                matching = True 
+
+        if not matching:
+            print(" {}\033[33m{}\033[0m {} diplomas found: {}".format(p_match, identity, diplomas_type, url))
+        else:
+            print(" {}\033[32m{}\033[0m {} diplomas found: {}".format(match, identity, diplomas_type, url))
         print("   \u251c Name: {}".format(c["name"]))
         print("   \u251c City: {}".format(citylabel))
         print("   \u251c Academy: {}".format(academy))
         if diplomas_type == "Bac":
             print("   \u251c Type: {}".format(c["diplomaSerieLabel"]))   
+        print("")
 
 
 
@@ -63,11 +76,11 @@ def bac(identity, city, keyword, s):
 
 def qualifications_actions(identity, city, keyword):
     print("\033[36m Qualifications search \033[0m")
-    print("\033[36m-\033[0m"*30)
+    print(separator)
     s = requests.session()
     brevet(identity, city, keyword, s)
     bac(identity, city, keyword, s)
-    print("\033[36m-\033[0m"*30)
+    print(separator)
 
 
 if __name__ == '__main__':

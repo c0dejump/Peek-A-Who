@@ -15,6 +15,7 @@ from PIL import Image
 
 #external modules
 from static.banner import banner
+from static.colors import info, match, error
 from modules import google_search, phone_number
 from modules.french_touch import whitepage, qualifications
 from modules.social_media import facebook, linkedin, snapchat, tiktok, instagram
@@ -120,12 +121,12 @@ if __name__ == '__main__':
 
     if picture:
         if not os.path.isfile(picture):
-            print("The image seem not exist")
+            print(" {}The image seem not exist".format(error))
             sys.exit()
         image_size = Image.open(picture)
         width, height = image_size.size
         if width <= 200 or height <= 200:
-            print("The size of the image is too small: width: {} / height: {}".format(width, height))
+            print(" {}The size of the image is too small: width: {} / height: {}".format(error, width, height))
             sys.exit()
 
     firstname = identity.split("_")[0] if identity else None

@@ -10,7 +10,7 @@ def get_postal_code(city):
     # If the principal website dosn't work: https://www.dcode.fr/post-code-france
     url_geocode = "http://geofree.fr/gf/zipfinder.asp"
     datas = {"todo": "2", "runok": "1", "isdom": "0", "town": "{}".format(city), "deptnb": '', "rgroup1": ''}
-    req_geo = requests.post(url_geocode, data=datas, verify=False)
+    req_geo = requests.post(url_geocode, data=datas, verify=False, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
     soup = BeautifulSoup(req_geo.text, "html.parser")
     find_geocode = soup.find("td", {"bgcolor":"#CCCCCC"})
     if find_geocode and not "exactement" in find_geocode:
