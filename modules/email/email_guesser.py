@@ -37,7 +37,7 @@ yellow = "\033[33m"
 reset = "\033[39m"
 
 # User input about all domains to be searched
-domain = ["gmail.com", "hotmail.com", "orange.fr", "yopmail.com", "protonmail.com"] #"yahoo.com", "free.fr" dosn't seem work
+domain = ["gmail.com", "hotmail.com", "orange.fr", "yopmail.com", "protonmail.com", "msn.com", "icloud.com"] #"yahoo.com", "free.fr" dosn't seem work
 
 # Lists with which we will work during the script
 emails = []

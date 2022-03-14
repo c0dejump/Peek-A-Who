@@ -30,12 +30,12 @@ def run_modules():
     #google_search.google_s(identity, phone_n, mail, pseudo, city)
     if identity:
         #facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
-        qualifications.qualifications_actions(identity, city, keyword)
-        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
-        tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
-        instagram.check_instagram(identity, pseudo, city, keyword, picture)
-        whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
-        linkedin.linkedin_parsing(firstname, lastname, dir_name, picture=picture)
+        #qualifications.qualifications_actions(identity, city, keyword)
+        #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        #tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
+        #instagram.check_instagram(identity, pseudo, city, keyword, picture)
+        #whitepage.whitepage_search(dir_name, firstname=firstname, lastname=lastname, city=city)
+        #linkedin.linkedin_parsing(firstname, lastname, dir_name, picture=picture)
         email_guesser.emails_guess(firstname=firstname, lastname=lastname, pseudo=pseudo, birth_year=birth_year, keyword=keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
@@ -139,11 +139,14 @@ if __name__ == '__main__':
         os.makedirs(dir_name)
         run_modules()
     else:
-        finish_sorting = input("Have you finished sorting the information ? [y/n] ")
+        """
+        #TODO for futur
+        #finish_sorting = input("Have you finished sorting the information ? [y/n] ")
         if finish_sorting == "Y" or finish_sorting == "y":
             print("ok")
             run_modules()
             #re-running scan with the known informations
         else:
             print("Ok no problem")
-            run_modules()
+            run_modules()"""
+        run_modules()
