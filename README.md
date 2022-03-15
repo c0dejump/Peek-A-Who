@@ -2,9 +2,7 @@
 
 ![alt tag](https://github.com/c0dejump/Argos_dev/blob/master/static/Logo_Argos.png)
 
-<img src="https://img.shields.io/badge/-Disclaimer-red">       
-
-*Argos developers are not responsible for misuse or abuse of the tool, this is the responsibility of the end user.*
+<img src="https://img.shields.io/badge/Disclaimer-Argos developers are not responsible for misuse or abuse of the tool, this is the responsibility of the end user-red.svg">
 
 ---
 
@@ -21,7 +19,7 @@
 
 ## TODO
 
-- [ ] Ghunt
+- [ ] Ghunt, phomber
 - [ ] Sraping Facebook, linkedin, whitepage (pageblanche FR), Instagram... [In progress]
 - [ ] Do links/connection (same age/city...) (Reduce FP number) [In progress]
 - [ ] OCR
