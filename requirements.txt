@@ -14,3 +14,8 @@ validate_email_address
 queuelib
 ignorant
 py3DNS
+phonenumbers
+progressbar
+mechanize
+tqdm
+opencage

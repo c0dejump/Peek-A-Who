@@ -29,9 +29,12 @@ def get_infos(diplomas_type, identity, url, candidate, city, keyword):
         academy = c["link"].split("/")[1] if "link" in c else "None"
 
         if city:
-            if city.lower() == citylabel.lower():
+            if city.lower() in citylabel.lower():
                citylabel = "\033[32m{}\033[0m".format(citylabel)
                matching = True
+            if city.lower() in academy:
+                academy = "\033[32m{}\033[0m".format(academy)
+                matching = True 
         if keyword:
             if keyword.lower() in citylabel:
                 citylabel = "\033[32m{}\033[0m".format(citylabel)

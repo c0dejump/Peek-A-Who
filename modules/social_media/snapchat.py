@@ -26,7 +26,7 @@ def get_snapchat(endpoint, s):
         try:
             find_name = soup.find('span', {'class': re.compile(r'UserDetailsCard_title*')})
             if find_name.text:
-                print(" {}\033[33m{}\033[0m snapchat seem exist with real name {} on https://www.snapchat.com/add/{}".format(p_match, endpoint, "\033[33m{}\033[0m".format(find_name.text), endpoint))
+                print(" {}\033[33m{}\033[0m Username seem exist with real name {} on https://www.snapchat.com/add/{}".format(p_match, endpoint, "\033[33m{}\033[0m".format(find_name.text), endpoint))
             else:
                 pass
         except AttributeError:

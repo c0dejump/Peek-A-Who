@@ -98,6 +98,7 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture):
                         account = "/{}".format(pseudo)
                         check_facial_reco(dir_name, account, picture)
                 except:
+                    #traceback.print_exc() #DEBUG
                     print(" {}No account found with this pseudo\n".format(no_match))
             else:
                 print(" {}No account found with this pseudo\n".format(no_match))

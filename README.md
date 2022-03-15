@@ -13,13 +13,13 @@
 - [x] Facial recognition by Microsoft tool
 - [x] Email & Snapchat guessing
 - [x] Phone number information
-- [x] Holehe, Sherlock, Ignorant
+- [x] Holehe, Sherlock, Ignorantn phomber
 - [x] Google dork
 - [x] Checking qualifications/graduation (etudiant.aujourdhui.fr)
 
 ## TODO
 
-- [ ] Ghunt, phomber
+- [ ] Ghunt
 - [ ] Sraping Facebook, linkedin, whitepage (pageblanche FR), Instagram... [In progress]
 - [ ] Do links/connection (same age/city...) (Reduce FP number) [In progress]
 - [ ] OCR

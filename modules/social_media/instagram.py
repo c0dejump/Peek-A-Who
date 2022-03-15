@@ -58,9 +58,9 @@ def get_ig_info(i, q, s, city, keyword, picture):
                     matching = True
 
                 if not matching:
-                    print(" {}\033[33m{}\033[0m Instagram seem exist on https://www.instagram.com/{}:".format(p_match, pseudo, pseudo))
+                    print(" {}\033[33m{}\033[0m Username seem exist on https://www.instagram.com/{}:".format(p_match, pseudo, pseudo))
                 else:
-                    print(" {}\033[32m{}\033[0m Instagram seem exist on \033[34mhttps://www.instagram.com/{}:\033[0m".format(match, pseudo, pseudo))
+                    print(" {}\033[32m{}\033[0m Username seem exist on \033[34mhttps://www.instagram.com/{}:\033[0m".format(match, pseudo, pseudo))
                 print("   \u251c Real name: {}".format(real_name))
                 print("   \u251c Description: {}".format(desc))
 

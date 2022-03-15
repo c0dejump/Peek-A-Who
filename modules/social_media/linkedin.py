@@ -84,7 +84,7 @@ def linkedin_scraping(url, picture, dir_name, username=False):
             traceback.print_exc()
             pass
     except:
-        traceback.print_exc() #DEBUG
+        #traceback.print_exc() #DEBUG
         print(" {}This module need to login for search informations, please define it config.py".format(info))
 
 

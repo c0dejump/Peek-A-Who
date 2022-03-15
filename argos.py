@@ -27,7 +27,7 @@ def run_modules():
     """
     run_modules: run all module
     """
-    #google_search.google_s(identity, phone_n, mail, pseudo, city)
+    #google_search.google_s(identity, phone_n, mail, pseudo, city, dir_name, picture)
     if identity:
         facebook.facebook_search(dir_name, firstname=firstname, lastname=lastname, pseudo=pseudo, city=city, picture=picture)
         qualifications.qualifications_actions(identity, city, keyword)
@@ -58,7 +58,9 @@ def run_modules():
     if mail:
         mail_search.mail_actions(mail, dir_name)
     if phone_n:
+        #adding phomber
         phone_number.phone_number_actions(phone_n, dir_name)
+        os.system("python3 tools/phomber/phomber.py {}".format(phone_n))
         
 
 

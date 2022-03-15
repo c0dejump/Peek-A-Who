@@ -14,21 +14,21 @@ from modules.social_media.linkedin import linkedin_scraping
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 
-def google_s(identity, phone_n, mail, pseudo, city):
+def google_s(identity, phone_n, mail, pseudo, city, dir_name, picture):
     """
     google_s: function to search on google
     """
-    args = locals()
     print("\033[36m Google search \033[0m")
     print(separator)
 
     queries = []
 
-    for k, v in args.items():
-        if v != None and k != "city":
-            queries.append("{}".format(v))
-            queries.append("inurl:resume \"{}\"".format(v))
-            queries.append("site:(linkedin.com/in | zoominfo.com/p | rocketreach.co | xing.com/people | contactout.com) \"{}\"".format(v))
+    if city:
+        queries.append("{} {}".format(identity, city))
+    queries.append("{}".format(identity))
+    queries.append("site:(linkedin.com/in | zoominfo.com/p | rocketreach.co | xing.com/people | contactout.com) \"{}\"".format(identity))
+    queries.append("inurl:resume \"{}\"".format(identity))
+
     try:
         for q in queries:
             print(" [i] Google search {}".format(q))
@@ -41,7 +41,7 @@ def google_s(identity, phone_n, mail, pseudo, city):
                         print(" \033[32m[{}]\033[0m {}".format(req_url_found.status_code, j))
                         if "linkedin" in j:
                             print("\033[36m Linkedin search \033[0m")
-                            linkedin_scraping(j)
+                            linkedin_scraping(j, picture, dir_name, username=False)
                         """try:
                             with open(directory+"/site/{}/google_dorks.txt".format(directory), "a+") as raw:
                                 raw.write("{}\n".format(j))
@@ -53,7 +53,7 @@ def google_s(identity, phone_n, mail, pseudo, city):
                     else:
                         print(" \033[31m[{}]\033[0m {}".format(req_url_found.status_code, j))
                 except:
-                    #traceback.print_exc() #DEBUG
+                    traceback.print_exc() #DEBUG
                     print("  {}Error with URL {}".format(error, j))
             print("")
     except:
