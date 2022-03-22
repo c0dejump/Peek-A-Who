@@ -30,7 +30,7 @@ def run_modules():
     #google_search.google_s(identity, phone_n, mail, pseudo, city, dir_name, picture)
     if identity:
         #french touch
-        societe.search_societe(dir_name, identity, city, keyword)
+        societe.search_societe(dir_name, identity, city, keyword, birth_year)
         qualifications.qualifications_actions(identity, city, keyword)
         #whitepage.whitepage_search(dir_name, firstname, lastname, city)
         ##social

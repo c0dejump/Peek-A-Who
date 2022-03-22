@@ -9,6 +9,11 @@ import json
 import datetime
 from bs4 import BeautifulSoup
 
+try:
+    from fake_useragent import UserAgent
+except:
+    UserAgent = ["Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko", "c0dejump"]
+
 from static.colors import info, match, p_match, no_match, error, separator
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
@@ -57,7 +62,7 @@ def brevet(identity, city, keyword, s):
     diplomas_type = "Brevet"
     for year in range(2015,actual_year):
         url = "https://search-candidate.linternaute.com/brevet/{}/1?candidate-name={}".format(year, identity.replace("_","%20"))
-        req = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/98.0"})
+        req = s.get(url, verify=False, timeout=15, headers={'User-agent': UserAgent().random})
         res = json.loads(req.text)
         candidate = res["candidates"]
         if candidate != []:
@@ -67,7 +72,7 @@ def bac(identity, city, keyword, s):
     diplomas_type = "Bac"
     for year in range(2015,actual_year):
         url = "https://search-candidate.linternaute.com/bac/{}/1?candidate-name={}".format(year, identity.replace("_","%20"))
-        req = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/98.0"})
+        req = s.get(url, verify=False, timeout=15, headers={'User-agent': UserAgent().random})
         res = json.loads(req.text)
         candidate = res["candidates"]
         if candidate != []:

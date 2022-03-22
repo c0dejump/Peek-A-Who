@@ -16,6 +16,7 @@
 - [x] Holehe, Sherlock, Ignorantn phomber
 - [x] Google dork
 - [x] Checking qualifications/graduation (etudiant.aujourdhui.fr)
+- [x] societe.com informations
 
 ## TODO
 
@@ -29,7 +30,7 @@
 
 ## TODO Scraping sites:
 - [ ] Apple music (https://iforgot.apple.com/appleid), spotify, youtube, twitch, deezer, discord 
-- [ ] annuaire, societe.com, Airbnb (like), fitbit
+- [ ] annuaire, Airbnb (like), fitbit
 - [ ] telegram.me, vk.com, steam
 
 ## Tools used
