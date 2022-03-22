@@ -28,20 +28,18 @@ def get_infos(diplomas_type, identity, url, candidate, city, keyword):
         citylabel = c["cityLabel"] if "cityLabel" in c else "None"
         academy = c["link"].split("/")[1] if "link" in c else "None"
 
-        if city:
-            if city.lower() in citylabel.lower():
-               citylabel = "\033[32m{}\033[0m".format(citylabel)
-               matching = True
-            if city.lower() in academy:
-                academy = "\033[32m{}\033[0m".format(academy)
-                matching = True 
-        if keyword:
-            if keyword.lower() in citylabel:
-                citylabel = "\033[32m{}\033[0m".format(citylabel)
-                matching = True
-            if keyword.lower() in academy:
-                academy = "\033[32m{}\033[0m".format(academy)
-                matching = True 
+        if city != None and city.lower() in citylabel.lower():
+            citylabel = "\033[32m{}\033[0m".format(citylabel)
+            matching = True
+        if city != None and city.lower() in academy:
+            academy = "\033[32m{}\033[0m".format(academy)
+            matching = True 
+        if keyword != None and keyword.lower() in citylabel:
+            citylabel = "\033[32m{}\033[0m".format(citylabel)
+            matching = True
+        if keyword != None and keyword.lower() in academy:
+            academy = "\033[32m{}\033[0m".format(academy)
+            matching = True 
 
         if not matching:
             print(" {}\033[33m{}\033[0m {} diplomas found: {}".format(p_match, identity, diplomas_type, url))
@@ -55,12 +53,11 @@ def get_infos(diplomas_type, identity, url, candidate, city, keyword):
         print("")
 
 
-
 def brevet(identity, city, keyword, s):
     diplomas_type = "Brevet"
     for year in range(2015,actual_year):
         url = "https://search-candidate.linternaute.com/brevet/{}/1?candidate-name={}".format(year, identity.replace("_","%20"))
-        req = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
+        req = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/98.0"})
         res = json.loads(req.text)
         candidate = res["candidates"]
         if candidate != []:
@@ -70,7 +67,7 @@ def bac(identity, city, keyword, s):
     diplomas_type = "Bac"
     for year in range(2015,actual_year):
         url = "https://search-candidate.linternaute.com/bac/{}/1?candidate-name={}".format(year, identity.replace("_","%20"))
-        req = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
+        req = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:98.0) Gecko/20100101 Firefox/98.0"})
         res = json.loads(req.text)
         candidate = res["candidates"]
         if candidate != []:
@@ -87,5 +84,5 @@ def qualifications_actions(identity, city, keyword):
 
 
 if __name__ == '__main__':
-    identity = "hylel_belarbi"
+    identity = ""
     run_actions(identity)

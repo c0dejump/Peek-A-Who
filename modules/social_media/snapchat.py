@@ -43,12 +43,17 @@ def parse_snapchat_username(identity, pseudo, city, keyword):
 
     endpoints = []
 
+    i = 0
+
     if pseudo and not identity and not city and not keyword:
         get_snapchat(pseudo, s)
     else:
         datas = parsing_data(identity, pseudo, city, keyword)
         for endpoint in datas:
             get_snapchat(endpoint, s)
+            sys.stdout.write(" {}/{} | https://www.snapchat.com/add/{} \r".format(i, len(datas), endpoint))
+            i += 1
+        sys.stdout.write("\033[K")
     print(separator)
 
 

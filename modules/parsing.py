@@ -32,7 +32,6 @@ def parsing_data(identity, pseudo, city, keyword):
         trigram_lastname = "{}".format(lastname[0:3])
 
         list_identity = [
-            "{}".format(identity), "{}".format(firstname), "{}".format(lastname),
             "{}.{}".format(firstname, lastname), "{}-{}".format(firstname, lastname), "{}{}".format(firstname, lastname),
             "{}.{}".format(lastname, firstname), "{}-{}".format(lastname, firstname), "{}{}".format(lastname, firstname),  
             "{}.{}".format(firstname, bigram_lastname), "{}-{}".format(firstname, bigram_lastname), "{}{}".format(firstname, bigram_lastname),

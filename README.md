@@ -1,8 +1,8 @@
-# Argos_dev
+# WhoAreU
 
 ![alt tag](https://github.com/c0dejump/Argos_dev/blob/master/static/Logo_Argos.png)
 
-<img src="https://img.shields.io/badge/Disclaimer-Argos developers are not responsible for misuse or abuse of the tool, this is the responsibility of the end user-red.svg">
+<img src="https://img.shields.io/badge/Disclaimer-WhoAreU developers are not responsible for misuse or abuse of the tool, this is the responsibility of the end user-red.svg">
 
 ---
 
@@ -28,7 +28,6 @@
 - [ ] Multiple keywords
 
 ## TODO Scraping sites:
-- [ ] https://copainsdavant.linternaute.com/
 - [ ] Apple music (https://iforgot.apple.com/appleid), spotify, youtube, twitch, deezer, discord 
 - [ ] annuaire, societe.com, Airbnb (like), fitbit
 - [ ] telegram.me, vk.com, steam
@@ -39,17 +38,19 @@
 - Sherlock (https://github.com/sherlock-project/sherlock)
 - Ignorant (https://github.com/megadose/ignorant)
 - Ghunt (https://github.com/mxrch/GHunt)
+- Phomber (https://github.com/s41r4j/phomber)
+
 
 ## Usage
 
 ```
-usage: argos.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c CITY] [-b BIRTH_YEAR] [-k KEYWORD] [--pic PICTURE]
+usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c CITY] [-b BIRTH_YEAR] [-k KEYWORD] [--pic PICTURE]
 ````
 
 ```
 > General:
 	-i IDENTITY      Identity, exemple: -i john_doe
-	-n PHONE_NUMBER  Phone number, exemple: -n +337000000
+	-n PHONE_NUMBER  Phone number, exemple: -n +337xxxxxxxx
 	-m MAIL          Mail adress, exemple: -m toto@gmail.com
 	-p PSEUDO        Pseudo, exemple: -p codejump
 > Assistance:
@@ -61,6 +62,13 @@ usage: argos.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c C
 ### Config
 
 > You can put your credentials or other config in ```config.py``` file.
+
+## Exemples:
+
+## Thanks:
+
+- OSINT FR community
+
 
 ## Donation
 <img src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg"> BTC : bc1qv7lxqczukam7vq626chvhfyxth9y582rpfwm8q
