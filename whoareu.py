@@ -32,15 +32,15 @@ def run_modules():
         #french touch
         societe.search_societe(dir_name, identity, city, keyword, birth_year)
         qualifications.qualifications_actions(identity, city, keyword)
-        #whitepage.whitepage_search(dir_name, firstname, lastname, city)
-        ##social
-        #facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
-        #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
-        #tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
-        #instagram.check_instagram(identity, pseudo, city, keyword, picture)
-        #linkedin.linkedin_parsing(firstname, lastname, dir_name, picture)
-        ##email
-        #email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
+        whitepage.whitepage_search(dir_name, firstname, lastname, city)
+        #social
+        facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
+        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
+        instagram.check_instagram(identity, pseudo, city, keyword, picture)
+        linkedin.linkedin_parsing(firstname, lastname, dir_name, picture)
+        #email
+        email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
         snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
@@ -99,14 +99,14 @@ if __name__ == '__main__':
 
     group = parser.add_argument_group('\033[34m> Assistance\033[0m')
     group.add_argument("-c", help="City adress, exemple: -c Paris", dest='city', required=False)
-    group.add_argument("-b", help="birth year, exemple: -b 1999 (yeah my birth year)", dest='birth_year', required=False)
+    group.add_argument("-b", help="birth year, exemple: -b 1999, or for range: 1985-1999", dest='birth_year', required=False)
     group.add_argument("-k", help="Keyword, the script will be based on this, exemple: -k security", dest='keyword', required=False)
     group.add_argument("--pic", help="Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png", dest='picture', required=False)
 
     results = parser.parse_args()
 
     if len(sys.argv) < 2:
-        print("\nOption missing\n")
+        print("\nMissing options\n")
         parser.print_help()
         sys.exit()
 

@@ -11,9 +11,18 @@ from static.colors import info, match, p_match, no_match, error, separator
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
+
+# hxxps://www.pappers.fr/recherche-dirigeants?q=Laurent+TUPIN&date_de_naissance_dirigeant_min=12-03-1975&date_de_naissance_dirigeant_max=12-03-1975
+
+
 def get_informations(identity, soup, t, city, keyword, birth_year):
     matching = False
     detail = []
+
+    if birth_year and "-" in birth_year:
+        range_birth = range(int(birth_year.split("-")[0]), int(birth_year.split("-")[1]))
+    else:
+        range_birth = False
 
     block = soup.find('div', {'id': "{}".format(t)})
     numbers = block.find('span', {'class': re.compile(r'nombre*')})
@@ -28,25 +37,26 @@ def get_informations(identity, soup, t, city, keyword, birth_year):
         result = "{} Documents found:".format(numbers.text)
     for d in details:
         d = d.text.strip().replace("  ", "").replace("\n", "").replace("\t", "")
-        if len(d) < 70:
+        if len(d) < 70 and "doc" not in t:
             if city != None and city.lower() in d.lower():
                 detail.append("   {}\033[32m{}\033[0m".format(match, d))
                 matching = True
             elif keyword != None and keyword.lower() in d.lower():
                 detail.append("   {}\033[32m{}\033[0m".format(match, d))
                 matching = True
-            elif birth_year != None and birth_year in d.lower():
+            elif birth_year != None and not range_birth and birth_year in d.lower():
+                detail.append("   {}\033[32m{}\033[0m".format(match, d))
+                matching = True
+            elif range_birth and [rb for rb in range_birth if str(rb) in d.lower()]:
                 detail.append("   {}\033[32m{}\033[0m".format(match, d))
                 matching = True
             else:
                 detail.append("   \u251c {}".format(d))
 
     print(" {}{}".format(p_match if not matching else match, result.strip().replace("  ", "").replace("\n", "")))
-    print("   {}{}".format("\u251c" if not matching else match, name.text.strip().replace("  ", "").replace("\n", "")))
+    print("   {}{}".format("\u251c " if not matching else match, name.text.strip().replace("  ", "").replace("\n", "")))
     for d in detail:
         print(d)
-    if "doc" in t:
-        print("   {} See all documents: https://www.societe.com/cgi-bin/liste-doc?champs={}&ori=doc".format(info, identity))
 
 
 def search_societe(dir_name, identity, city, keyword, birth_year):
@@ -63,6 +73,7 @@ def search_societe(dir_name, identity, city, keyword, birth_year):
         for t in tags:
             if soup.find('div', {'id': "{}".format(t)}):
                 get_informations(identity, soup, t, city, keyword, birth_year)
+        print(" {} See here for more informations: https://www.pappers.fr/recherche-dirigeants?q={}".format(info, identity))
     print(separator)
 
 

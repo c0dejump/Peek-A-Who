@@ -27,6 +27,7 @@
 - [ ] Image template matching
 - [ ] Exif Image
 - [ ] Multiple keywords
+- [ ] add the possibility to put a range on the date (-b 1975-1985)
 
 ## TODO Scraping sites:
 - [ ] Apple music (https://iforgot.apple.com/appleid), spotify, youtube, twitch, deezer, discord 
