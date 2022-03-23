@@ -32,15 +32,15 @@ def run_modules():
         #french touch
         societe.search_societe(dir_name, identity, city, keyword, birth_year)
         qualifications.qualifications_actions(identity, city, keyword)
-        whitepage.whitepage_search(dir_name, firstname, lastname, city)
-        #social
-        facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
-        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
-        tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
-        instagram.check_instagram(identity, pseudo, city, keyword, picture)
-        linkedin.linkedin_parsing(firstname, lastname, dir_name, picture)
-        #email
-        email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
+        #whitepage.whitepage_search(dir_name, firstname, lastname, city)
+        ##social
+        #facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
+        #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
+        #tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
+        #instagram.check_instagram(identity, pseudo, city, keyword, picture)
+        #linkedin.linkedin_parsing(firstname, lastname, dir_name, picture)
+        ##email
+        #email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
         snapchat.parse_snapchat_username(identity, pseudo, city, keyword)

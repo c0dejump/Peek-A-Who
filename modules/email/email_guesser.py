@@ -157,7 +157,7 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
 
     name_input = firstname
     last_name_input = lastname
-    birth_input = birth_year
+    birth_input = birth_year if not "-" in birth_year else None
     username_input = pseudo
     keyword = keyword
     skype_input = "y"

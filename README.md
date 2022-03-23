@@ -31,8 +31,8 @@
 
 ## TODO Scraping sites:
 - [ ] Apple music (https://iforgot.apple.com/appleid), spotify, youtube, twitch, deezer, discord 
-- [ ] annuaire, Airbnb (like), fitbit
-- [ ] telegram.me, vk.com, steam
+- [ ] annuaire, Airbnb (like) (seem , fitbit
+- [ ] telegram.me?, vk.com?, steam
 
 ## Tools used
 
