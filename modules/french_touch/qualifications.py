@@ -79,7 +79,7 @@ def bac(identity, city, keyword, s):
             get_infos(diplomas_type, identity, url, candidate, city, keyword)
 
 
-def qualifications_actions(identity, city, keyword):
+def qualifications_search(identity, city, keyword):
     print("\033[36m Qualifications search \033[0m")
     print(separator)
     s = requests.session()

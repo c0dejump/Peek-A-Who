@@ -46,6 +46,7 @@ def get_ig_obfu_infos(s, pseudo):
             obfu_email = "N/A"
         try:
             obfu_phone = res["obfuscated_phone"]
+            #https://www.indicatifs-pays.net/262
         except:
             obfu_phone = "N/A"
         print("   \u251c obfuscated email: {}".format(obfu_email))
@@ -55,65 +56,72 @@ def get_ig_obfu_infos(s, pseudo):
         print("   {}[{}] obfuscated informations not available for the moment, please wait 1min...".format(error, get_obfu.status_code))
 
 
+def get_ig_details(pseudo, s, city, keyword, picture):
+    url = "https://www.anonigviewer.com/profile.php?u={}".format(pseudo)
+    try:
+        req_ig = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
+        if "user-img" in req_ig.text:
+            soup = BeautifulSoup(req_ig.text, "html.parser")
+            find_pic = soup.find('img', {'class': 'user-img'})
+            find_name = soup.find('div', {'class': re.compile(r'user-name*')})
+            find_desc = soup.find('p', {'class': re.compile(r'color-999*')})
+            real_name = find_name.text.replace("\n","")
+            desc = find_desc.text if find_desc else "None"
+            # filters
+            city = city.lower() if city else "N/A"
+            keyword = keyword.lower() if keyword else "N/A"
+            if city in desc.lower() or keyword in desc.lower():
+                desc = "\033[32m{}\033[0m".format(desc)
+                matching = True
+            else:
+                matching = False
+            if city in real_name.lower() or keyword in real_name.lower():
+                real_name = "\033[32m{}\033[0m".format(real_name)
+                matching = True
+            else:
+                matching = False
+            if not matching:
+                print(" {}\033[33m{}\033[0m Username seems exist on https://www.instagram.com/{}:".format(p_match, pseudo, pseudo))
+            else:
+                print(" {}\033[32m{}\033[0m Username seems to match \033[34mhttps://www.instagram.com/{}:\033[0m".format(match, pseudo, pseudo))
+            print("   \u251c Real name: {}".format(real_name))
+            print("   \u251c Description: {}".format(desc))
+            try:
+                get_ig_obfu_infos(s, pseudo)
+            except:
+                traceback.print_exc()
+            #time.sleep(1)
+            if picture:
+                img_data = requests.get(find_pic.text, verify=False).content
+                with open("{}/{}.jpg".format(dir_name, account.split("/")[1]), 'wb') as handler:
+                    handler.write(img_data)
+                fid = face_identification(picture, "{}/{}.jpg".format(dir_name, account.split("/")[1]))
+                if fid:
+                    print("     \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
+    except:
+        #traceback.print_exc()
+        pass
+
+
+def get_ig_pseudo(pseudo, s, city, keyword, picture):
+    get_ig_details(pseudo, s, city, keyword, picture)
 
 def get_ig_info(i, q, s, city, keyword, picture):
     global bar
     bar = 0
 
+    global matching
     matching = False
     for d in range(len_datas):
-        pseudo = q.get() if i != None else q
-        url = "https://www.anonigviewer.com/profile.php?u={}".format(pseudo)
-        try:
-            req_ig = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
-            if "user-img" in req_ig.text:
-                soup = BeautifulSoup(req_ig.text, "html.parser")
-
-                find_pic = soup.find('img', {'class': 'user-img'})
-                find_name = soup.find('div', {'class': re.compile(r'user-name*')})
-                find_desc = soup.find('p', {'class': re.compile(r'color-999*')})
-                real_name = find_name.text.replace("\n","")
-                desc = find_desc.text if find_desc else "None"
-
-                # filters
-                city = city.lower() if city else "N/A"
-                keyword = keyword.lower() if keyword else "N/A"
-
-                if city in desc.lower() or keyword in desc.lower():
-                    desc = "\033[32m{}\033[0m".format(desc)
-                    matching = True
-                if city in real_name.lower() or keyword in real_name.lower():
-                    real_name = "\033[32m{}\033[0m".format(real_name)
-                    matching = True
-
-                if not matching:
-                    print(" {}\033[33m{}\033[0m Username seems exist on https://www.instagram.com/{}:".format(p_match, pseudo, pseudo))
-                else:
-                    print(" {}\033[32m{}\033[0m Username seems to match \033[34mhttps://www.instagram.com/{}:\033[0m".format(match, pseudo, pseudo))
-                print("   \u251c Real name: {}".format(real_name))
-                print("   \u251c Description: {}".format(desc))
-                try:
-                    get_ig_obfu_infos(s, pseudo)
-                except:
-                    traceback.print_exc()
-                #time.sleep(1)
-                if picture:
-                    img_data = requests.get(find_pic.text, verify=False).content
-                    with open("{}/{}.jpg".format(dir_name, account.split("/")[1]), 'wb') as handler:
-                        handler.write(img_data)
-                    fid = face_identification(picture, "{}/{}.jpg".format(dir_name, account.split("/")[1]))
-                    if fid:
-                        print("     \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
-        except:
-            #traceback.print_exc()
-            pass
+        pseudo = q.get()
+        get_ig_details(pseudo, s, city, keyword, picture)
         bar += 1
         sys.stdout.write(" {}/{} | https://www.instagram.com/{} \r".format(bar, len_datas, pseudo))
         q.task_done()
 
 
 
-def check_instagram(identity, pseudo, city, keyword, picture):
+def instagram_search(identity, pseudo, city, keyword, picture, birth_year):
     print("\033[36m Instagram search\033[0m")
     print(separator)
 
@@ -123,11 +131,9 @@ def check_instagram(identity, pseudo, city, keyword, picture):
     s = requests.session()
 
     if pseudo and not identity:
-        i = None
-        get_ig_info(i, pseudo, s, city, keyword, picture)
-        len_datas = 1
+        get_ig_pseudo(pseudo, s, city, keyword, picture)
     else:
-        datas = parsing_data(identity, pseudo, city, keyword)
+        datas = parsing_data(identity, pseudo, city, keyword, birth_year)
         for n in datas:
             len_datas += 1
         try:

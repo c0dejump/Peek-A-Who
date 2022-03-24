@@ -88,7 +88,7 @@ def linkedin_scraping(url, picture, dir_name, username=False):
         print(" {}This module need to login for search informations, please define it config.py".format(info))
 
 
-def linkedin_parsing(firstname, lastname, dir_name, picture):
+def linkedin_search(firstname, lastname, dir_name, picture):
     print("\033[36m Linkedin search \033[0m")
     print(separator)
     list_user = [

@@ -36,7 +36,7 @@ def get_informations(identity, soup, t, city, keyword, birth_year):
     elif "doc" in t:
         result = "{} Documents found:".format(numbers.text)
     for d in details:
-        d = d.text.strip().replace("  ", "").replace("\n", "").replace("\t", "")
+        d = d.text.strip().replace("  ", "").replace("\n", " ").replace("\t", " ")
         if len(d) < 70 and "doc" not in t:
             if city != None and city.lower() in d.lower():
                 detail.append("   {}\033[32m{}\033[0m".format(match, d))
@@ -53,13 +53,13 @@ def get_informations(identity, soup, t, city, keyword, birth_year):
             else:
                 detail.append("   \u251c {}".format(d))
 
-    print(" {}{}".format(p_match if not matching else match, result.strip().replace("  ", "").replace("\n", "")))
-    print("   {}{}".format("\u251c " if not matching else match, name.text.strip().replace("  ", "").replace("\n", "")))
+    print(" {}{}".format(p_match if not matching else match, result.strip().replace("  ", "").replace("\n", " ")))
+    print("   {}{}".format("\u251c " if not matching else match, name.text.strip().replace("  ", "").replace("\n", " ")))
     for d in detail:
         print(d)
 
 
-def search_societe(dir_name, identity, city, keyword, birth_year):
+def society_search(dir_name, identity, city, keyword, birth_year):
     identity = identity.replace("_","+")
     print("\033[36m Society search\033[0m")
     print(separator)

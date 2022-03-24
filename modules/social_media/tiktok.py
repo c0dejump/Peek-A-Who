@@ -71,7 +71,7 @@ def get_tiktok(endpoint, city, keyword, s):
         print("   \u251c Site: {}".format(site.text)) if site else None
 
 
-def tiktok_username(identity, pseudo, city, keyword, picture):
+def tiktok_search(identity, pseudo, city, keyword, picture, birth_year):
 
     print("\033[36m TikTok search\033[0m")
     print(separator)
@@ -81,7 +81,7 @@ def tiktok_username(identity, pseudo, city, keyword, picture):
     if pseudo:
         get_tiktok(pseudo, city, keyword, s)
     else:
-        datas = parsing_data(identity, pseudo, city, keyword)
+        datas = parsing_data(identity, pseudo, city, keyword, birth_year)
         for endpoint in datas:
             get_tiktok(endpoint, city, keyword, s)
     print(separator)

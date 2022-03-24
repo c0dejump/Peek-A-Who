@@ -34,7 +34,7 @@ def get_snapchat(endpoint, s):
             #print(" \033[32m\u251c {}\033[0m snapchat seem exit with real name \033[31mNone\033[0m".format(endpoint))
 
 
-def parse_snapchat_username(identity, pseudo, city, keyword):
+def snapchat_search(identity, pseudo, city, keyword, birth_year):
 
     print("\033[36m Snapchat search\033[0m")
     print(separator)
@@ -48,7 +48,7 @@ def parse_snapchat_username(identity, pseudo, city, keyword):
     if pseudo and not identity and not city and not keyword:
         get_snapchat(pseudo, s)
     else:
-        datas = parsing_data(identity, pseudo, city, keyword)
+        datas = parsing_data(identity, pseudo, city, keyword, birth_year)
         for endpoint in datas:
             get_snapchat(endpoint, s)
             sys.stdout.write(" {}/{} | https://www.snapchat.com/add/{} \r".format(i, len(datas), endpoint))

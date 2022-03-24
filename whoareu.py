@@ -18,7 +18,7 @@ from static.banner import banner
 from static.colors import info, match, error
 from modules import google_search, phone_number
 from modules.french_touch import whitepage, qualifications, societe
-from modules.social_media import facebook, linkedin, snapchat, tiktok, instagram
+from modules.social_media import facebook, linkedin, snapchat, tiktok, instagram, telegram
 from modules.email import mail_search, email_guesser
 
 
@@ -30,22 +30,23 @@ def run_modules():
     #google_search.google_s(identity, phone_n, mail, pseudo, city, dir_name, picture)
     if identity:
         #french touch
-        #societe.search_societe(dir_name, identity, city, keyword, birth_year)
-        #qualifications.qualifications_actions(identity, city, keyword)
-        #whitepage.whitepage_search(dir_name, firstname, lastname, city)
-        ##social
-        #facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
-        #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
-        tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
-        instagram.check_instagram(identity, pseudo, city, keyword, picture)
-        linkedin.linkedin_parsing(firstname, lastname, dir_name, picture)
+        societe.society_search(dir_name, identity, city, keyword, birth_year)
+        qualifications.qualifications_search(identity, city, keyword)
+        whitepage.whitepage_search(dir_name, firstname, lastname, city)
+        #social
+        facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
+        snapchat.snapchat_search(identity, pseudo, city, keyword, birth_year)
+        tiktok.tiktok_search(identity, pseudo, city, keyword, picture, birth_year)
+        instagram.instagram_search(identity, pseudo, city, keyword, picture, birth_year)
+        linkedin.linkedin_search(firstname, lastname, dir_name, picture)
         #email
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
     if pseudo:
-        facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
-        snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
-        tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
-        instagram.check_instagram(identity, pseudo, city, keyword, picture)
+        #facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
+        #snapchat.snapchat_search(identity, pseudo, city, keyword)
+        #tiktok.tiktok_search(identity, pseudo, city, keyword, picture)
+        instagram.instagram_search(identity, pseudo, city, keyword, picture, birth_year)
+        telegram.telegram_search(pseudo, city, keyword, picture)
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
         print("\033[36m Pseudo search \033[0m")
         print("\033[36m-\033[0m"*30)

@@ -20,7 +20,7 @@ def get_postal_code(city):
         return "00"
 
 
-def parsing_data(identity, pseudo, city, keyword):
+def parsing_data(identity, pseudo, city, keyword, birth_year):
     endpoints = []
     if pseudo:
         endpoints.append(pseudo)
@@ -92,4 +92,15 @@ def parsing_data(identity, pseudo, city, keyword):
                 keyword_identity.append(lki)
         for ki in keyword_identity:
             endpoints.append(ki)
+    if birth_year:
+        birth_identity = []
+        for e in endpoints:
+            list_birth_identity = [
+                "{}{}".format(e, birth_year), "{}{}".format(birth_year, e), "{}_{}".format(e, birth_year), "{}.{}".format(e, birth_year),
+                "{}_de{}".format(e, birth_year), "{}_of{}".format(e, birth_year), 
+                "{}-de{}".format(e, birth_year), "{}-of{}".format(e, birth_year)]
+            for lbi in list_birth_identity:
+                birth_identity.append(lbi)
+        for bi in birth_identity:
+            endpoints.append(bi)
     return endpoints
