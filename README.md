@@ -21,17 +21,23 @@
 ## TODO
 
 - [ ] Ghunt
-- [ ] Sraping Facebook, linkedin, whitepage (pageblanche FR), Instagram... [In progress]
+- [ ] Scraping social medias:
+	- Facebook (get more informations, schools etc...) [In progress]
+	- linkedin (Get CV and OCR action to get informations)
 - [ ] Do links/connection (same age/city...) (Reduce FP number) [In progress]
-- [ ] OCR
-- [ ] Image template matching
-- [ ] Exif Image
-- [ ] Multiple keywords
-- [ ] add the possibility to put a range on the date (-b 1975-1985)
+ 	- If school found => where is it ?
+ 	- If number found => what's country ?
+ 	- If date or age => Do a link between us
+ 	- ...
+- [ ] OCR => for the images found
+- [ ] Image template matching => Before facial recognition
+- [ ] Exif Image => If any exif (location, model phone etc...)
+- [ ] Multiple keywords 
+
 
 ## TODO Scraping sites:
 - [ ] Apple music (https://iforgot.apple.com/appleid), spotify, youtube, twitch, deezer, discord 
-- [ ] annuaire, Airbnb (like) (seem , fitbit
+- [ ] annuaire, Airbnb (like), fitbit
 - [ ] telegram.me?, vk.com?, steam
 
 ## Tools used
@@ -57,8 +63,8 @@ usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c
 	-p PSEUDO        Pseudo, exemple: -p codejump
 > Assistance:
     -c CITY          City adress, exemple: -c Paris
-	-b BIRTH_YEAR    birth year, exemple: -b 1999
-	-k KEYWORD       Keyword, the script will be based on this, exemple: -k security
+	-b BIRTH_YEAR    Birth year, exemple: -b 1999; -b 1990-1999
+	-k KEYWORD       A keyword to refine the search, exemple: -k security
 	--pic PICTURE    Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png
 ````
 ### Config

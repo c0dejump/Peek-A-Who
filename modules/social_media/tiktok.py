@@ -67,8 +67,8 @@ def get_tiktok(endpoint, city, keyword, s):
         else:
             print(" {}\033[32m{}\033[0m TikTok seem exist with on https://www.tiktok.com/@{}:".format(match, endpoint, endpoint))
         print("   \u251c Real name: {}".format(find_name.text if find_name.text else "\033[31mNone\033[0m"))
-        print("   \u251c Description: {}".format(desc))
-        print("   \u251c Site: {}".format(site.text if site else "None"))
+        print("   \u251c Description: {}".format(desc)) if "No bio yet" not in desc else None
+        print("   \u251c Site: {}".format(site.text)) if site else None
 
 
 def tiktok_username(identity, pseudo, city, keyword, picture):

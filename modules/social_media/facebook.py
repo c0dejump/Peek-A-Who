@@ -29,6 +29,10 @@ def check_facial_reco(dir_name, account, picture):
     if fid:
         print("     {}Facial recognition matching with the {} account !\033[0m".format(match, account))
 
+def get_informations():
+    pass
+    #TODO (city, school etc...)
+
 
 def get_facebook_id(account):
     facebook_id_url = "https://lookup-id.com/"

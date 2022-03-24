@@ -30,17 +30,17 @@ def run_modules():
     #google_search.google_s(identity, phone_n, mail, pseudo, city, dir_name, picture)
     if identity:
         #french touch
-        societe.search_societe(dir_name, identity, city, keyword, birth_year)
-        qualifications.qualifications_actions(identity, city, keyword)
+        #societe.search_societe(dir_name, identity, city, keyword, birth_year)
+        #qualifications.qualifications_actions(identity, city, keyword)
         #whitepage.whitepage_search(dir_name, firstname, lastname, city)
         ##social
         #facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
         #snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
-        #tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
-        #instagram.check_instagram(identity, pseudo, city, keyword, picture)
-        #linkedin.linkedin_parsing(firstname, lastname, dir_name, picture)
-        ##email
-        #email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
+        tiktok.tiktok_username(identity, pseudo, city, keyword, picture)
+        instagram.check_instagram(identity, pseudo, city, keyword, picture)
+        linkedin.linkedin_parsing(firstname, lastname, dir_name, picture)
+        #email
+        email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
         snapchat.parse_snapchat_username(identity, pseudo, city, keyword)
@@ -81,9 +81,10 @@ def resume():
  \033[36m Birth year:       \033[0m {}
  \033[36m City adress:      \033[0m {}
  \033[36m Keyword:          \033[0m {}
+ \033[36m Image:            \033[0m {}
 
 \033[35m____________________________________________\033[0m
-    """.format("\033[32m{}\033[0m".format(pseudo) if pseudo else "N/A", "\033[32m{}\033[0m".format(firstname) if firstname else "N/A", "\033[32m{}\033[0m".format(lastname) if lastname else "", "\033[32m{}\033[0m".format(mail) if mail else "N/A","\033[32m{}\033[0m".format(phone_n) if phone_n else "N/A", "\033[32m{}\033[0m".format(birth_year) if birth_year else "N/A", "\033[32m{}\033[0m".format(city) if city else "N/A", "\033[32m{}\033[0m".format(keyword) if keyword else "N/A"))
+    """.format("\033[32m{}\033[0m".format(pseudo) if pseudo else "N/A", "\033[32m{}\033[0m".format(firstname) if firstname else "N/A", "\033[32m{}\033[0m".format(lastname) if lastname else "", "\033[32m{}\033[0m".format(mail) if mail else "N/A","\033[32m{}\033[0m".format(phone_n) if phone_n else "N/A", "\033[32m{}\033[0m".format(birth_year) if birth_year else "N/A", "\033[32m{}\033[0m".format(city) if city else "N/A", "\033[32m{}\033[0m".format(keyword) if keyword else "N/A", "\033[32m{}\033[0m".format(picture) if picture else "N/A"))
 
 
 if __name__ == '__main__':
