@@ -25,6 +25,7 @@
 	- Facebook (get more informations, schools etc...) [In progress]
 	- linkedin (Get CV and OCR action to get informations)
 	- Twitter
+	- Reddit
 - [ ] Do links/connection (same age/city...) (Reduce FP number) [In progress]
  	- If school found => where is it ?
  	- If number found => what's country ?
@@ -37,9 +38,9 @@
 
 
 ## TODO Scraping sites:
-- [ ] Apple music (https://iforgot.apple.com/appleid), spotify, youtube, twitch, deezer, discord? 
+- [ ] Apple music (https://iforgot.apple.com/appleid), spotify, youtube, twitch, deezer
 - [ ] annuaire, Airbnb (like), fitbit
-- [ ] vk.com?, steam?
+- [ ] vk.com?, steam?, discord?, pinterest
 
 ## Tools used
 
