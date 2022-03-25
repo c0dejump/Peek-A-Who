@@ -42,9 +42,9 @@ def run_modules():
         #email
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
     if pseudo:
-        #facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
-        #snapchat.snapchat_search(identity, pseudo, city, keyword)
-        #tiktok.tiktok_search(identity, pseudo, city, keyword, picture)
+        facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
+        snapchat.snapchat_search(identity, pseudo, city, keyword)
+        tiktok.tiktok_search(identity, pseudo, city, keyword, picture)
         instagram.instagram_search(identity, pseudo, city, keyword, picture, birth_year)
         telegram.telegram_search(pseudo, city, keyword, picture)
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
