@@ -144,6 +144,7 @@ def email_validation(i, q, requestPwnedStartTimer, s):
                     check_haveibeenpwnd(email, requestPwnedStartTimer)
             check_haveibeenpwnd(email, requestPwnedStartTimer)
         q.task_done()
+        sys.stdout.write(" {} \r".format(email))
 
 
 # User inputs
@@ -301,16 +302,16 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
     regex = '^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,})$'
 
     # Email addresses verification (Bulk syntax checking)
-    for n in emails:
+    for em in emails:
 
         # Syntax check
-        match = re.match(regex, n)
+        match = re.match(regex, em)
         if match != None:
-            if "gmail" in n and "_" in n or "." in n.split("@")[0]:
+            if "gmail" in em and "_" in em or "." in em.split("@")[0]:
                 pass
             else:
                 # if good syntax, add to e-mail addresses to be checked
-                emails_for_verification.append(n)
+                emails_for_verification.append(em)
 
     # check Skypli for speed then check haveibeenpwned if not found on skype
     if len(emails_for_verification) != 0:

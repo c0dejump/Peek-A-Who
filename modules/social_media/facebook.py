@@ -51,7 +51,7 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture):
 
     if FB_USERNAME == "" and FB_PASSWORD == "":
 
-        print("\033[36m Unauthentification Facebook search\033[0m")
+        print("\033[36m Unauthenticated Facebook search\033[0m")
         print(separator)
 
         if firstname and lastname:

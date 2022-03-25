@@ -38,7 +38,7 @@ def linkedin_scraping(url, picture, dir_name, username=False):
     schools = []
     len_info = 0
     try:
-        print(" \u251c {}".format(linkedin_user))
+        print(" {}{}".format(p_match, linkedin_user))
         api = Linkedin(LINKEDIN_USERNAME,LINKEDIN_PASSWORD)
 
         profile = api.get_profile(linkedin_user) # GET a profile

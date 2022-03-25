@@ -53,33 +53,32 @@ def get_ig_obfu_infos(s, pseudo):
         print("   \u251c obfuscated phone: {}".format(obfu_phone))
         return True
     elif get_obfu.status_code == 429:
-        print("   {}[{}] obfuscated informations not available for the moment, please wait 1min...".format(error, get_obfu.status_code))
+        print("   {}[{}] obfuscated informations not available for the moment".format(error, get_obfu.status_code))
 
 
-def get_ig_details(pseudo, s, city, keyword, picture):
-    url = "https://www.anonigviewer.com/profile.php?u={}".format(pseudo)
-    try:
+class parse_ig:
+
+    def get_ig_details(self, pseudo, s, city, keyword, picture):
+        url = "https://privatephotoviewer.com/usr/{}".format(pseudo)
+        matching = False
         req_ig = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
-        if "user-img" in req_ig.text:
+        if req_ig.status_code == 200:
             soup = BeautifulSoup(req_ig.text, "html.parser")
-            find_pic = soup.find('img', {'class': 'user-img'})
-            find_name = soup.find('div', {'class': re.compile(r'user-name*')})
-            find_desc = soup.find('p', {'class': re.compile(r'color-999*')})
-            real_name = find_name.text.replace("\n","")
-            desc = find_desc.text if find_desc else "None"
+            find_pic = find_pic = soup.find('img', {'style': ''})
+            find_pic = find_pic.get("src")
+            find_name = soup.find('h1', {'id': 'userfullname'})
+            find_desc = soup.find('p', {'id': 'biofull'})
+            real_name = find_name.text.replace("\n"," ")
+            desc = find_desc.text.replace("\n"," ") if find_desc else "None"
             # filters
             city = city.lower() if city else "N/A"
             keyword = keyword.lower() if keyword else "N/A"
             if city in desc.lower() or keyword in desc.lower():
                 desc = "\033[32m{}\033[0m".format(desc)
                 matching = True
-            else:
-                matching = False
             if city in real_name.lower() or keyword in real_name.lower():
                 real_name = "\033[32m{}\033[0m".format(real_name)
                 matching = True
-            else:
-                matching = False
             if not matching:
                 print(" {}\033[33m{}\033[0m Username seems exist on https://www.instagram.com/{}:".format(p_match, pseudo, pseudo))
             else:
@@ -89,7 +88,8 @@ def get_ig_details(pseudo, s, city, keyword, picture):
             try:
                 get_ig_obfu_infos(s, pseudo)
             except:
-                traceback.print_exc()
+                pass
+                #traceback.print_exc()
             #time.sleep(1)
             if picture:
                 img_data = requests.get(find_pic.text, verify=False).content
@@ -98,27 +98,31 @@ def get_ig_details(pseudo, s, city, keyword, picture):
                 fid = face_identification(picture, "{}/{}.jpg".format(dir_name, account.split("/")[1]))
                 if fid:
                     print("     \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
-    except:
-        #traceback.print_exc()
-        pass
 
 
-def get_ig_pseudo(pseudo, s, city, keyword, picture):
-    get_ig_details(pseudo, s, city, keyword, picture)
+    def get_ig_pseudo(self, pseudo, s, city, keyword, picture):
+        self.get_ig_details(pseudo, s, city, keyword, picture)
 
-def get_ig_info(i, q, s, city, keyword, picture):
-    global bar
-    bar = 0
+    def get_ig_info(self, i, q, s, city, keyword, picture):
+        global bar
+        bar = 0 
 
-    global matching
-    matching = False
-    for d in range(len_datas):
-        pseudo = q.get()
-        get_ig_details(pseudo, s, city, keyword, picture)
-        bar += 1
-        sys.stdout.write(" {}/{} | https://www.instagram.com/{} \r".format(bar, len_datas, pseudo))
-        q.task_done()
-
+        for d in range(len_datas):
+            pseudo = q.get()
+            try:
+                #print(threading.active_count())
+                self.get_ig_details(pseudo, s, city, keyword, picture)
+                bar += 1
+                q.task_done()
+                sys.stdout.write(" {}/{} | https://www.instagram.com/{} \r".format(bar, len_datas, pseudo))
+            except KeyboardInterrupt:
+                while threading.active_count() != 0:
+                    q.task_done()
+                    pass
+                #traceback.print_exc()
+                break
+            except Exception:
+                pass
 
 
 def instagram_search(identity, pseudo, city, keyword, picture, birth_year):
@@ -130,8 +134,10 @@ def instagram_search(identity, pseudo, city, keyword, picture, birth_year):
 
     s = requests.session()
 
+    parsing_ig = parse_ig()
+
     if pseudo and not identity:
-        get_ig_pseudo(pseudo, s, city, keyword, picture)
+        parsing_ig.get_ig_pseudo(pseudo, s, city, keyword, picture)
     else:
         datas = parsing_data(identity, pseudo, city, keyword, birth_year)
         for n in datas:
@@ -140,18 +146,18 @@ def instagram_search(identity, pseudo, city, keyword, picture, birth_year):
             #print(emails_for_verification)
             for endpoint in datas:
                 enclosure_queue.put(endpoint)
-            for i in range(2):
-                worker = Thread(target=get_ig_info, args=(i, enclosure_queue, s, city, keyword, picture))
+            for i in range(3):
+                worker = Thread(target=parsing_ig.get_ig_info, args=(i, enclosure_queue, s, city, keyword, picture))
                 worker.setDaemon(True)
                 worker.start()
             enclosure_queue.join()
         except KeyboardInterrupt:
             print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
-            sys.exit()
+            #sys.exit()
         except Exception:
-            traceback.print_exc()
-            #pass
-    sys.stdout.write("\033[K") 
+            #traceback.print_exc()
+            pass
+    sys.stdout.write("\033[K")
     print(separator)
 
 

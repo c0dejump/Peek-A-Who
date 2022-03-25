@@ -86,8 +86,7 @@ def parsing_data(identity, pseudo, city, keyword, birth_year):
         for e in endpoints:
             list_keyword_identity = [
             "{}{}".format(e, keyword), "{}{}".format(keyword, e), "{}_{}".format(e, keyword), "{}.{}".format(e, keyword),
-            "{}_de{}".format(e, keyword), "{}_of{}".format(e, keyword), 
-            "{}-de{}".format(e, keyword), "{}-of{}".format(e, keyword)]
+            "{}_of{}".format(e, keyword), "{}-of{}".format(e, keyword)]
             for lki in list_keyword_identity:
                 keyword_identity.append(lki)
         for ki in keyword_identity:
