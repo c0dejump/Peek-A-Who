@@ -27,7 +27,7 @@ def check_facial_reco(dir_name, account, picture):
         handler.write(img_data)
     fid = face_identification(picture, "{}/{}.jpg".format(dir_name, account.split("/")[1]))
     if fid:
-        print("     {}Facial recognition matching with the {} account !\033[0m".format(match, account))
+        print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
 
 def get_informations():
     pass

@@ -55,7 +55,7 @@ url_tiktok = "https://www.tiktok.com/node/share/user/@{}".format(endpoint)
             .format(endpoint, endpoint, "\033[32m{}\033[0m".format(name), description.replace("\n", " "), site if site else "None"))
 """
 
-def get_tiktok(i, q, city, keyword, s):
+def get_tiktok(i, q, city, keyword, s, dir_name):
     global bar
     bar = 0 
     for d in range(len_datas):
@@ -92,7 +92,7 @@ def get_tiktok(i, q, city, keyword, s):
         sys.stdout.write(" {}/{} | https://www.tiktok.com/@{} \r".format(bar, len_datas, endpoint))
 
 
-def tiktok_search(identity, pseudo, city, keyword, picture, birth_year):
+def tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year):
 
     print("\033[36m TikTok search\033[0m")
     print(separator)
@@ -112,7 +112,7 @@ def tiktok_search(identity, pseudo, city, keyword, picture, birth_year):
             for endpoint in datas:
                 enclosure_queue.put(endpoint)
             for i in range(10):
-                worker = Thread(target=get_tiktok, args=(i, enclosure_queue, city, keyword, s))
+                worker = Thread(target=get_tiktok, args=(i, enclosure_queue, city, keyword, s, dir_name))
                 worker.setDaemon(True)
                 worker.start()
             enclosure_queue.join()

@@ -15,6 +15,11 @@ from modules.parsing import parsing_data
 from modules.image_analysis.facial_recognition import face_identification
 
 try:
+    from fake_useragent import UserAgent
+except:
+    UserAgent = ["Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko", "c0dejump"]
+
+try:
     from Queue import Queue
 except:
     import queue as Queue
@@ -27,6 +32,7 @@ except:
     enclosure_queue = Queue.Queue()
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
+
 
 def get_ig_obfu_infos(s, pseudo):
     url_obfu = "https://i.instagram.com/api/v1/users/lookup/"
@@ -58,10 +64,12 @@ def get_ig_obfu_infos(s, pseudo):
 
 class parse_ig:
 
-    def get_ig_details(self, pseudo, s, city, keyword, picture):
+    #TODO: if profile is public check on InstaLocTrack: https://github.com/bernsteining/instaloctrack
+
+    def get_ig_details(self, pseudo, s, city, keyword, picture, dir_name):
         url = "https://privatephotoviewer.com/usr/{}".format(pseudo)
         matching = False
-        req_ig = s.get(url, verify=False, timeout=15, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
+        req_ig = s.get(url, verify=False, timeout=10, headers={'User-agent': UserAgent().random})
         if req_ig.status_code == 200:
             soup = BeautifulSoup(req_ig.text, "html.parser")
             find_pic = find_pic = soup.find('img', {'style': ''})
@@ -88,44 +96,49 @@ class parse_ig:
             try:
                 get_ig_obfu_infos(s, pseudo)
             except:
-                pass
-                #traceback.print_exc()
+                #pass
+                traceback.print_exc()
             #time.sleep(1)
             if picture:
-                img_data = requests.get(find_pic.text, verify=False).content
-                with open("{}/{}.jpg".format(dir_name, account.split("/")[1]), 'wb') as handler:
-                    handler.write(img_data)
-                fid = face_identification(picture, "{}/{}.jpg".format(dir_name, account.split("/")[1]))
+                try:
+                    img_data = requests.get(find_pic, verify=False).content
+                    with open("{}/{}.jpg".format(dir_name, pseudo), 'wb') as handler:
+                        handler.write(img_data)
+                except:
+                    traceback.print_exc() 
+                fid = face_identification(picture, "{}/{}.jpg".format(dir_name, pseudo))
                 if fid:
-                    print("     \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
+                    print("   \033[32m\u251c Facial recognition matching with the https://www.instagram.com/{} account !\033[0m".format(pseudo))
 
 
     def get_ig_pseudo(self, pseudo, s, city, keyword, picture):
         self.get_ig_details(pseudo, s, city, keyword, picture)
 
-    def get_ig_info(self, i, q, s, city, keyword, picture):
+
+    def get_ig_info(self, i, q, s, city, keyword, picture, dir_name):
         global bar
         bar = 0 
 
-        for d in range(len_datas):
+        while not q.empty():
             pseudo = q.get()
             try:
                 #print(threading.active_count())
-                self.get_ig_details(pseudo, s, city, keyword, picture)
+                self.get_ig_details(pseudo, s, city, keyword, picture, dir_name)
                 bar += 1
-                q.task_done()
                 sys.stdout.write(" {}/{} | https://www.instagram.com/{} \r".format(bar, len_datas, pseudo))
-            except KeyboardInterrupt:
-                while threading.active_count() != 0:
-                    q.task_done()
-                    pass
-                #traceback.print_exc()
-                break
             except Exception:
+                #traceback.print_exc()
                 pass
+            q.task_done()
+            
 
 
-def instagram_search(identity, pseudo, city, keyword, picture, birth_year):
+def deleted_image(dir_name):
+    for f in os.listdir(dir_name):
+        os.remove(os.path.join(dir_name, f))
+
+
+def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year):
     print("\033[36m Instagram search\033[0m")
     print(separator)
 
@@ -147,17 +160,21 @@ def instagram_search(identity, pseudo, city, keyword, picture, birth_year):
             for endpoint in datas:
                 enclosure_queue.put(endpoint)
             for i in range(3):
-                worker = Thread(target=parsing_ig.get_ig_info, args=(i, enclosure_queue, s, city, keyword, picture))
+                #2 threads for obfu information, else 429 response srry...
+                worker = Thread(target=parsing_ig.get_ig_info, args=(i, enclosure_queue, s, city, keyword, picture, dir_name))
                 worker.setDaemon(True)
                 worker.start()
             enclosure_queue.join()
         except KeyboardInterrupt:
             print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
+            enclosure_queue.queue.clear()
+            time.sleep(1)
             #sys.exit()
         except Exception:
-            #traceback.print_exc()
+            traceback.print_exc()
             pass
     sys.stdout.write("\033[K")
+    #deleted_image(dir_name)
     print(separator)
 
 

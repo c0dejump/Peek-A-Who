@@ -9,6 +9,8 @@ from bs4 import BeautifulSoup
 import base64
 import json
 
+from static.colors import info, match, p_match, no_match, error, separator
+
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -43,9 +45,10 @@ def face_identification(known_image, unkown_image):
         if score_text:
             score = ".".join(score_text.text.split(" ")[-1].split(".")[0:2])
             if float(score) > 0.7:
-                print("     \033[34m\u251c Score: {} \033[0mbetween {} and {}, that's seem the same person !".format(score, known_image.split("/")[-1], unkown_image.split("/")[-1]))
+                print("   \033[34m\u251c Score: {} \033[0mbetween {} and {}, that's seem the same person !".format(score, known_image.split("/")[-1], unkown_image.split("/")[-1]))
                 return True
     except:
+        traceback.print_exc()
         pass
         #print(response.text)
 

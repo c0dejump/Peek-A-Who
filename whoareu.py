@@ -33,11 +33,11 @@ def run_modules():
         societe.society_search(dir_name, identity, city, keyword, birth_year)
         qualifications.qualifications_search(identity, city, keyword)
         whitepage.whitepage_search(dir_name, firstname, lastname, city)
-        #social
+        ##social
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture)
         snapchat.snapchat_search(identity, pseudo, city, keyword, birth_year)
-        tiktok.tiktok_search(identity, pseudo, city, keyword, picture, birth_year)
-        instagram.instagram_search(identity, pseudo, city, keyword, picture, birth_year)
+        tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
+        instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
         linkedin.linkedin_search(firstname, lastname, dir_name, picture)
         #email
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
@@ -90,6 +90,7 @@ def resume():
 
 if __name__ == '__main__':
     #arguments
+    #TODO: add argument to display just matching results
     parser = argparse.ArgumentParser(add_help = True)
     parser = argparse.ArgumentParser(description='\033[32mVersion ß | contact: https://twitter.com/c0dejump\033[0m')
 
