@@ -42,7 +42,7 @@ def get_ig_obfu_infos(s, pseudo):
     'ig_sig_key_version': 4,
     'signed_body':'{}'.format(_data)
     }
-    get_obfu = s.post(url_obfu, headers=headers, data=datas, verify=False)
+    get_obfu = s.post(url_obfu, headers=headers, data=datas, verify=False, timeout=15)
     if get_obfu.status_code == 200:
         res = json.loads(get_obfu.text)
         #print(res)
@@ -72,7 +72,7 @@ class parse_ig:
         req_ig = s.get(url, verify=False, timeout=10, headers={'User-agent': UserAgent().random})
         if req_ig.status_code == 200:
             soup = BeautifulSoup(req_ig.text, "html.parser")
-            find_pic = find_pic = soup.find('img', {'style': ''})
+            find_pic = soup.find('img', {'style': ''})
             find_pic = find_pic.get("src")
             find_name = soup.find('h1', {'id': 'userfullname'})
             find_desc = soup.find('p', {'id': 'biofull'})
@@ -96,8 +96,8 @@ class parse_ig:
             try:
                 get_ig_obfu_infos(s, pseudo)
             except:
-                #pass
-                traceback.print_exc()
+                pass
+                #traceback.print_exc() #DEBUG
             #time.sleep(1)
             if picture:
                 try:
@@ -105,7 +105,8 @@ class parse_ig:
                     with open("{}/{}.jpg".format(dir_name, pseudo), 'wb') as handler:
                         handler.write(img_data)
                 except:
-                    traceback.print_exc() 
+                    pass
+                    #traceback.print_exc() #DEBUG
                 fid = face_identification(picture, "{}/{}.jpg".format(dir_name, pseudo))
                 if fid:
                     print("   \033[32m\u251c Facial recognition matching with the https://www.instagram.com/{} account !\033[0m".format(pseudo))

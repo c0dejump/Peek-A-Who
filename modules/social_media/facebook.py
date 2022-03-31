@@ -14,6 +14,11 @@ from modules.image_analysis.facial_recognition import face_identification
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
+try:
+    from fake_useragent import UserAgent
+except:
+    UserAgent = ["Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko", "c0dejump"]
+
 #TODO fuckfacebook
 
 def check_facial_reco(dir_name, account, picture):
@@ -29,8 +34,17 @@ def check_facial_reco(dir_name, account, picture):
     if fid:
         print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
 
-def get_informations():
-    pass
+def get_facebook_info(account, s, city, keyword):
+    url = "https://m.facebook.com/{}".format(account)
+    req_info = s.get(url, verify=False, headers={'User-agent': UserAgent().random})
+    soup_info = BeautifulSoup(req_info.text, "html.parser")
+    find_exp = soup_info.find('div', {'class': 'experience'})
+    if find_exp:
+        print("plop")
+        if city.lower() in find_exp.text.lower() or keyword.lower() in find_exp.text.lower():
+            print("   {}Experience: {}".format(match, find_exp.text))
+        else:
+            print("   \u251c Experience: {}".format(find_exp.text))
     #TODO (city, school etc...)
 
 
@@ -44,10 +58,13 @@ def get_facebook_id(account):
     get_id = requests.post(facebook_id_url, data=datas, verify=False)
     soup = BeautifulSoup(get_id.text, "html.parser")
     find_id = soup.find('span', {'id': 'code'})
-    return(find_id.text)
+    if find_id:
+        return(find_id.text)
 
 
-def facebook_search(dir_name, firstname, lastname, pseudo, city, picture):
+def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword):
+
+    s = requests.session()
 
     if FB_USERNAME == "" and FB_PASSWORD == "":
 
@@ -60,23 +77,26 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture):
             account_found = []
 
             url = "https://m.facebook.com/public/{}-{}".format(firstname, lastname)
-            req = requests.get(url, verify=False, timeout=15)
+            req = s.get(url, verify=False, timeout=15)
             soup = BeautifulSoup(req.text, "html.parser")
             find_link = soup.find_all('a')
-            for s in find_link:
+            for fl in find_link:
                 try:
-                    if firstname.lower() in s.get('href') and "login" not in s.get('href') and "cursor" not in s.get('href') and \
-                     "login" not in s.get('href') and "next" not in s.get('href'):
-                        account = s.get('href')
+                    if firstname.lower() in fl.get('href') and "login" not in fl.get('href') and "cursor" not in fl.get('href') and \
+                     "login" not in fl.get('href') and "next" not in fl.get('href'):
+                        account = fl.get('href')
                         facebook_id = get_facebook_id(account)
+                        facebook_id = facebook_id if facebook_id else "N/A"
                         if account not in account_found:
                             print(" {}Potential account found: {} with id: {}".format(p_match, account, facebook_id))
+                            get_facebook_info(account, s, city, keyword)
                             #fuckfacebook
                             account_found.append(account)
                             count_result += 1
                             if picture:
                                 check_facial_reco(dir_name, account, picture)
                 except:
+                    traceback.print_exc() #DEBUG
                     pass
                     """
                     #TODO

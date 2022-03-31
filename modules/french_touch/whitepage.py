@@ -29,7 +29,7 @@ def whitepage_search(dir_name, firstname, lastname, city):
         for rn in results_number:
             if firstname in rn.text and lastname in rn.text:
                 number = rn.text
-                print(" {}{}\n".format(info, number.replace("résultats pour","results for").replace("à","") if not city else number))
+                print(" {}{}\n".format(info, number.replace("résultats pour","results for").replace("à","").replace("\n"," ").replace("\t", " ").replace("  ", " ") if not city else number))
                 found = True
         if not found:
             print(" {}No found, proximity results:\n".format(no_match))
