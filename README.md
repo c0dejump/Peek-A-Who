@@ -1,6 +1,6 @@
 # WhoAreU
 <p align="center">
-  <img src="https://github.com/c0dejump/Argos_dev/blob/master/static/logo_WHOAREU.png" height="250px" alt="Logo WhoAreU"/>
+  <img src="https://github.com/c0dejump/Argos_dev/blob/master/static/logo_WHOAREU.png" height="375px" alt="Logo WhoAreU"/>
 </p>
 
 
