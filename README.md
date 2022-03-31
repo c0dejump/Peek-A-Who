@@ -1,6 +1,6 @@
 # WhoAreU
 
-![alt tag](https://github.com/c0dejump/Argos_dev/blob/master/static/Logo_Argos.png)
+![alt tag](https://github.com/c0dejump/Argos_dev/blob/master/static/logo_WHOAREU.png)
 
 <img src="https://img.shields.io/badge/Disclaimer-WhoAreU developers are not responsible for misuse or abuse of the tool, this is the responsibility of the end user-red.svg">
 
