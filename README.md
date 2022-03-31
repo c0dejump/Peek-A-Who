@@ -20,6 +20,7 @@
 
 ## TODO
 
+- [ ] Report, he'll contain informations and picture found from networks (graph too ?)
 - [ ] Ghunt (epieos?)
 - [ ] Scraping social medias:
 	- Facebook (get more informations, schools etc...) [In progress]

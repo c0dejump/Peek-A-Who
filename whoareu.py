@@ -30,10 +30,10 @@ def run_modules():
     #google_search.google_s(identity, phone_n, mail, pseudo, city, dir_name, picture)
     if identity:
         #french touch
-        #societe.society_search(dir_name, identity, city, keyword, birth_year)
-        #qualifications.qualifications_search(identity, city, keyword)
-        #whitepage.whitepage_search(dir_name, firstname, lastname, city)
-        ##social
+        societe.society_search(dir_name, identity, city, keyword, birth_year)
+        qualifications.qualifications_search(identity, city, keyword)
+        whitepage.whitepage_search(dir_name, firstname, lastname, city)
+        #social
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword)
         snapchat.snapchat_search(identity, pseudo, city, keyword, birth_year)
         tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
