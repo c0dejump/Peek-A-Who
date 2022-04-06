@@ -23,6 +23,7 @@ date = currentDateTime.date()
 global actual_year
 actual_year = date.year
 
+found = False
 
 def get_infos(diplomas_type, identity, url, candidate, city, keyword):
     #print(" {}\033[33m{}\033[0m {} diplomas found: {}".format(p_match, identity, diplomas_type, url))
@@ -67,6 +68,7 @@ def brevet(identity, city, keyword, s):
         candidate = res["candidates"]
         if candidate != []:
             get_infos(diplomas_type, identity, url, candidate, city, keyword)
+            found = True
 
 def bac(identity, city, keyword, s):
     diplomas_type = "Bac"
@@ -77,6 +79,7 @@ def bac(identity, city, keyword, s):
         candidate = res["candidates"]
         if candidate != []:
             get_infos(diplomas_type, identity, url, candidate, city, keyword)
+            found = True
 
 
 def qualifications_search(identity, city, keyword):
@@ -85,6 +88,8 @@ def qualifications_search(identity, city, keyword):
     s = requests.session()
     brevet(identity, city, keyword, s)
     bac(identity, city, keyword, s)
+    if not found:
+        print(" {}Not diplomas found".format(no_match))
     print(separator)
 
 

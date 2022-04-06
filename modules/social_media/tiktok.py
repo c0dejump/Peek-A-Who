@@ -81,9 +81,9 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
                     desc = "\033[32m{}\033[0m".format(desc)
                     matching = True
             if not matching:
-                print(" {}\033[33m{}\033[0m TikTok seem exist with on https://www.tiktok.com/@{}:".format(p_match, endpoint, endpoint))
+                print(" {}\033[33m{}\033[0m TikTok seem exist with on https://www.tiktok.com/@{} :".format(p_match, endpoint, endpoint))
             else:
-                print(" {}\033[32m{}\033[0m TikTok seem exist with on https://www.tiktok.com/@{}:".format(match, endpoint, endpoint))
+                print(" {}\033[32m{}\033[0m TikTok seem exist with on https://www.tiktok.com/@{} :".format(match, endpoint, endpoint))
             print("   \u251c Real name: {}".format(find_name.text if find_name.text else "\033[31mNone\033[0m"))
             print("   \u251c Description: {}".format(desc)) if "No bio yet" not in desc else None
             print("   \u251c Site: {}".format(site.text)) if site else None
@@ -118,6 +118,8 @@ def tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year
             enclosure_queue.join()
         except KeyboardInterrupt:
             print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
+        except Exception:
+            pass
     sys.stdout.write("\033[K")
     print(separator)
 

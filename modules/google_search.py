@@ -53,7 +53,7 @@ def google_s(identity, phone_n, mail, pseudo, city, dir_name, picture):
                     else:
                         print(" \033[31m[{}]\033[0m {}".format(req_url_found.status_code, j))
                 except:
-                    traceback.print_exc() #DEBUG
+                    #traceback.print_exc() #DEBUG
                     print("  {}Error with URL {}".format(error, j))
             print("")
     except:

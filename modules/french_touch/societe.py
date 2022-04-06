@@ -73,7 +73,7 @@ def society_search(dir_name, identity, city, keyword, birth_year):
         for t in tags:
             if soup.find('div', {'id': "{}".format(t)}):
                 get_informations(identity, soup, t, city, keyword, birth_year)
-        print(" {} See here for more informations: https://www.pappers.fr/recherche-dirigeants?q={}".format(info, identity))
+        print(" {}See here for more informations: https://www.pappers.fr/recherche-dirigeants?q={}".format(info, identity))
     print(separator)
 
 

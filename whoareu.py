@@ -27,7 +27,7 @@ def run_modules():
     """
     run_modules: run all module
     """
-    #google_search.google_s(identity, phone_n, mail, pseudo, city, dir_name, picture)
+    google_search.google_s(identity, phone_n, mail, pseudo, city, dir_name, picture)
     if identity:
         #french touch
         societe.society_search(dir_name, identity, city, keyword, birth_year)

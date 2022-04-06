@@ -35,17 +35,41 @@ def check_facial_reco(dir_name, account, picture):
         print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
 
 def get_facebook_info(account, s, city, keyword):
-    url = "https://m.facebook.com/{}".format(account)
-    req_info = s.get(url, verify=False, headers={'User-agent': UserAgent().random})
-    soup_info = BeautifulSoup(req_info.text, "html.parser")
-    find_exp = soup_info.find('div', {'class': 'experience'})
-    if find_exp:
-        print("plop")
-        if city.lower() in find_exp.text.lower() or keyword.lower() in find_exp.text.lower():
-            print("   {}Experience: {}".format(match, find_exp.text))
-        else:
-            print("   \u251c Experience: {}".format(find_exp.text))
-    #TODO (city, school etc...)
+    """
+    TODO:
+    if m.facebook.com dosn't work check on wwww.facebook.com:
+    University/employee: <div class="tu1s4ah4">
+
+    """
+    url_m = "https://m.facebook.com/{}".format(account)
+    url_f = "https://www.facebook.com/{}".format(account)
+    req_info_m = s.get(url_m, verify=False, headers={'User-agent': UserAgent().random}, allow_redirects=False)
+    if req_info_m.status_code != 302:
+        soup_info = BeautifulSoup(req_info_m.text, "html.parser")
+        find_exp = soup_info.find('div', {'class': 'experience'})
+        find_city = soup_info.find('h4')
+        if find_exp:
+            fe = find_exp.find("span")
+            if city.lower() in fe.text.lower() or keyword.lower() in fe.text.lower():
+                print("   {}Experience: {}".format(match, fe.text))
+            else:
+                print("   \u251c Experience: {}".format(fe.text))
+        if find_city:
+            if city.lower() in find_city.text.lower() or keyword.lower() in find_city.text.lower():
+                print("   {}City: {}".format(match, find_city.text))
+            else:
+                print("   \u251c City: {}".format(find_city.text))
+        #TODO (city, school etc...)
+    else:
+        pass
+        """
+        #TODO
+        req_info_f = requests.get(url_f, verify=False, headers={'User-agent': UserAgent().random})
+        soup_info = BeautifulSoup(req_info_f.text, "html.parser")
+        print(soup_info)
+        test = soup_info.find('div', {'class': 'tu1s4ah4'})
+        print(test)
+        """
 
 
 def get_facebook_id(account):
@@ -88,7 +112,7 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
                         facebook_id = get_facebook_id(account)
                         facebook_id = facebook_id if facebook_id else "N/A"
                         if account not in account_found:
-                            print(" {}Potential account found: {} with id: {}".format(p_match, account, facebook_id))
+                            print(" {}Potential account found: https://m.facebook.com{} with id: {}".format(p_match, account, facebook_id))
                             get_facebook_info(account, s, city, keyword)
                             #fuckfacebook
                             account_found.append(account)
@@ -98,15 +122,6 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
                 except:
                     traceback.print_exc() #DEBUG
                     pass
-                    """
-                    #TODO
-                    get city:
-                    find_city = soup.find("div", class_="_59k _2rgt _1j-f _2rgt") => quelque chose comme ça mais ne fonctionne pas :/
-                    <div class="_59k _2rgt _1j-f _2rgt" style="font-size: 14px;font-weight: 400;text-align: left;color: #050505;display: -webkit-box;-webkit-line-clamp: 2;-webkit-box-orient: vertical;overflow: hidden;text-overflow: ellipsis" id="u_0_60_bB" data-nt="FB:TEXT4">Habite à Rotterdam</div>
-                    elif account not in account_found and city:
-                        if find_city.text == city:
-                            print(" [+] Potential account found: {} with id: {} and the same city: {}".format(account, facebook_id, find_city))
-                    """
             if count_result > 0:
                 print(" + {} account found\n".format(count_result))
             else:
@@ -117,7 +132,7 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
             if req.status_code == 200:
                 try:
                     facebook_id = get_facebook_id(pseudo)
-                    print(" {}Potential account found: https://m.facebook.com/{} with id: {}\n".format(p_match, pseudo, facebook_id))
+                    print(" {}Potential account found: https://www.facebook.com/{} with id: {}\n".format(p_match, pseudo, facebook_id))
                     if picture:
                         account = "/{}".format(pseudo)
                         check_facial_reco(dir_name, account, picture)

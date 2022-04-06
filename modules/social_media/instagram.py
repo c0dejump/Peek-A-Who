@@ -88,9 +88,9 @@ class parse_ig:
                 real_name = "\033[32m{}\033[0m".format(real_name)
                 matching = True
             if not matching:
-                print(" {}\033[33m{}\033[0m Username seems exist on https://www.instagram.com/{}:".format(p_match, pseudo, pseudo))
+                print(" {}\033[33m{}\033[0m Username seems exist on https://www.instagram.com/{} :".format(p_match, pseudo, pseudo))
             else:
-                print(" {}\033[32m{}\033[0m Username seems to match \033[34mhttps://www.instagram.com/{}:\033[0m".format(match, pseudo, pseudo))
+                print(" {}\033[32m{}\033[0m Username seems to match \033[34mhttps://www.instagram.com/{} :\033[0m".format(match, pseudo, pseudo))
             print("   \u251c Real name: {}".format(real_name))
             print("   \u251c Description: {}".format(desc))
             try:
@@ -160,7 +160,7 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
             #print(emails_for_verification)
             for endpoint in datas:
                 enclosure_queue.put(endpoint)
-            for i in range(3):
+            for i in range(5):
                 #2 threads for obfu information, else 429 response srry...
                 worker = Thread(target=parsing_ig.get_ig_info, args=(i, enclosure_queue, s, city, keyword, picture, dir_name))
                 worker.setDaemon(True)
