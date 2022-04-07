@@ -4,6 +4,6 @@ LINKEDIN_PASSWORD = "h1iEsLhiv8Zlcow8RlxU"
 #Facebook
 FB_USERNAME = ""
 FB_PASSWORD = ""
-#Google, for more or less results
+#Google, for more or less google dork results
 max_search = 10
 stop_search = 10

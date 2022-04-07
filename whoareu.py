@@ -15,7 +15,7 @@ from PIL import Image
 
 #external modules
 from static.banner import banner
-from static.colors import info, match, error
+from static.colors import info, match, error, separator
 from modules import google_search, phone_number
 from modules.french_touch import whitepage, qualifications, societe
 from modules.social_media import facebook, linkedin, snapchat, tiktok, instagram, telegram
@@ -43,16 +43,16 @@ def run_modules():
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword)
-        snapchat.snapchat_search(identity, pseudo, city, keyword)
-        tiktok.tiktok_search(identity, pseudo, city, keyword, picture)
-        instagram.instagram_search(identity, pseudo, city, keyword, picture, birth_year)
+        snapchat.snapchat_search(identity, pseudo, city, keyword, birth_year)
+        tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
+        instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
         telegram.telegram_search(pseudo, city, keyword, picture)
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
         print("\033[36m Pseudo search \033[0m")
         print("\033[36m-\033[0m"*30)
         try:
-            os.system("python3 tools/sherlock/sherlock/sherlock.py {} -o tools/sherlock/results/{}.txt >/dev/null 2>&1".format(pseudo, pseudo))
-            with open("tools/sherlock/results/{}.txt".format(pseudo), "r") as result:
+            os.system("python3 tools/sherlock/sherlock/sherlock.py {} -o {}/{}.txt >/dev/null 2>&1".format(pseudo, dir_name, pseudo))
+            with open("{}/{}.txt".format(dir_name, pseudo), "r") as result:
                 for r in result.read().splitlines():
                     req = requests.get(r, verify=False, timeout=15)
                     if req.status_code not in [404, 403, 401, 500, 429]:
@@ -84,8 +84,8 @@ def resume():
  \033[36m Keyword:          \033[0m {}
  \033[36m Image:            \033[0m {}
 
-\033[35m____________________________________________\033[0m
-    """.format("\033[32m{}\033[0m".format(pseudo) if pseudo else "N/A", "\033[32m{}\033[0m".format(firstname) if firstname else "N/A", "\033[32m{}\033[0m".format(lastname) if lastname else "", "\033[32m{}\033[0m".format(mail) if mail else "N/A","\033[32m{}\033[0m".format(phone_n) if phone_n else "N/A", "\033[32m{}\033[0m".format(birth_year) if birth_year else "N/A", "\033[32m{}\033[0m".format(city) if city else "N/A", "\033[32m{}\033[0m".format(keyword) if keyword else "N/A", "\033[32m{}\033[0m".format(picture) if picture else "N/A"))
+{}
+    """.format("\033[32m{}\033[0m".format(pseudo) if pseudo else "N/A", "\033[32m{}\033[0m".format(firstname) if firstname else "N/A", "\033[32m{}\033[0m".format(lastname) if lastname else "", "\033[32m{}\033[0m".format(mail) if mail else "N/A","\033[32m{}\033[0m".format(phone_n) if phone_n else "N/A", "\033[32m{}\033[0m".format(birth_year) if birth_year else "N/A", "\033[32m{}\033[0m".format(city) if city else "N/A", "\033[32m{}\033[0m".format(keyword) if keyword else "N/A", "\033[32m{}\033[0m".format(picture) if picture else "N/A", separator))
 
 
 if __name__ == '__main__':
@@ -102,7 +102,7 @@ if __name__ == '__main__':
 
     group = parser.add_argument_group('\033[34m> Assistance\033[0m')
     group.add_argument("-c", help="City adress, exemple: -c Paris", dest='city', required=False)
-    group.add_argument("-b", help="birth year, exemple: -b 1999, or for range: 1985-1999", dest='birth_year', required=False)
+    group.add_argument("-b", help="birth year, exemple: -b 1999, or for a range: 1985-1999", dest='birth_year', required=False)
     group.add_argument("-k", help="Keyword, the script will be based on this, exemple: -k security", dest='keyword', required=False)
     group.add_argument("--pic", help="Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png", dest='picture', required=False)
 
@@ -142,7 +142,6 @@ if __name__ == '__main__':
     lastname = identity.split("_")[1] if identity else None
 
     dir_name = "reports/results/"+sys.argv[2]
-
     resume()
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)

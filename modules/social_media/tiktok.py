@@ -27,8 +27,6 @@ try:
 except:
     enclosure_queue = Queue.Queue()
 
-#TODO: put threading
-
 
 """
 if website structur tiktok change (work 1x/2):
@@ -55,11 +53,12 @@ url_tiktok = "https://www.tiktok.com/node/share/user/@{}".format(endpoint)
             .format(endpoint, endpoint, "\033[32m{}\033[0m".format(name), description.replace("\n", " "), site if site else "None"))
 """
 
+
 def get_tiktok(i, q, city, keyword, s, dir_name):
     global bar
     bar = 0 
     for d in range(len_datas):
-        endpoint = q.get()
+        endpoint = q.get() if type(q) != str() else q
         url_tiktok = "https://www.tiktok.com/@{}".format(endpoint)
         req_tiktok = s.get(url_tiktok, verify=False, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
 
@@ -102,8 +101,10 @@ def tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year
     global len_datas
     len_datas = 0
 
-    if pseudo:
-        get_tiktok(pseudo, city, keyword, s)
+
+    if pseudo and not identity:
+        i = None
+        get_tiktok(i, pseudo, city, keyword, s, dir_name)
     else:
         datas = parsing_data(identity, pseudo, city, keyword, birth_year)
         for n in datas:
@@ -120,7 +121,7 @@ def tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year
             print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
         except Exception:
             pass
-    sys.stdout.write("\033[K")
+        sys.stdout.write("\033[K")
     print(separator)
 
 

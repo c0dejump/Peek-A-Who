@@ -60,7 +60,7 @@ def parsing_data(identity, pseudo, city, keyword, birth_year):
         ]
         for lc in list_city:
             endpoints.append(lc)
-    elif city and identity:
+    if city and identity:
         city_identity = []
         postal_code = get_postal_code(city)
         for e in endpoints:
@@ -81,7 +81,7 @@ def parsing_data(identity, pseudo, city, keyword, birth_year):
         "{}_{}".format(pseudo, keyword), "{}-{}".format(pseudo, keyword), "{}.{}".format(pseudo, keyword)]
         for lk in list_keyword:
             endpoints.append(lk)
-    elif keyword and identity:
+    if keyword and identity:
         keyword_identity = []
         for e in endpoints:
             list_keyword_identity = [

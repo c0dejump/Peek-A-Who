@@ -34,13 +34,14 @@ def check_facial_reco(dir_name, account, picture):
     if fid:
         print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
 
-def get_facebook_info(account, s, city, keyword):
+def get_facebook_info(account, s, city, keyword, facebook_id):
     """
     TODO:
     if m.facebook.com dosn't work check on wwww.facebook.com:
     University/employee: <div class="tu1s4ah4">
 
     """
+    matching = False
     url_m = "https://m.facebook.com/{}".format(account)
     url_f = "https://www.facebook.com/{}".format(account)
     req_info_m = s.get(url_m, verify=False, headers={'User-agent': UserAgent().random}, allow_redirects=False)
@@ -50,17 +51,28 @@ def get_facebook_info(account, s, city, keyword):
         find_city = soup_info.find('h4')
         if find_exp:
             fe = find_exp.find("span")
-            if city.lower() in fe.text.lower() or keyword.lower() in fe.text.lower():
-                print("   {}Experience: {}".format(match, fe.text))
+            if city and city.lower() in fe.text.lower():
+                experience = "   {}Experience: {}".format(match, fe.text)
+                matching = True
+            if keyword and keyword.lower() in fe.text.lower():
+                experience = "   {}Experience: {}".format(match, fe.text)
+                matching = True
             else:
-                print("   \u251c Experience: {}".format(fe.text))
+                experience = "   \u251c Experience: {}".format(fe.text)
+        else:
+            experience = "   \u251c Experience: N/A"
         if find_city:
-            if city.lower() in find_city.text.lower() or keyword.lower() in find_city.text.lower():
-                print("   {}City: {}".format(match, find_city.text))
+            if city and city.lower() in find_city.text.lower():
+                get_city = "   \033[32m\u251c City: {}\033[0m".format(find_city.text)
+                matching = True
             else:
-                print("   \u251c City: {}".format(find_city.text))
+                get_city = "   \u251c City: {}".format(find_city.text)
+        else:
+            get_city = "   \u251c City: N/A"
         #TODO (city, school etc...)
     else:
+        experience = "   \u251c Experience: N/A"
+        get_city = "   \u251c City: N/A"
         pass
         """
         #TODO
@@ -70,6 +82,12 @@ def get_facebook_info(account, s, city, keyword):
         test = soup_info.find('div', {'class': 'tu1s4ah4'})
         print(test)
         """
+    if matching:
+        print(" \033[32m\u251c Account seems to match: https://m.facebook.com{} with id: {}\033[0m".format(account, facebook_id))
+    else:
+        print(" {}Potential account found: https://m.facebook.com{} with id: {}".format(p_match, account, facebook_id))
+    print(experience)
+    print(get_city)
 
 
 def get_facebook_id(account):
@@ -112,8 +130,7 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
                         facebook_id = get_facebook_id(account)
                         facebook_id = facebook_id if facebook_id else "N/A"
                         if account not in account_found:
-                            print(" {}Potential account found: https://m.facebook.com{} with id: {}".format(p_match, account, facebook_id))
-                            get_facebook_info(account, s, city, keyword)
+                            get_facebook_info(account, s, city, keyword, facebook_id)
                             #fuckfacebook
                             account_found.append(account)
                             count_result += 1
@@ -126,7 +143,7 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
                 print(" + {} account found\n".format(count_result))
             else:
                 print(" {}No account found\n".format(no_match, count_result))
-        else:
+        elif pseudo:
             url = "https://www.facebook.com/{}".format(pseudo)
             req = requests.get(url, verify=False, timeout=15)
             if req.status_code == 200:
