@@ -34,7 +34,7 @@ def check_facial_reco(dir_name, account, picture):
     if fid:
         print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
 
-def get_facebook_info(account, s, city, keyword, facebook_id):
+def get_facebook_info(account, s, city, keyword, facebook_id, url):
     """
     TODO:
     if m.facebook.com dosn't work check on wwww.facebook.com:
@@ -42,11 +42,12 @@ def get_facebook_info(account, s, city, keyword, facebook_id):
 
     """
     matching = False
-    url_m = "https://m.facebook.com/{}".format(account)
-    url_f = "https://www.facebook.com/{}".format(account)
-    req_info_m = s.get(url_m, verify=False, headers={'User-agent': UserAgent().random}, allow_redirects=False)
+    url_m = "https://m.facebook.com{}".format(account)
+    url_f = "https://www.facebook.com{}".format(account)
+    req_info_m = s.get(url_m, verify=False, allow_redirects=False, headers={'User-agent': UserAgent().random})
     if req_info_m.status_code != 302:
         soup_info = BeautifulSoup(req_info_m.text, "html.parser")
+        print(soup_info)
         find_exp = soup_info.find('div', {'class': 'experience'})
         find_city = soup_info.find('h4')
         if find_exp:
@@ -71,6 +72,7 @@ def get_facebook_info(account, s, city, keyword, facebook_id):
             get_city = "   \u251c City: N/A"
         #TODO (city, school etc...)
     else:
+        #req_info_m = s.get(url_f, verify=False, headers={'User-agent': UserAgent().random}, allow_redirects=False)
         experience = "   \u251c Experience: N/A"
         get_city = "   \u251c City: N/A"
         pass
@@ -83,9 +85,11 @@ def get_facebook_info(account, s, city, keyword, facebook_id):
         print(test)
         """
     if matching:
-        print(" \033[32m\u251c Account seems to match: https://m.facebook.com{} with id: {}\033[0m".format(account, facebook_id))
+        print(" \033[32m\u251c Account seems matching: {}with id: {}\033[0m".format(url_m if not "www" in url else url_f, facebook_id))
+        results = "username: {}\nexperience: {}\ncity: {}".format(account, experience.replace("\033[32m","").replace("\033[0m",""), get_city.replace("\033[32m","").replace("\033[0m",""))
+        raw_output(dir_name, "facebook", results)
     else:
-        print(" {}Potential account found: https://m.facebook.com{} with id: {}".format(p_match, account, facebook_id))
+        print(" {}Potential account found: {} with id: {}".format(p_match, url_m if not "www" in url else url_f, facebook_id))
     print(experience)
     print(get_city)
 
@@ -119,31 +123,35 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
             account_found = []
 
             url = "https://m.facebook.com/public/{}-{}".format(firstname, lastname)
-            req = s.get(url, verify=False, timeout=15)
+            req = s.get(url, verify=False, timeout=15, allow_redirects=False, headers={'User-agent': UserAgent().random})
+            if req.status_code == 302:
+                url = "https://www.facebook.com/public/{}-{}".format(firstname, lastname)
+                req = s.get(url, verify=False, timeout=15, headers={'User-agent': UserAgent().random})
             soup = BeautifulSoup(req.text, "html.parser")
             find_link = soup.find_all('a')
             for fl in find_link:
                 try:
                     if firstname.lower() in fl.get('href') and "login" not in fl.get('href') and "cursor" not in fl.get('href') and \
                      "login" not in fl.get('href') and "next" not in fl.get('href'):
-                        account = fl.get('href')
+                        account = fl.get('href').split("?")[0]
                         facebook_id = get_facebook_id(account)
                         facebook_id = facebook_id if facebook_id else "N/A"
                         if account not in account_found:
-                            get_facebook_info(account, s, city, keyword, facebook_id)
+                            get_facebook_info(account, s, city, keyword, facebook_id, url)
                             #fuckfacebook
                             account_found.append(account)
                             count_result += 1
                             if picture:
                                 check_facial_reco(dir_name, account, picture)
                 except:
-                    traceback.print_exc() #DEBUG
-                    pass
+                    #traceback.print_exc() #DEBUG
+                    pass     
             if count_result > 0:
                 print(" + {} account found\n".format(count_result))
             else:
-                print(" {}No account found\n".format(no_match, count_result))
-        elif pseudo:
+                print(" {}No account found\n".format(p_match, count_result))
+ 
+        elif pseudo and not firstname:
             url = "https://www.facebook.com/{}".format(pseudo)
             req = requests.get(url, verify=False, timeout=15)
             if req.status_code == 200:

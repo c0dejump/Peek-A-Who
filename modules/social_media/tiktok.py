@@ -80,9 +80,11 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
                     desc = "\033[32m{}\033[0m".format(desc)
                     matching = True
             if not matching:
-                print(" {}\033[33m{}\033[0m TikTok seem exist with on https://www.tiktok.com/@{} :".format(p_match, endpoint, endpoint))
+                print(" {}\033[33m{}\033[0m TikTok seem exist on https://www.tiktok.com/@{} :".format(p_match, endpoint, endpoint))
             else:
-                print(" {}\033[32m{}\033[0m TikTok seem exist with on https://www.tiktok.com/@{} :".format(match, endpoint, endpoint))
+                print(" {}\033[32m{}\033[0m TikTok seem matching with: https://www.tiktok.com/@{} :".format(match, endpoint, endpoint))
+                results = "username: {}\nreal_name: {}\ndesc: {}".format(endpoint, find_name.text.replace("\033[32m","").replace("\033[0m",""), desc.replace("\033[32m","").replace("\033[0m",""))
+                raw_output(dir_name, "tiktok", results)
             print("   \u251c Real name: {}".format(find_name.text if find_name.text else "\033[31mNone\033[0m"))
             print("   \u251c Description: {}".format(desc)) if "No bio yet" not in desc else None
             print("   \u251c Site: {}".format(site.text)) if site else None

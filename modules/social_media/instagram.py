@@ -98,9 +98,12 @@ class parse_ig:
             if not matching:
                 print(" {}\033[33m{}\033[0m Username seems exist on https://www.instagram.com/{} :".format(p_match, endpoint, endpoint))
             else:
-                print(" {}\033[32m{}\033[0m Username seems to match \033[34mhttps://www.instagram.com/{} :\033[0m".format(match, endpoint, endpoint))
+                print(" {}\033[32m{}\033[0m Username seems matching \033[34mhttps://www.instagram.com/{} :\033[0m".format(match, endpoint, endpoint))
             print("   \u251c Real name: {}".format(real_name))
             print("   \u251c Description: {}".format(desc))
+            if matching:
+                results = "username: {}\nreal_name: {}\ndesc: {}".format(endpoint, real_name.replace("\033[32m","").replace("\033[0m",""), desc.replace("\033[32m","").replace("\033[0m",""))
+                raw_output(dir_name, "instagram", results)
             try:
                 get_ig_obfu_infos(s, endpoint)
             except:
@@ -113,8 +116,8 @@ class parse_ig:
                     with open("{}/{}.jpg".format(dir_name, pseudo), 'wb') as handler:
                         handler.write(img_data)
                 except:
-                    #pass
-                    traceback.print_exc() #DEBUG
+                    pass
+                    #traceback.print_exc() #DEBUG
                 fid = face_identification(picture, "{}/{}.jpg".format(dir_name, pseudo))
                 if fid:
                     print("   \033[32m\u251c Facial recognition matching with the https://www.instagram.com/{} account !\033[0m".format(pseudo))
@@ -136,7 +139,7 @@ class parse_ig:
                 bar += 1
                 sys.stdout.write(" {}/{} | https://www.instagram.com/{} \r".format(bar, len_datas, endpoint))
             except Exception:
-                traceback.print_exc()
+                #traceback.print_exc()
                 pass
             q.task_done()
             
@@ -181,7 +184,7 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
             time.sleep(1)
             #sys.exit()
         except Exception:
-            traceback.print_exc()
+            #traceback.print_exc()
             pass
     sys.stdout.write("\033[K")
     #deleted_image(dir_name)

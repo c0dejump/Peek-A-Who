@@ -23,6 +23,7 @@
 ## TODO
 
 - [ ] Report, he'll contain informations and picture found from networks (graph too ?)
+- [ ] Short text report (maigret style)
 - [ ] Ghunt (epieos?)
 - [ ] Scraping social medias:
 	- Facebook (get more informations, schools etc...) [In progress]
@@ -36,6 +37,7 @@
  	- ...
 - [ ] OCR => for the images found
 - [ ] Image template matching => Before facial recognition
+- [ ] Color hair recognition in keyword (red-hair, brown-hair...)
 - [ ] Exif Image => If any exif (location, model phone etc...)
 - [ ] Multiple keywords 
 

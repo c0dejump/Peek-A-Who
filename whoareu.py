@@ -20,6 +20,7 @@ from modules import google_search, phone_number
 from modules.french_touch import whitepage, qualifications, societe
 from modules.social_media import facebook, linkedin, snapchat, tiktok, instagram, telegram
 from modules.email import mail_search, email_guesser
+from reports import short_report
 
 
 
@@ -159,3 +160,4 @@ if __name__ == '__main__':
             print("Ok no problem")
             run_modules()"""
         run_modules()
+    short_report.short_text_report()
