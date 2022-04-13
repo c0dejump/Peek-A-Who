@@ -94,15 +94,17 @@ class parse_ig:
                 matching = True
             if pseudo in desc.lower():
                 desc = "\033[32m{}\033[0m".format(desc)
+                #print(desc)
+                #desc = " ".join(desc)
                 matching = True
             if not matching:
                 print(" {}\033[33m{}\033[0m Username seems exist on https://www.instagram.com/{} :".format(p_match, endpoint, endpoint))
             else:
                 print(" {}\033[32m{}\033[0m Username seems matching \033[34mhttps://www.instagram.com/{} :\033[0m".format(match, endpoint, endpoint))
             print("   \u251c Real name: {}".format(real_name))
-            print("   \u251c Description: {}".format(desc))
+            print("   \u251c Description: {}".format(" ".join(desc.splitlines())))
             if matching:
-                results = "username: {}\nreal_name: {}\ndesc: {}".format(endpoint, real_name.replace("\033[32m","").replace("\033[0m",""), desc.replace("\033[32m","").replace("\033[0m",""))
+                results = "username: {}\nreal_name: {}\ndesc: {}".format(endpoint, real_name.replace("\033[32m","").replace("\033[0m",""), " ".join(desc.splitlines()).replace("\033[32m","").replace("\033[0m",""))
                 raw_output(dir_name, "instagram", results)
             try:
                 get_ig_obfu_infos(s, endpoint)

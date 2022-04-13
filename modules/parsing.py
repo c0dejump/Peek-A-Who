@@ -36,10 +36,13 @@ def parsing_data(identity, pseudo, city, keyword, birth_year):
             "{}.{}".format(lastname, firstname), "{}-{}".format(lastname, firstname), "{}{}".format(lastname, firstname),  
             "{}.{}".format(firstname, bigram_lastname), "{}-{}".format(firstname, bigram_lastname), "{}{}".format(firstname, bigram_lastname),
             "{}.{}".format(firstname, trigram_lastname), "{}-{}".format(firstname, trigram_lastname), "{}{}".format(firstname, trigram_lastname),
+            "{}.{}".format(trigram_lastname, firstname), "{}-{}".format(trigram_lastname, firstname), "{}{}".format(trigram_lastname, firstname),
             "{}.{}".format(bigram_lastname, firstname), "{}-{}".format(bigram_lastname, firstname), "{}{}".format(bigram_lastname, firstname),
             "{}_{}".format(lastname, firstname), "{}_{}".format(firstname, lastname), "_{}{}".format(firstname, lastname), "_{}{}".format(lastname, firstname),
             "{}_{}".format(firstname, bigram_lastname), "{}_{}".format(bigram_lastname, firstname), "_{}{}".format(firstname, bigram_lastname), "_{}{}".format(bigram_lastname, firstname),
-            "{}_{}".format(firstname, trigram_lastname), "{}_{}".format(trigram_lastname, firstname), "_{}{}".format(firstname, trigram_lastname), "_{}{}".format(bigram_lastname, firstname)]
+            "{}_{}".format(firstname, trigram_lastname), "{}_{}".format(trigram_lastname, firstname), "_{}{}".format(firstname, trigram_lastname), "_{}{}".format(bigram_lastname, firstname),
+
+            ]
         """
              {}_{}1".format(firstname, lastname), "{}_{}1".format(lastname, firstname), 
             "{}_{}.1".format(firstname, lastname), "{}_{}.1".format(lastname, firstname),
@@ -69,6 +72,7 @@ def parsing_data(identity, pseudo, city, keyword, birth_year):
             "{}_de{}".format(e, city), "{}_of{}".format(e, city), 
             "{}-de{}".format(e, city), "{}-of{}".format(e, city),
             "{}{}".format(e, postal_code), "{}{}".format(postal_code, e), "{}_{}".format(e, postal_code), 
+            "{}.{}".format(e, postal_code), "{}.{}".format(postal_code, e),
             "{}_du{}".format(e, postal_code), "{}_of{}".format(e, postal_code), 
             "{}-du{}".format(e, postal_code), "{}-of{}".format(e, postal_code) ]
             for lci in list_city_identity:

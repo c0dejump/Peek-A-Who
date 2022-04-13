@@ -47,7 +47,6 @@ def get_facebook_info(account, s, city, keyword, facebook_id, url):
     req_info_m = s.get(url_m, verify=False, allow_redirects=False, headers={'User-agent': UserAgent().random})
     if req_info_m.status_code != 302:
         soup_info = BeautifulSoup(req_info_m.text, "html.parser")
-        print(soup_info)
         find_exp = soup_info.find('div', {'class': 'experience'})
         find_city = soup_info.find('h4')
         if find_exp:
