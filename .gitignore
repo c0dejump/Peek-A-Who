@@ -1,0 +1,11 @@
+*$py.class
+__pycache__/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+dist
+build/
+reports/results/*
+exif_by_network.txt
