@@ -44,7 +44,7 @@
 - [ ] Color hair recognition in keyword (red-hair, brown-hair...)
 - [ ] Exif Image => If any exif (location, model phone etc...)
 - [ ] Multiple keywords 
-- [ ] Get pub scope (possible): 
+- [ ] Get pub scope (possible ?): 
 	-	hxxps://leadsbridge.com/blog/how-to-use-google-customer-match-like-a-pro-in-your-marketing-strategy/
 	- hxxps://developers.google.com/google-ads/api/docs/remarketing/audience-types/customer-match 
 	-	hxxps://cypressnorth.com/display-advertising-and-retargeting/email-address-targeting-google-facebook-twitter/#:text=To%20get%20started%20click%20on,addresses%20button%20and%20upload%20the%20.
