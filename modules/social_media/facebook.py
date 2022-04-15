@@ -34,7 +34,7 @@ def check_facial_reco(dir_name, account, picture):
     if fid:
         print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
 
-def get_facebook_info(account, s, city, keyword, facebook_id, url):
+def get_facebook_info(dir_name, account, s, city, keyword, facebook_id, url):
     """
     TODO:
     if m.facebook.com dosn't work check on wwww.facebook.com:
@@ -63,7 +63,7 @@ def get_facebook_info(account, s, city, keyword, facebook_id, url):
             experience = "   \u251c Experience: N/A"
         if find_city:
             if city and city.lower() in find_city.text.lower():
-                get_city = "   \033[32m\u251c City: {}\033[0m".format(find_city.text)
+                get_city = "   {}City: {}".format(match, find_city.text)
                 matching = True
             else:
                 get_city = "   \u251c City: {}".format(find_city.text)
@@ -85,7 +85,7 @@ def get_facebook_info(account, s, city, keyword, facebook_id, url):
         """
     if matching:
         print(" \033[32m\u251c Account seems matching: {} with id: {}\033[0m".format(url_m if not "www" in url else url_f, facebook_id))
-        results = "username: {}\nexperience: {}\ncity: {}".format(account, experience.replace("\033[32m","").replace("\033[0m",""), get_city.replace("\033[32m","").replace("\033[0m",""))
+        results = "link: https://www.facebook.com/{}\nusername: {}\nexperience: {}\ncity: {}".format(account.replace("/",""), account.replace("/",""), experience.replace("\033[32m","").replace("\033[0m","").replace("\u251c","").strip(), get_city.replace("\033[32m","").replace("\033[0m","").replace("\u251c","").strip())
         raw_output(dir_name, "facebook", results)
     else:
         print(" {}Potential account found: {} with id: {}".format(p_match, url_m if not "www" in url else url_f, facebook_id))
@@ -136,20 +136,20 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
                         facebook_id = get_facebook_id(account)
                         facebook_id = facebook_id if facebook_id else "N/A"
                         if account not in account_found:
-                            get_facebook_info(account, s, city, keyword, facebook_id, url)
+                            get_facebook_info(dir_name, account, s, city, keyword, facebook_id, url)
                             #fuckfacebook
                             account_found.append(account)
                             count_result += 1
                             if picture:
                                 check_facial_reco(dir_name, account, picture)
                 except:
-                    traceback.print_exc() #DEBUG
+                    #traceback.print_exc() #DEBUG
                     pass     
             if count_result > 0:
                 print(" + {} account found\n".format(count_result))
             else:
                 print(" {}No account found\n".format(p_match, count_result))
-            results = "Facebook return {} accounts".format(count_result)
+            results = "Facebook returned {} accounts".format(count_result)
             raw_output(dir_name, "results_number", results)
         elif pseudo and not firstname:
             url = "https://www.facebook.com/{}".format(pseudo)

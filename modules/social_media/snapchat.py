@@ -90,7 +90,7 @@ def snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year):
         except KeyboardInterrupt:
             print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
     sys.stdout.write("\033[K")
-    results = "Snapchat return {} accounts".format(results_found)
+    results = "Snapchat returned {} accounts".format(results_found)
     raw_output(dir_name, "results_number", results)
     print(separator)
 

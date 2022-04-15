@@ -100,7 +100,7 @@ def linkedin_search(firstname, lastname, dir_name, picture):
     for u in list_user:
         linkedin_scraping(u, picture, dir_name, True)
 
-    results = "Linkedin return {} accounts".format(results_found)
+    results = "Linkedin returned {} accounts".format(results_found)
     raw_output(dir_name, "results_number", results)
     print(separator)
 

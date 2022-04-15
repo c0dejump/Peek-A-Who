@@ -56,7 +56,6 @@ def get_infos(diplomas_type, identity, url, candidate, city, keyword):
         print("   \u251c Academy: {}".format(academy))
         if diplomas_type == "Bac":
             print("   \u251c Type: {}".format(c["diplomaSerieLabel"]))   
-        print("")
 
 
 def brevet(identity, city, keyword, s):

@@ -107,7 +107,7 @@ class parse_ig:
             print("   \u251c Real name: {}".format(real_name))
             print("   \u251c Description: {}".format(" ".join(desc.splitlines())))
             if matching:
-                results = "username: {}\nreal_name: {}\ndesc: {}".format(endpoint, real_name.replace("\033[32m","").replace("\033[0m",""), " ".join(desc.splitlines()).replace("\033[32m","").replace("\033[0m",""))
+                results = "link: https://www.instagram.com/{}\nusername: {}\nreal_name: {}\ndesc: {}".format(endpoint, endpoint, real_name.replace("\033[32m","").replace("\033[0m",""), " ".join(desc.splitlines()).replace("\033[32m","").replace("\033[0m",""))
                 raw_output(dir_name, "instagram", results)
             try:
                 get_ig_obfu_infos(s, endpoint)
@@ -204,7 +204,7 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
             pass
     sys.stdout.write("\033[K")
     #deleted_image(dir_name)
-    results = "Instagram return {} accounts".format(results_found)
+    results = "Instagram returned {} accounts".format(results_found)
     raw_output(dir_name, "results_number", results)
     print(separator)
 

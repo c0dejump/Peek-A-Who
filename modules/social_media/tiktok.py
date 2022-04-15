@@ -88,7 +88,7 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
                 print(" {}\033[33m{}\033[0m TikTok seem exist on https://www.tiktok.com/@{} :".format(p_match, endpoint, endpoint))
             else:
                 print(" {}\033[32m{}\033[0m TikTok seem matching with: https://www.tiktok.com/@{} :".format(match, endpoint, endpoint))
-                results = "username: {}\nreal_name: {}\ndesc: {}".format(endpoint, find_name.text.replace("\033[32m","").replace("\033[0m",""), desc.replace("\033[32m","").replace("\033[0m",""))
+                results = "link: https://www.tiktok.com/@{}\nusername: {}\nreal_name: {}\ndesc: {}".format(endpoint, endpoint, find_name.text.replace("\033[32m","").replace("\033[0m",""), desc.replace("\033[32m","").replace("\033[0m",""))
                 raw_output(dir_name, "tiktok", results)
             print("   \u251c Real name: {}".format(find_name.text if find_name.text else "\033[31mNone\033[0m"))
             print("   \u251c Description: {}".format(desc)) if "No bio yet" not in desc else None
@@ -112,23 +112,27 @@ def tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year
         i = None
         get_tiktok(i, pseudo, city, keyword, s, dir_name)
     else:
-        datas = parsing_data(identity, pseudo, city, keyword, birth_year)
-        for n in datas:
-            len_datas += 1
-        try:
-            for endpoint in datas:
-                enclosure_queue.put(endpoint)
-            for i in range(10):
-                worker = Thread(target=get_tiktok, args=(i, enclosure_queue, city, keyword, s, dir_name))
-                worker.setDaemon(True)
-                worker.start()
-            enclosure_queue.join()
-        except KeyboardInterrupt:
-            print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
-        except Exception:
-            pass
-        sys.stdout.write("\033[K")
-    results = "Tiktok return {} accounts".format(results_found)
+        req_verif = requests.get("https://www.tiktok.com/@{}".format(identity), verify=False)
+        if req_verif.status_code != 403:
+            datas = parsing_data(identity, pseudo, city, keyword, birth_year)
+            for n in datas:
+                len_datas += 1
+            try:
+                for endpoint in datas:
+                    enclosure_queue.put(endpoint)
+                for i in range(10):
+                    worker = Thread(target=get_tiktok, args=(i, enclosure_queue, city, keyword, s, dir_name))
+                    worker.setDaemon(True)
+                    worker.start()
+                enclosure_queue.join()
+            except KeyboardInterrupt:
+                print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
+            except Exception:
+                pass
+            sys.stdout.write("\033[K")
+        else:
+            print(" {} Tiktok returned {} satus code, please verify if blocked...".format(error, req_verif.status_code))
+    results = "Tiktok returned {} accounts".format(results_found)
     raw_output(dir_name, "results_number", results)
     print(separator)
 
