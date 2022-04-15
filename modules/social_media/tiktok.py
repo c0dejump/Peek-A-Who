@@ -57,6 +57,10 @@ url_tiktok = "https://www.tiktok.com/node/share/user/@{}".format(endpoint)
 def get_tiktok(i, q, city, keyword, s, dir_name):
     global bar
     bar = 0 
+
+    global results_found
+    results_found = 0
+
     for d in range(len_datas):
         endpoint = q.get() if type(q) != str() else q
         url_tiktok = "https://www.tiktok.com/@{}".format(endpoint)
@@ -65,6 +69,7 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
         matching = False
 
         if req_tiktok.status_code not in [404, 403, 401]:
+            results_found += 1
             soup = BeautifulSoup(req_tiktok.text, "html.parser")
             find_name = soup.find('h1', {'data-e2e': 'user-subtitle'})
             description = soup.find('h2', {'data-e2e': 'user-bio'})
@@ -103,7 +108,6 @@ def tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year
     global len_datas
     len_datas = 0
 
-
     if pseudo and not identity:
         i = None
         get_tiktok(i, pseudo, city, keyword, s, dir_name)
@@ -124,6 +128,8 @@ def tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year
         except Exception:
             pass
         sys.stdout.write("\033[K")
+    results = "Tiktok return {} accounts".format(results_found)
+    raw_output(dir_name, "results_number", results)
     print(separator)
 
 

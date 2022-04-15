@@ -28,15 +28,15 @@ def run_modules():
     """
     run_modules: run all module
     """
-    #google_search.google_s(identity, phone_n, mail, pseudo, city, dir_name, picture)
+    #google_search.google_s(identity, phone_n, mail, pseudo, keyword, city, dir_name, picture)
     if identity:
         #french touch
-        #societe.society_search(dir_name, identity, city, keyword, birth_year)
-        #qualifications.qualifications_search(identity, city, keyword)
-        #whitepage.whitepage_search(dir_name, firstname, lastname, city)
+        societe.society_search(dir_name, identity, city, keyword, birth_year)
+        qualifications.qualifications_search(identity, city, keyword, birth_year)
+        whitepage.whitepage_search(dir_name, firstname, lastname, city)
         #social
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword)
-        snapchat.snapchat_search(identity, pseudo, city, keyword, birth_year)
+        snapchat.snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year)
         tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
         instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
         linkedin.linkedin_search(firstname, lastname, dir_name, picture)
@@ -44,7 +44,7 @@ def run_modules():
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
     if pseudo:
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword)
-        snapchat.snapchat_search(identity, pseudo, city, keyword, birth_year)
+        snapchat.snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year)
         tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
         instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
         telegram.telegram_search(pseudo, city, keyword, picture)

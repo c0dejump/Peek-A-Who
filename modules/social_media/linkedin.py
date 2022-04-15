@@ -10,10 +10,7 @@ from static.colors import info, match, p_match, no_match, error, separator
 from linkedin_api import Linkedin
 from config import LINKEDIN_USERNAME, LINKEDIN_PASSWORD
 from modules.image_analysis.facial_recognition import face_identification
-
-
-#LINKEDIN_USERNAME = "codejumpdev@gmail.com"
-#LINKEDIN_PASSWORD = "h1iEsLhiv8Zlcow8RlxU"
+from output import raw_output
 
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
@@ -54,6 +51,7 @@ def linkedin_scraping(url, picture, dir_name, username=False):
         try:
             if profile:
                 #print(profile.items())
+                results_found += 1
                 for c in contact:
                     if contact[c] != None and contact[c] != []:
                         info_contact = contact[c] if type(contact[c]) != dict else "{}".format([contact[c][ic] for ic in contact[c]])
@@ -81,7 +79,7 @@ def linkedin_scraping(url, picture, dir_name, username=False):
             else:
                 pass
         except:
-            traceback.print_exc()
+            #traceback.print_exc()
             pass
     except:
         #traceback.print_exc() #DEBUG
@@ -89,6 +87,10 @@ def linkedin_scraping(url, picture, dir_name, username=False):
 
 
 def linkedin_search(firstname, lastname, dir_name, picture):
+
+    global results_found
+    results_found = 0
+
     print("\033[36m Linkedin search \033[0m")
     print(separator)
     list_user = [
@@ -97,6 +99,9 @@ def linkedin_search(firstname, lastname, dir_name, picture):
     ]
     for u in list_user:
         linkedin_scraping(u, picture, dir_name, True)
+
+    results = "Linkedin return {} accounts".format(results_found)
+    raw_output(dir_name, "results_number", results)
     print(separator)
 
 

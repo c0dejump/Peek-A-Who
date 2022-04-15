@@ -56,7 +56,9 @@ def get_ig_obfu_infos(s, endpoint):
         except:
             obfu_phone = "N/A"
         print("   \u251c obfuscated email: {}".format(obfu_email))
+        sys.stdout.write("\033[K")
         print("   \u251c obfuscated phone: {}".format(obfu_phone))
+        sys.stdout.write("\033[K")
         return True
     elif get_obfu.status_code == 429:
         print("   {}[{}] obfuscated informations not available for the moment".format(error, get_obfu.status_code))
@@ -67,6 +69,7 @@ class parse_ig:
     #TODO: if profile is public check on InstaLocTrack: https://github.com/bernsteining/instaloctrack
 
     def get_ig_details(self, endpoint, s, city, keyword, pseudo, picture, dir_name):
+
         endpoint = endpoint if endpoint else pseudo
         url = "https://privatephotoviewer.com/usr/{}".format(endpoint)
         matching = False
@@ -109,8 +112,8 @@ class parse_ig:
             try:
                 get_ig_obfu_infos(s, endpoint)
             except:
-                #pass
-                traceback.print_exc() #DEBUG
+                pass
+                #traceback.print_exc() #DEBUG
             #time.sleep(1)
             if picture:
                 try:
@@ -123,21 +126,32 @@ class parse_ig:
                 fid = face_identification(picture, "{}/{}.jpg".format(dir_name, pseudo))
                 if fid:
                     print("   \033[32m\u251c Facial recognition matching with the https://www.instagram.com/{} account !\033[0m".format(pseudo))
+            return True
 
 
     def get_ig_pseudo(self, endpoint, s, city, keyword, pseudo, picture, dir_name):
-        self.get_ig_details(endpoint, s, city, keyword, pseudo, picture, dir_name)
+        global results_found
+        results_found = 0
+
+        gid = self.get_ig_details(endpoint, s, city, keyword, pseudo, picture, dir_name)
+        if gid:
+            results_found += 1
 
 
     def get_ig_info(self, i, q, s, city, keyword, pseudo, picture, dir_name):
         global bar
-        bar = 0 
+        bar = 0
+
+        global results_found
+        results_found = 0
 
         while not q.empty():
             endpoint = q.get()
             try:
                 #print(threading.active_count())
-                self.get_ig_details(endpoint, s, city, keyword, pseudo, picture, dir_name)
+                gid = self.get_ig_details(endpoint, s, city, keyword, pseudo, picture, dir_name)
+                if gid:
+                    results_found += 1
                 bar += 1
                 sys.stdout.write(" {}/{} | https://www.instagram.com/{} \r".format(bar, len_datas, endpoint))
             except Exception:
@@ -190,6 +204,8 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
             pass
     sys.stdout.write("\033[K")
     #deleted_image(dir_name)
+    results = "Instagram return {} accounts".format(results_found)
+    raw_output(dir_name, "results_number", results)
     print(separator)
 
 

@@ -84,7 +84,7 @@ def get_facebook_info(account, s, city, keyword, facebook_id, url):
         print(test)
         """
     if matching:
-        print(" \033[32m\u251c Account seems matching: {}with id: {}\033[0m".format(url_m if not "www" in url else url_f, facebook_id))
+        print(" \033[32m\u251c Account seems matching: {} with id: {}\033[0m".format(url_m if not "www" in url else url_f, facebook_id))
         results = "username: {}\nexperience: {}\ncity: {}".format(account, experience.replace("\033[32m","").replace("\033[0m",""), get_city.replace("\033[32m","").replace("\033[0m",""))
         raw_output(dir_name, "facebook", results)
     else:
@@ -143,13 +143,14 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
                             if picture:
                                 check_facial_reco(dir_name, account, picture)
                 except:
-                    #traceback.print_exc() #DEBUG
+                    traceback.print_exc() #DEBUG
                     pass     
             if count_result > 0:
                 print(" + {} account found\n".format(count_result))
             else:
                 print(" {}No account found\n".format(p_match, count_result))
- 
+            results = "Facebook return {} accounts".format(count_result)
+            raw_output(dir_name, "results_number", results)
         elif pseudo and not firstname:
             url = "https://www.facebook.com/{}".format(pseudo)
             req = requests.get(url, verify=False, timeout=15)

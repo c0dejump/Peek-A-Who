@@ -82,12 +82,13 @@ def bac(identity, city, keyword, s):
             found = True
 
 
-def qualifications_search(identity, city, keyword):
+def qualifications_search(identity, city, keyword, birth_year):
     print("\033[36m Qualifications search \033[0m")
     print(separator)
     s = requests.session()
     brevet(identity, city, keyword, s)
-    bac(identity, city, keyword, s)
+    if not birth_year or birth_year > 16:
+        bac(identity, city, keyword, s)
     if not found:
         print(" {}Not diplomas found".format(no_match))
     print(separator)

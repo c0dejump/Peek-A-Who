@@ -34,8 +34,12 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 def get_snapchat(i, q, s):
     global bar
     bar = 0 
+
+    global results_found
+    results_found = 0
+
     for d in range(len_datas):
-        endpoint = q.get()
+        endpoint = q.get() if type(q) != str() else q
         url_snapchat = "https://www.snapchat.com/add/{}".format(endpoint)
         req_snapchat = s.get(url_snapchat, verify=False, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
         if req_snapchat.status_code not in [404, 403, 401]:
@@ -44,6 +48,7 @@ def get_snapchat(i, q, s):
                 find_name = soup.find('span', {'class': re.compile(r'UserDetailsCard_title*')})
                 if find_name.text:
                     print(" {}\033[33m{}\033[0m Username seems exist with real name {} on https://www.snapchat.com/add/{}".format(p_match, endpoint, "\033[33m{}\033[0m".format(find_name.text), endpoint))
+                    results_found += 1
                 else:
                     pass
             except AttributeError:
@@ -55,7 +60,7 @@ def get_snapchat(i, q, s):
 
 
 
-def snapchat_search(identity, pseudo, city, keyword, birth_year):
+def snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year):
 
     print("\033[36m Snapchat search\033[0m")
     print(separator)
@@ -65,8 +70,11 @@ def snapchat_search(identity, pseudo, city, keyword, birth_year):
     global len_datas
     len_datas = 0
 
-    if pseudo and not identity and not city and not keyword:
-        get_snapchat(pseudo, s)
+    if pseudo and not identity:
+        i = None
+        datas = parsing_data(identity, pseudo, city, keyword, birth_year)
+        for d in datas:
+            get_snapchat(i, d, s)
     else:
         datas = parsing_data(identity, pseudo, city, keyword, birth_year)
         for n in datas:
@@ -82,6 +90,8 @@ def snapchat_search(identity, pseudo, city, keyword, birth_year):
         except KeyboardInterrupt:
             print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
     sys.stdout.write("\033[K")
+    results = "Snapchat return {} accounts".format(results_found)
+    raw_output(dir_name, "results_number", results)
     print(separator)
 
 

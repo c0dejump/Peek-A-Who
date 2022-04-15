@@ -22,24 +22,32 @@
 
 ## TODO
 
-- [ ] Report, he'll contain informations and picture found from networks (graph too ?)
-- [ ] Short text report (maigret style)
-- [ ] Ghunt (epieos?)
-- [ ] Scraping social medias:
-	- Facebook (get more informations, schools etc...) [In progress]
-	- linkedin (Get CV and OCR action to get informations)
-	- Twitter
-	- Reddit
+### In progress
+- [ ] Short text report (maigret style) [In progress]
+- [ ] Facebook (get more informations, schools etc...) [In progress]
 - [ ] Do links/connection (same age/city...) (Reduce FP number) [In progress]
  	- If school found => where is it ?
  	- If number found => what's country ?
  	- If date or age => Do a link between us
  	- ...
+- [ ] Report, he'll contain informations and picture found from networks (graph too ?)
+
+### Others
+- [ ] Ghunt (epieos? → captcha or not)
+- [ ] Scraping social medias:
+	- linkedin (Get CV and OCR action to get informations)
+	- Twitter
+	- Reddit
+	- hxxps://onlyfinder.com/
 - [ ] OCR => for the images found
 - [ ] Image template matching => Before facial recognition
 - [ ] Color hair recognition in keyword (red-hair, brown-hair...)
 - [ ] Exif Image => If any exif (location, model phone etc...)
 - [ ] Multiple keywords 
+- [ ] Get pub scope (possible): 
+	-	hxxps://leadsbridge.com/blog/how-to-use-google-customer-match-like-a-pro-in-your-marketing-strategy/
+	- hxxps://developers.google.com/google-ads/api/docs/remarketing/audience-types/customer-match 
+	-	hxxps://cypressnorth.com/display-advertising-and-retargeting/email-address-targeting-google-facebook-twitter/#:text=To%20get%20started%20click%20on,addresses%20button%20and%20upload%20the%20.
 
 
 ## TODO Scraping sites:

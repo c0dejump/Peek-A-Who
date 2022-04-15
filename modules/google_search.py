@@ -14,12 +14,14 @@ from modules.social_media.linkedin import linkedin_scraping
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 
-def google_s(identity, phone_n, mail, pseudo, city, dir_name, picture):
+def google_s(identity, phone_n, mail, pseudo, keyword, city, dir_name, picture):
     """
     google_s: function to search on google
     """
     print("\033[36m Google search \033[0m")
     print(separator)
+
+    identity = identity if identity else pseudo
 
     queries = []
 
@@ -38,10 +40,13 @@ def google_s(identity, phone_n, mail, pseudo, city, dir_name, picture):
                 try:
                     req_url_found = requests.get(j, verify=False, timeout=4)
                     if req_url_found.status_code not in [404, 408, 503, 405, 428, 412, 429, 403, 401]:
-                        print(" \033[32m[{}]\033[0m {}".format(req_url_found.status_code, j))
                         if "linkedin" in j:
                             print("\033[36m Linkedin search \033[0m")
                             linkedin_scraping(j, picture, dir_name, username=False)
+                        if keyword and keyword in j or city and city in j:
+                            print(" \033[32m[{}] {}\033[0m".format(req_url_found.status_code, j))
+                        else:
+                            print(" \033[32m[{}]\033[0m {}".format(req_url_found.status_code, j))
                         """try:
                             with open(directory+"/site/{}/google_dorks.txt".format(directory), "a+") as raw:
                                 raw.write("{}\n".format(j))
