@@ -147,8 +147,6 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
                     pass     
             if count_result > 0:
                 print(" + {} account found\n".format(count_result))
-            else:
-                print(" {}No account found\n".format(p_match, count_result))
             results = "Facebook returned {} accounts".format(count_result)
             raw_output(dir_name, "results_number", results)
         elif pseudo and not firstname:

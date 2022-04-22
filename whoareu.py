@@ -42,15 +42,27 @@ def run_modules():
         linkedin.linkedin_search(firstname, lastname, dir_name, picture)
         #email
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
-    if pseudo:
+        if pseudo:
+            telegram.telegram_search(pseudo, city, keyword, picture)
+            try:
+                os.system("python3 tools/sherlock/sherlock/sherlock.py {} -o {}/{}.txt >/dev/null 2>&1".format(pseudo, dir_name, pseudo))
+                with open("{}/{}.txt".format(dir_name, pseudo), "r") as result:
+                    for r in result.read().splitlines():
+                        req = requests.get(r, verify=False, timeout=15)
+                        if req.status_code not in [404, 403, 401, 500, 429]:
+                            print(" [+] {}".format(r))
+            except Exception:
+                #pass
+                traceback.print_exc()
+    if pseudo and not identity:
+        print("\033[36m Pseudo search \033[0m")
+        print("\033[36m-\033[0m"*30)
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword)
         snapchat.snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year)
         tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
         instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
         telegram.telegram_search(pseudo, city, keyword, picture)
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
-        print("\033[36m Pseudo search \033[0m")
-        print("\033[36m-\033[0m"*30)
         try:
             os.system("python3 tools/sherlock/sherlock/sherlock.py {} -o {}/{}.txt >/dev/null 2>&1".format(pseudo, dir_name, pseudo))
             with open("{}/{}.txt".format(dir_name, pseudo), "r") as result:

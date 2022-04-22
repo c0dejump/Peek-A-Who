@@ -111,6 +111,7 @@ class parse_ig:
                 raw_output(dir_name, "instagram", results)
             try:
                 get_ig_obfu_infos(s, endpoint)
+                time.sleep(1)
             except:
                 pass
                 #traceback.print_exc() #DEBUG
@@ -188,7 +189,7 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
             #print(emails_for_verification)
             for endpoint in datas:
                 enclosure_queue.put(endpoint)
-            for i in range(5):
+            for i in range(10):
                 #2 threads for obfu information, else 429 response srry...
                 worker = Thread(target=parsing_ig.get_ig_info, args=(i, enclosure_queue, s, city, keyword, pseudo, picture, dir_name))
                 worker.setDaemon(True)

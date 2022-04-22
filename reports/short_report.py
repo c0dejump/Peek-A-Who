@@ -5,7 +5,6 @@
 import sys, os, re
 from static.colors import info, match, p_match, no_match, error, separator
 
-
 def short_text_report(dir_name):
 	matching_tags = ["facebook", "instagram", "tiktok", "linkedin"]
 	print("\033[34mShort text report:\033[0m")
@@ -17,6 +16,6 @@ def short_text_report(dir_name):
 			if al.split(".")[0] in matching_tags:
 				print("{} Potential {} account found:".format(match, al.split(".")[0]))
 				for gr in get_results:
-					print(" - {}".format(gr.strip()))
+					print(" - {}".format(gr.strip().encode('utf-8').decode()))
 			for gr in get_results:
 				print(gr.strip())

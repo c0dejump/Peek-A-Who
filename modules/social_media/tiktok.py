@@ -64,7 +64,7 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
     for d in range(len_datas):
         endpoint = q.get() if type(q) != str() else q
         url_tiktok = "https://www.tiktok.com/@{}".format(endpoint)
-        req_tiktok = s.get(url_tiktok, verify=False, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
+        req_tiktok = s.get(url_tiktok, verify=False, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"}, timeout=15)
 
         matching = False
 
@@ -72,9 +72,10 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
             results_found += 1
             soup = BeautifulSoup(req_tiktok.text, "html.parser")
             find_name = soup.find('h1', {'data-e2e': 'user-subtitle'})
+            real_name = find_name.text if find_name else "\033[31mNone\033[0m"
             description = soup.find('h2', {'data-e2e': 'user-bio'})
             site = soup.find('span', {'class': re.compile(r'tiktok-847r2g-SpanLink*')})
-            desc = description.text.replace("\n", " ")
+            desc = description.text.replace("\n", " ") if description else "N/A"
 
             if city:
                 if city.lower() in desc.lower():
@@ -90,7 +91,7 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
                 print(" {}\033[32m{}\033[0m TikTok seem matching with: https://www.tiktok.com/@{} :".format(match, endpoint, endpoint))
                 results = "link: https://www.tiktok.com/@{}\nusername: {}\nreal_name: {}\ndesc: {}".format(endpoint, endpoint, find_name.text.replace("\033[32m","").replace("\033[0m",""), desc.replace("\033[32m","").replace("\033[0m",""))
                 raw_output(dir_name, "tiktok", results)
-            print("   \u251c Real name: {}".format(find_name.text if find_name.text else "\033[31mNone\033[0m"))
+            print("   \u251c Real name: {}".format(real_name))
             print("   \u251c Description: {}".format(desc)) if "No bio yet" not in desc else None
             print("   \u251c Site: {}".format(site.text)) if site else None
         q.task_done()
