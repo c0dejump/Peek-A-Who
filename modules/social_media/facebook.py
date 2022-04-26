@@ -6,6 +6,7 @@ import requests
 import time
 import traceback
 from bs4 import BeautifulSoup
+import json
 
 from static.colors import info, match, p_match, no_match, error, separator
 from config import FB_USERNAME, FB_PASSWORD
@@ -20,6 +21,43 @@ except:
     UserAgent = ["Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko", "c0dejump"]
 
 #TODO fuckfacebook
+
+def get_marketplace(dir_name, account, s, city, keyword, facebook_id, url):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:99.0) Gecko/20100101 Firefox/99.0',
+        'Origin': 'https://www.facebook.com',
+        'Connection': 'keep-alive',
+        'Sec-Fetch-Site': 'same-origin',
+    }
+
+    data = {
+        'variables': '{"canViewCustomizedProfile":true,"count":8,"isCOBMOB":false,"scale":1,"sellerId":"'+facebook_id+'"}',
+        'doc_id': '4872548596176106',
+    }
+
+    response = s.post('https://www.facebook.com/api/graphql/', headers=headers, data=data)
+    res = json.loads(response.text)
+
+    article = ""
+    city = ""
+    group = ""
+
+    marketplace_count = res["data"]["user"]["group_commerce_inventory"]["count"]
+    if marketplace_count > 0:
+        print("   \u251c Marketplace: True")
+        print("     \u251c Article number: {}".format(res["data"]["user"]["group_commerce_inventory"]["count"]))
+        edges = res["data"]["user"]["group_commerce_inventory"]["edges"]
+        matching = False
+        for e in edges:
+            if e.get("node")["origin_group"] != None:
+                group = "     \u251c Marketing Group: https://www.facebook.com/{} with Name: {}".format(e.get("node")["origin_group"]["id"], e.get("node")["origin_group"]["name"])
+                article = "     \u251c Article Exemple: https://www.facebook.com/{}".format(e.get("node")["id"])
+                city = "     \u251c Marketing City: https://www.facebook.com/{}".format(e.get("node")["location"]["reverse_geocode"]["city"])
+        print(article)
+        print(city)
+        print(group)
+        print("     \u251c Marketing UserID: https://www.facebook.com/{}".format(res["data"]["user"]["marketplace_user_profile"]["id"]))
+
 
 def check_facial_reco(dir_name, account, picture):
     get_profile = requests.get("https://www.facebook.com{}".format(account), verify=False)
@@ -137,6 +175,7 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
                         facebook_id = facebook_id if facebook_id else "N/A"
                         if account not in account_found:
                             get_facebook_info(dir_name, account, s, city, keyword, facebook_id, url)
+                            get_marketplace(dir_name, account, s, city, keyword, facebook_id, url)
                             #fuckfacebook
                             account_found.append(account)
                             count_result += 1
