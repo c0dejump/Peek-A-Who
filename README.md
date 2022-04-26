@@ -13,18 +13,23 @@
 ## Features
 
 - [x] Facial recognition by Microsoft tool
-- [x] Email & Snapchat guessing
+- [x] Email guessing & leak checking 
 - [x] Phone number information
-- [x] Holehe, Sherlock, Ignorantn phomber
+- [x] Holehe, Sherlock, Ignorant phomber
 - [x] Google dork
 - [x] Checking qualifications/graduation (etudiant.aujourdhui.fr)
 - [x] societe.com informations
+- [x] Social media checking
+	- [x] Facebook
+	- [x] Snapchat
+	- [x] Instagram
+	- [x] TikTok
+	- [x] Telegram username
 
 ## TODO
 
 ### In progress
 - [ ] Short text report (maigret style) [In progress]
-- [ ] Facebook (get more informations, schools etc...) [In progress]
 - [ ] Do links/connection (same age/city...) (Reduce FP number) [In progress]
  	- If school found => where is it ?
  	- If number found => what's country ?
