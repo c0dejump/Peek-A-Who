@@ -74,8 +74,9 @@ class parse_ig:
         url = "https://privatephotoviewer.com/usr/{}".format(endpoint)
         matching = False
         req_ig = s.get(url, verify=False, timeout=10, headers={'User-agent': UserAgent().random})
-        if req_ig.status_code == 200 and "error" not in req_ig.text:
-            soup = BeautifulSoup(req_ig.text, "html.parser")
+        soup = BeautifulSoup(req_ig.text, "html.parser")
+        following = soup.find('span', {'id': 'following'})
+        if req_ig.status_code == 200 and "error" not in req_ig.text and following.text != " ":
             find_pic = soup.find('img', {'style': ''})
             find_pic = find_pic.get("src")
             find_name = soup.find('h1', {'id': 'userfullname'})
@@ -189,8 +190,7 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
             #print(emails_for_verification)
             for endpoint in datas:
                 enclosure_queue.put(endpoint)
-            for i in range(5):
-                #5 threads for obfu information, else 429 response srry...
+            for i in range(10):
                 worker = Thread(target=parsing_ig.get_ig_info, args=(i, enclosure_queue, s, city, keyword, pseudo, picture, dir_name))
                 worker.setDaemon(True)
                 worker.start()

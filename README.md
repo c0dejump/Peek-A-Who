@@ -8,6 +8,17 @@
 
 ---
 
+- [Features](https://github.com/c0dejump/WhoAreU/#features)
+- [TODO](https://github.com/c0dejump/WhoAreU/#todo)
+- [Usage](https://github.com/c0dejump/WhoAreU/#usage)
+- [Config](https://github.com/c0dejump/WhoAreU/#config)
+- [Usage](https://github.com/c0dejump/WhoAreU/#usage)
+- [Exemples](https://github.com/c0dejump/WhoAreU/#exemples)
+- [Thanks](https://github.com/c0dejump/WhoAreU/#thanks)
+- [Donations](https://github.com/c0dejump/WhoAreU/#donations)
+- [Tools used](https://github.com/c0dejump/WhoAreU/#tools-used)
+
+
 **For the moment most of the personal tools (except ghunt, toutatis, holehe...) that use "city" or "phone number" will be for french search**
 
 ## Features
@@ -65,14 +76,6 @@
 - [ ] annuaire, Airbnb (like), fitbit
 - [ ] vk.com?, steam?, discord?, pinterest
 
-## Tools used
-
-- Holehe (https://github.com/megadose/holehe)
-- Sherlock (https://github.com/sherlock-project/sherlock)
-- Ignorant (https://github.com/megadose/ignorant)
-- Ghunt (https://github.com/mxrch/GHunt)
-- Phomber (https://github.com/s41r4j/phomber)
-
 
 ## Usage
 
@@ -87,7 +90,7 @@ usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c
 	-m MAIL          Mail adress, exemple: -m toto@gmail.com
 	-p PSEUDO        Pseudo, exemple: -p codejump
 > Assistance:
-  -c CITY          City adress, exemple: -c Paris
+    -c CITY          City adress, exemple: -c Paris
 	-b BIRTH_YEAR    Birth year, exemple: -b 1999; -b 1990-1999
 	-k KEYWORD       One or multiple keywords to refine the search, exemple: -k security -k karate
 	--pic PICTURE    Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png
@@ -98,12 +101,21 @@ usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c
 
 ## Exemples:
 
+
+## Tools used
+
+- Holehe (https://github.com/megadose/holehe)
+- Sherlock (https://github.com/sherlock-project/sherlock)
+- Ignorant (https://github.com/megadose/ignorant)
+- Ghunt (https://github.com/mxrch/GHunt)
+- Phomber (https://github.com/s41r4j/phomber)
+
 ## Thanks:
 
 - OSINT FR community
 
 
-## Donation
+## Donations
 <img src="https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg"> BTC : bc1qv7lxqczukam7vq626chvhfyxth9y582rpfwm8q
 
 <img src="https://cdn4.iconfinder.com/data/icons/cryptocoins/227/ETH-64.png"> ETH : 0x406A1d5BE7185e045c2c19dFc493f03dB07b9006

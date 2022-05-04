@@ -139,7 +139,6 @@ if __name__ == '__main__':
     keyword = results.keyword
     picture = results.picture
 
-    print(keyword)
 
     if identity and not "_" in identity:
         print("{}Please put a _ under firstname and lastname.".format(error))
