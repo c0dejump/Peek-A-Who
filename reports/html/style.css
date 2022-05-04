@@ -3,7 +3,7 @@ body, html {
   height: 100%;
 }
 /*==========Font============*/
-@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@700');
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap');
 
 /*==========Banner==========*/
 .banner {
@@ -23,7 +23,7 @@ body, html {
     left: 50%;
     transform: translate(-50%, -50%);
     color: #9b59b6;
-    font-family: 'Comfortaa', cursive;
+    font-family: 'Oswald', sans-serif;
   }
   .banner-text h1{
     font-size: 80px;
