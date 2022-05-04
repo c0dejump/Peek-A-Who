@@ -84,13 +84,13 @@ usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c
 ````
 
 ```
-> General:
+> General:    
 	-i IDENTITY      Identity, exemple: -i john_doe
 	-n PHONE_NUMBER  Phone number, exemple: -n +337xxxxxxxx
 	-m MAIL          Mail adress, exemple: -m toto@gmail.com
 	-p PSEUDO        Pseudo, exemple: -p codejump
-> Assistance:
-    -c CITY          City adress, exemple: -c Paris
+> Assistance:         
+  -c CITY          City adress, exemple: -c Paris
 	-b BIRTH_YEAR    Birth year, exemple: -b 1999; -b 1990-1999
 	-k KEYWORD       One or multiple keywords to refine the search, exemple: -k security -k karate
 	--pic PICTURE    Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png
@@ -112,7 +112,9 @@ usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c
 
 ## Thanks:
 
+- @Ph4nToM00 co creator
 - OSINT FR community
+- Login Sécurité teams (for test subject)
 
 
 ## Donations

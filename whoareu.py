@@ -17,7 +17,7 @@ from PIL import Image
 from static.banner import banner
 from static.colors import info, match, error, separator
 from modules import google_search, phone_number
-from modules.french_touch import whitepage, qualifications, societe
+from modules.french_touch import whitepage, qualifications, societe, etymology
 from modules.social_media import facebook, linkedin, snapchat, tiktok, instagram, telegram
 from modules.email import mail_search, email_guesser
 from reports import short_report
@@ -31,6 +31,7 @@ def run_modules():
     #google_search.google_s(identity, phone_n, mail, pseudo, keyword, city, dir_name, picture)
     if identity:
         #french touch
+        etymology.lastname_ety(dir_name, lastname)
         societe.society_search(dir_name, identity, city, keyword, birth_year)
         qualifications.qualifications_search(identity, city, keyword, birth_year)
         whitepage.whitepage_search(dir_name, firstname, lastname, city)
