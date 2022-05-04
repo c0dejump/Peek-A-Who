@@ -356,7 +356,7 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
         soup = BeautifulSoup(page.content, "html.parser")
         results = soup.find(class_="search-results__title")
         if page.status_code != 500:
-            if results.text.strip() != "0 results for " + name_input + " " + last_name_input:
+            if results != None and results.text.strip() != "0 results for " + name_input + " " + last_name_input:
                 print(results.text.strip() + ". Autocompleting list of e-mail usernames...")
                 results = soup.find_all(class_="search-results__block-info-username")
                 for n in results:

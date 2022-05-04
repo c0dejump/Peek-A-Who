@@ -37,6 +37,7 @@
 	- [x] TikTok
 	- [x] Telegram username
 - [x] Multiple keywords 
+- [x] Get etymology and city lastname (https://www.filae.com/nom-de-famille/)
 
 ## TODO
 
@@ -67,7 +68,6 @@
 	-	hxxps://leadsbridge.com/blog/how-to-use-google-customer-match-like-a-pro-in-your-marketing-strategy/
 	- hxxps://developers.google.com/google-ads/api/docs/remarketing/audience-types/customer-match 
 	-	hxxps://cypressnorth.com/display-advertising-and-retargeting/email-address-targeting-google-facebook-twitter/#:text=To%20get%20started%20click%20on,addresses%20button%20and%20upload%20the%20.
-- [ ] Get etymology and city lastname (https://www.filae.com/nom-de-famille/)
 - [ ] Adding a feature to do the difference from french research and other
 
 

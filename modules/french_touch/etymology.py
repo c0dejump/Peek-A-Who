@@ -16,11 +16,12 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 def get_city(lastname, s):
     url_city = "https://www.filae.com/nom-de-famille/nom-{}-par-departement".format(lastname)
     req_city = s.get(url_city, verify=False, timeout=10, headers={'User-agent': UserAgent().random})
-    soup = BeautifulSoup(req_city.text, "html.parser")
-    for r in soup.find_all('td', {'class': 'nameCellDepRank'}):
-        link = r.find("a")
-        if link != None:
-            print("     \u251c {}".format(link.text.strip().replace("\r\n", " ").replace("  ", "")))
+    soup = BeautifulSoup(req_city.text, "html.parser") 
+    for r in soup.find_all('tr'):
+        city = r.find("td", {'class': 'nameCellDepRank'})
+        number = r.find("td", {'class': 'numberCell'})
+        if city.find("a") != None:
+            print("     \u251c {}: {}".format(city.find("a").text.strip().replace("\r\n", " ").replace("  ", ""), number.text.strip().replace("\r\n", " ").replace("  ", "")))
 
 def lastname_ety(dirname, lastname):
     print("\033[36m Etymology search\033[0m")
