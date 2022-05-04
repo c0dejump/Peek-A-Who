@@ -41,7 +41,7 @@ def get_informations(identity, soup, t, city, keyword, birth_year):
             if city != None and city.lower() in d.lower():
                 detail.append("   {}\033[32m{}\033[0m".format(match, d))
                 matching = True
-            elif keyword != None and keyword.lower() in d.lower():
+            elif keyword != None and [k.lower() for k in keyword if k.lower() in d.lower()]:
                 detail.append("   {}\033[32m{}\033[0m".format(match, d))
                 matching = True
             elif birth_year != None and not range_birth and birth_year in d.lower():

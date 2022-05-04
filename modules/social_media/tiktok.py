@@ -82,7 +82,7 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
                     desc = "\033[32m{}\033[0m".format(desc)
                     matching = True
             if keyword:
-                if keyword.lower() in desc.lower():
+                if [k.lower() for k in keyword if k.lower() in desc.lower()]:
                     desc = "\033[32m{}\033[0m".format(desc)
                     matching = True
             if not matching:

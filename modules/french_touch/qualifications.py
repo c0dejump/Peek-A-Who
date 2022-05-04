@@ -40,10 +40,10 @@ def get_infos(diplomas_type, identity, url, candidate, city, keyword):
         if city != None and city.lower() in academy:
             academy = "\033[32m{}\033[0m".format(academy)
             matching = True 
-        if keyword != None and keyword.lower() in citylabel:
+        if keyword != None and [k.lower() for k in keyword if k.lower() in citylabel]:
             citylabel = "\033[32m{}\033[0m".format(citylabel)
             matching = True
-        if keyword != None and keyword.lower() in academy:
+        if keyword != None and [k.lower() for k in keyword if k.lower() in academy]:
             academy = "\033[32m{}\033[0m".format(academy)
             matching = True 
 

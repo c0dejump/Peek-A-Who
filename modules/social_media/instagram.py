@@ -84,12 +84,12 @@ class parse_ig:
             desc = find_desc.text.strip()  if find_desc else "None"
             # filters
             city = city.lower() if city else "N/A"
-            keyword = keyword.lower() if keyword else "N/A"
+            keyword = [k.lower() for k in keyword] if keyword else "N/A"
             pseudo = pseudo.lower() if pseudo else "N/A"
-            if city in desc.lower() or keyword in desc.lower():
+            if city in desc.lower() or [k for k in keyword if k in desc.lower()]:
                 desc = "\033[32m{}\033[0m".format(desc)
                 matching = True
-            if city in real_name.lower() or keyword in real_name.lower():
+            if city in real_name.lower() or [k for k in keyword if k in real_name.lower()]:
                 real_name = "\033[32m{}\033[0m".format(real_name)
                 matching = True
             if pseudo in real_name.lower():
@@ -189,8 +189,8 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
             #print(emails_for_verification)
             for endpoint in datas:
                 enclosure_queue.put(endpoint)
-            for i in range(10):
-                #2 threads for obfu information, else 429 response srry...
+            for i in range(5):
+                #5 threads for obfu information, else 429 response srry...
                 worker = Thread(target=parsing_ig.get_ig_info, args=(i, enclosure_queue, s, city, keyword, pseudo, picture, dir_name))
                 worker.setDaemon(True)
                 worker.start()

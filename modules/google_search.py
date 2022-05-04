@@ -44,9 +44,9 @@ def google_s(identity, phone_n, mail, pseudo, keyword, city, dir_name, picture):
                         if "linkedin" in j:
                             print("\033[36m Linkedin search \033[0m")
                             linkedin_scraping(j, picture, dir_name, username=False)
-                        if keyword and keyword in j and city and city in j:
+                        if keyword and [k.lower() for k in keyword if k.lower() in j] and city and city in j:
                             print(" \033[32m[{}] {}\033[0m".format(req_url_found.status_code, j))
-                        if keyword and keyword in j or city and city in j:
+                        if keyword and [k.lower() for k in keyword if k.lower() in j] or city and city in j:
                             print(" {}[{}] {}".format(match, req_url_found.status_code, j))
                         else:
                             print(" \033[32m[{}]\033[0m {}".format(req_url_found.status_code, j))

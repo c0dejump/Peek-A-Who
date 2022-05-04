@@ -92,7 +92,7 @@ def get_facebook_info(dir_name, account, s, city, keyword, facebook_id, url):
             if city and city.lower() in fe.text.lower():
                 experience = "   {}Experience: {}".format(match, fe.text)
                 matching = True
-            if keyword and keyword.lower() in fe.text.lower():
+            if keyword and [k.lower() for k in keyword if k.lower() in fe.text.lower()]:
                 experience = "   {}Experience: {}".format(match, fe.text)
                 matching = True
             else:

@@ -45,6 +45,8 @@ def run_modules():
         if pseudo:
             telegram.telegram_search(pseudo, city, keyword, picture)
             try:
+                print("\033[36m Pseudo search \033[0m")
+                print(separator)
                 os.system("python3 tools/sherlock/sherlock/sherlock.py {} -o {}/{}.txt >/dev/null 2>&1".format(pseudo, dir_name, pseudo))
                 with open("{}/{}.txt".format(dir_name, pseudo), "r") as result:
                     for r in result.read().splitlines():
@@ -52,8 +54,8 @@ def run_modules():
                         if req.status_code not in [404, 403, 401, 500, 429]:
                             print(" [+] {}".format(r))
             except Exception:
-                #pass
-                traceback.print_exc()
+                pass
+                #traceback.print_exc()
     if pseudo and not identity:
         print("\033[36m Pseudo search \033[0m")
         print("\033[36m-\033[0m"*30)
@@ -98,7 +100,7 @@ def resume():
  \033[36m Image:            \033[0m {}
 
 {}
-    """.format("\033[32m{}\033[0m".format(pseudo) if pseudo else "N/A", "\033[32m{}\033[0m".format(firstname) if firstname else "N/A", "\033[32m{}\033[0m".format(lastname) if lastname else "", "\033[32m{}\033[0m".format(mail) if mail else "N/A","\033[32m{}\033[0m".format(phone_n) if phone_n else "N/A", "\033[32m{}\033[0m".format(birth_year) if birth_year else "N/A", "\033[32m{}\033[0m".format(city) if city else "N/A", "\033[32m{}\033[0m".format(keyword) if keyword else "N/A", "\033[32m{}\033[0m".format(picture) if picture else "N/A", separator))
+    """.format("\033[32m{}\033[0m".format(pseudo) if pseudo else "N/A", "\033[32m{}\033[0m".format(firstname) if firstname else "N/A", "\033[32m{}\033[0m".format(lastname) if lastname else "", "\033[32m{}\033[0m".format(mail) if mail else "N/A","\033[32m{}\033[0m".format(phone_n) if phone_n else "N/A", "\033[32m{}\033[0m".format(birth_year) if birth_year else "N/A", "\033[32m{}\033[0m".format(city) if city else "N/A", "\033[32m{}\033[0m".format([k for k in keyword]) if keyword else "N/A", "\033[32m{}\033[0m".format(picture) if picture else "N/A", separator))
 
 
 if __name__ == '__main__':
@@ -116,7 +118,7 @@ if __name__ == '__main__':
     group = parser.add_argument_group('\033[34m> Assistance\033[0m')
     group.add_argument("-c", help="City adress, exemple: -c Paris", dest='city', required=False)
     group.add_argument("-b", help="birth year, exemple: -b 1999, or for a range: 1985-1999", dest='birth_year', required=False)
-    group.add_argument("-k", help="Keyword, the script will be based on this, exemple: -k security", dest='keyword', required=False)
+    group.add_argument("-k", help="Keyword, One or multiple keywords to refine the search, exemple: -k security -k mangas", dest='keyword', required=False, nargs="+", action="extend")
     group.add_argument("--pic", help="Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png", dest='picture', required=False)
 
     results = parser.parse_args()
@@ -136,6 +138,8 @@ if __name__ == '__main__':
     birth_year = results.birth_year
     keyword = results.keyword
     picture = results.picture
+
+    print(keyword)
 
     if identity and not "_" in identity:
         print("{}Please put a _ under firstname and lastname.".format(error))

@@ -5,7 +5,6 @@ import requests
 from bs4 import BeautifulSoup
 
 
-
 def get_postal_code(city):
     # If the principal website dosn't work: https://www.dcode.fr/post-code-france
     url_geocode = "http://geofree.fr/gf/zipfinder.asp"
@@ -80,21 +79,23 @@ def parsing_data(identity, pseudo, city, keyword, birth_year):
         for ci in city_identity:
             endpoints.append(ci)
     if keyword and pseudo:
-        list_keyword = [
-        "{}{}".format(pseudo, keyword), "{}{}".format(keyword, pseudo), 
-        "{}_{}".format(pseudo, keyword), "{}-{}".format(pseudo, keyword), "{}.{}".format(pseudo, keyword)]
-        for lk in list_keyword:
-            endpoints.append(lk)
+        for k in keyword:
+            list_keyword = [
+            "{}{}".format(pseudo, k), "{}{}".format(k, pseudo), 
+            "{}_{}".format(pseudo, k), "{}-{}".format(pseudo, k), "{}.{}".format(pseudo, k)]
+            for lk in list_keyword:
+                endpoints.append(lk)
     if keyword and identity:
         keyword_identity = []
-        for e in endpoints:
-            list_keyword_identity = [
-            "{}{}".format(e, keyword), "{}{}".format(keyword, e), "{}_{}".format(e, keyword), "{}.{}".format(e, keyword),
-            "{}_of{}".format(e, keyword), "{}-of{}".format(e, keyword)]
-            for lki in list_keyword_identity:
-                keyword_identity.append(lki)
-        for ki in keyword_identity:
-            endpoints.append(ki)
+        for k in keyword:
+            for e in endpoints:
+                list_keyword_identity = [
+                "{}{}".format(e, k), "{}{}".format(k, e), "{}_{}".format(e, k), "{}.{}".format(e, k),
+                "{}_of{}".format(e, k), "{}-of{}".format(e, k)]
+                for lki in list_keyword_identity:
+                    keyword_identity.append(lki)
+            for ki in keyword_identity:
+                endpoints.append(ki)
     if birth_year:
         birth_identity = []
         for e in endpoints:

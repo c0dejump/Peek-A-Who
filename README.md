@@ -25,6 +25,7 @@
 	- [x] Instagram
 	- [x] TikTok
 	- [x] Telegram username
+- [x] Multiple keywords 
 
 ## TODO
 
@@ -32,10 +33,17 @@
 - [ ] Short text report (maigret style) [In progress]
 - [ ] Do links/connection (same age/city...) (Reduce FP number) [In progress]
  	- If school found => where is it ?
- 	- If number found => what's country ?
+ 	- If number found => what's country ? / 2 first or last digit
  	- If date or age => Do a link between us
  	- ...
 - [ ] Report, he'll contain informations and picture found from networks (graph too ?)
+
+### Image
+- [ ] OCR => for the images found
+- [ ] Image template matching => Before facial recognition
+- [ ] Color hair recognition in keyword (red-hair, brown-hair...)
+- [ ] Exif Image => If any exif (location, model phone etc...)
+- [ ] If image not a person define what category is (animals, anime...)
 
 ### Others
 - [ ] Ghunt (epieos? → captcha or not)
@@ -44,15 +52,12 @@
 	- Twitter
 	- Reddit
 	- hxxps://onlyfinder.com/
-- [ ] OCR => for the images found
-- [ ] Image template matching => Before facial recognition
-- [ ] Color hair recognition in keyword (red-hair, brown-hair...)
-- [ ] Exif Image => If any exif (location, model phone etc...)
-- [ ] Multiple keywords 
 - [ ] Get pub scope (possible ?): 
 	-	hxxps://leadsbridge.com/blog/how-to-use-google-customer-match-like-a-pro-in-your-marketing-strategy/
 	- hxxps://developers.google.com/google-ads/api/docs/remarketing/audience-types/customer-match 
 	-	hxxps://cypressnorth.com/display-advertising-and-retargeting/email-address-targeting-google-facebook-twitter/#:text=To%20get%20started%20click%20on,addresses%20button%20and%20upload%20the%20.
+- [ ] Get etymology and city lastname (https://www.filae.com/nom-de-famille/)
+- [ ] Adding a feature to do the difference from french research and other
 
 
 ## TODO Scraping sites:
@@ -82,9 +87,9 @@ usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c
 	-m MAIL          Mail adress, exemple: -m toto@gmail.com
 	-p PSEUDO        Pseudo, exemple: -p codejump
 > Assistance:
-    -c CITY          City adress, exemple: -c Paris
+  -c CITY          City adress, exemple: -c Paris
 	-b BIRTH_YEAR    Birth year, exemple: -b 1999; -b 1990-1999
-	-k KEYWORD       A keyword to refine the search, exemple: -k security
+	-k KEYWORD       One or multiple keywords to refine the search, exemple: -k security -k karate
 	--pic PICTURE    Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png
 ````
 ### Config

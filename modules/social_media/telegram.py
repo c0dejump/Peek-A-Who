@@ -26,7 +26,7 @@ def telegram_search(pseudo, city, keyword, picture):
     description = soup.find('div', {'class': 'tgme_page_description'})
     description = description.text.strip().replace("\t", " ").replace("  ", " ") if description else "N/A"
     if not "If you have" in description:
-        if city and city in description.lower() or keyword and keyword in description.lower():
+        if city and city in description.lower() or keyword and [k.lower() for k in keyword if k.lower() in description.lower()]:
             desc = "\033[32m{}\033[0m".format(description)
             matching = True
         print(" {}Telegram seems exist on: https://t.me/{}".format(p_match if not matching else match, pseudo))

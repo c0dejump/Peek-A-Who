@@ -264,8 +264,9 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
                     structure.append("first!!_l!!" + username_input)
             elif username_input and keyword:
                 structure.append(username_input)
-                structure.append(username_input + keyword)
-                structure.append(keyword + username_input)
+                for k in keyword:
+                    structure.append(username_input + k)
+                    structure.append(k + username_input)
                         # add birth date to usernames only if specified by user
             elif username_input and birth_input:
                 structure.append(username_input + birth_input)
@@ -275,13 +276,14 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
                 structure.append(username_input + "." + birth_input[2:])
                 structure.append(username_input + "_" + birth_input[2:])
             else:
-                structure.append("last!!first!!" + keyword)
-                structure.append("first!!last!!" + keyword)
-                structure.append("f!!last!!" + keyword)
-                structure.append("f!!.last!!" + keyword)
-                structure.append("f!!_last!!" + keyword)
-                structure.append("first!!.l!!" + keyword)
-                structure.append("first!!_l!!" + keyword)
+                for k in keyword:
+                    structure.append("last!!first!!" + k)
+                    structure.append("first!!last!!" + k)
+                    structure.append("f!!last!!" + k)
+                    structure.append("f!!.last!!" + k)
+                    structure.append("f!!_last!!" + k)
+                    structure.append("first!!.l!!" + k)
+                    structure.append("first!!_l!!" + k)
 
         # Switch f!! with first letter of name, l!! with first letter of surname, first!! with first name and last!! with surname
         found_first = False
