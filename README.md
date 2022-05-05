@@ -1,4 +1,4 @@
-# WhoAreU
+# Peek-A-Who
 <p align="center">
   <img src="https://github.com/c0dejump/Argos_dev/blob/master/static/logo_WHOAREU.png" height="375px" alt="Logo WhoAreU"/>
 </p>
@@ -100,6 +100,12 @@ usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c
 > You can put your credentials or other config in ```config.py``` file.
 
 ## Exemples:
+```
+	python3 paw.py -i john_doe
+	python3 paw.py -i john_doe -c tours
+	python3 paw.py -i john_doe -k securite -p codejump
+	python3 paw.py -i john_doe --pic ../img/img_face.png
+```
 
 
 ## Tools used
@@ -112,9 +118,10 @@ usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c
 
 ## Thanks:
 
-- @Ph4nToM00 co creator
+- @Ph4nToM00 [co creator]
+- @Noobosaurus_R3x [for the name tool]
 - OSINT FR community
-- Login Sécurité teams (for test subject)
+- Login Sécurité teams [for test subject]
 
 
 ## Donations
