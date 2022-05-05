@@ -3,6 +3,7 @@
 
 import sys, re, os
 import requests
+from requests.exceptions import Timeout
 import time
 import traceback
 import json
@@ -34,7 +35,8 @@ except:
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 
-def get_ig_obfu_infos(s, endpoint):
+def get_ig_obfu_infos(s, endpoint, phone_n):
+
     url_obfu = "https://i.instagram.com/api/v1/users/lookup/"
     headers = {'User-Agent': 'Instagram 101.0.0.15.120'}
     _data = '.{"login_attempt_count":"0","directly_sign_in":"true","source":"default","q":"'+endpoint+'","ig_sig_key_version":"4"}'
@@ -55,9 +57,13 @@ def get_ig_obfu_infos(s, endpoint):
             #https://www.indicatifs-pays.net/262
         except:
             obfu_phone = "N/A"
+
         print("   \u251c obfuscated email: {}".format(obfu_email))
         sys.stdout.write("\033[K")
         print("   \u251c obfuscated phone: {}".format(obfu_phone))
+        sys.stdout.write("\033[K")
+        if obfu_phone and phone_n and phone_n[1:3] == obfu_phone[1:3] and phone_n[-2:] == obfu_phone[-2:]:
+            print("   {}The 1st and last digit of the phone number seem to match: \033[32m+{}\033[0m * ** ** ** \033[32m{}\033[0m".format(match, obfu_phone[1:3], obfu_phone[-2:]))
         sys.stdout.write("\033[K")
         return True
     elif get_obfu.status_code == 429:
@@ -68,12 +74,12 @@ class parse_ig:
 
     #TODO: if profile is public check on InstaLocTrack: https://github.com/bernsteining/instaloctrack
 
-    def get_ig_details(self, endpoint, s, city, keyword, pseudo, picture, dir_name):
+    def get_ig_details(self, endpoint, s, city, keyword, pseudo, picture, dir_name, phone_n):
 
         endpoint = endpoint if endpoint else pseudo
         url = "https://privatephotoviewer.com/usr/{}".format(endpoint)
         matching = False
-        req_ig = s.get(url, verify=False, timeout=10, headers={'User-agent': UserAgent().random})
+        req_ig = s.get(url, verify=False, timeout=15, headers={'User-agent': UserAgent().random})
         soup = BeautifulSoup(req_ig.text, "html.parser")
         following = soup.find('span', {'id': 'following'})
         if req_ig.status_code == 200 and "error" not in req_ig.text and following.text != " ":
@@ -82,15 +88,15 @@ class parse_ig:
             find_name = soup.find('h1', {'id': 'userfullname'})
             find_desc = soup.find('p', {'id': 'biofull'})
             real_name = find_name.text.strip() if find_name else "None"
-            desc = find_desc.text.strip()  if find_desc else "None"
+            desc = find_desc.text.strip() if find_desc else "None"
             # filters
             city = city.lower() if city else "N/A"
             keyword = [k.lower() for k in keyword] if keyword else "N/A"
             pseudo = pseudo.lower() if pseudo else "N/A"
-            if city in desc.lower() or [k for k in keyword if k in desc.lower()]:
+            if city in desc.lower() or [k for k in keyword if keyword != "N/A" and k in desc.lower()]:
                 desc = "\033[32m{}\033[0m".format(desc)
                 matching = True
-            if city in real_name.lower() or [k for k in keyword if k in real_name.lower()]:
+            if city in real_name.lower() or [k for k in keyword if keyword != "N/A" and k in real_name.lower()]:
                 real_name = "\033[32m{}\033[0m".format(real_name)
                 matching = True
             if pseudo in real_name.lower():
@@ -100,7 +106,7 @@ class parse_ig:
                 desc = "\033[32m{}\033[0m".format(desc)
                 #print(desc)
                 #desc = " ".join(desc)
-                matching = True
+                matching = True 
             if not matching:
                 print(" {}\033[33m{}\033[0m Username seems exist on https://www.instagram.com/{} :".format(p_match, endpoint, endpoint))
             else:
@@ -111,7 +117,7 @@ class parse_ig:
                 results = "link: https://www.instagram.com/{}\nusername: {}\nreal_name: {}\ndesc: {}".format(endpoint, endpoint, real_name.replace("\033[32m","").replace("\033[0m",""), " ".join(desc.splitlines()).replace("\033[32m","").replace("\033[0m",""))
                 raw_output(dir_name, "instagram", results)
             try:
-                get_ig_obfu_infos(s, endpoint)
+                get_ig_obfu_infos(s, endpoint, phone_n)
                 time.sleep(1)
             except:
                 pass
@@ -135,12 +141,12 @@ class parse_ig:
         global results_found
         results_found = 0
 
-        gid = self.get_ig_details(endpoint, s, city, keyword, pseudo, picture, dir_name)
+        gid = self.get_ig_details(endpoint, s, city, keyword, pseudo, picture, dir_name, phone_n)
         if gid:
             results_found += 1
 
 
-    def get_ig_info(self, i, q, s, city, keyword, pseudo, picture, dir_name):
+    def get_ig_info(self, i, q, s, city, keyword, pseudo, picture, dir_name, phone_n):
         global bar
         bar = 0
 
@@ -151,11 +157,13 @@ class parse_ig:
             endpoint = q.get()
             try:
                 #print(threading.active_count())
-                gid = self.get_ig_details(endpoint, s, city, keyword, pseudo, picture, dir_name)
+                gid = self.get_ig_details(endpoint, s, city, keyword, pseudo, picture, dir_name, phone_n)
                 if gid:
                     results_found += 1
                 bar += 1
                 sys.stdout.write(" {}/{} | https://www.instagram.com/{} \r".format(bar, len_datas, endpoint))
+            except Timeout:
+                print(" {}Timeout with {} please check it manually".format(error, endpoint))
             except Exception:
                 #traceback.print_exc()
                 pass
@@ -168,7 +176,7 @@ def deleted_image(dir_name):
         os.remove(os.path.join(dir_name, f))
 
 
-def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year):
+def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year, phone_n):
     print("\033[36m Instagram search\033[0m")
     print(separator)
 
@@ -191,7 +199,7 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
             for endpoint in datas:
                 enclosure_queue.put(endpoint)
             for i in range(10):
-                worker = Thread(target=parsing_ig.get_ig_info, args=(i, enclosure_queue, s, city, keyword, pseudo, picture, dir_name))
+                worker = Thread(target=parsing_ig.get_ig_info, args=(i, enclosure_queue, s, city, keyword, pseudo, picture, dir_name, phone_n))
                 worker.setDaemon(True)
                 worker.start()
             enclosure_queue.join()

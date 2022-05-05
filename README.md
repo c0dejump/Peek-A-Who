@@ -38,11 +38,12 @@
 	- [x] Telegram username
 - [x] Multiple keywords 
 - [x] Get etymology and city lastname (https://www.filae.com/nom-de-famille/)
+- [x] Short text report (maigret style)
+
 
 ## TODO
 
 ### In progress
-- [ ] Short text report (maigret style) [In progress]
 - [ ] Do links/connection (same age/city...) (Reduce FP number) [In progress]
  	- If school found => where is it ?
  	- If number found => what's country ? / 2 first or last digit
@@ -69,6 +70,7 @@
 	- hxxps://developers.google.com/google-ads/api/docs/remarketing/audience-types/customer-match 
 	-	hxxps://cypressnorth.com/display-advertising-and-retargeting/email-address-targeting-google-facebook-twitter/#:text=To%20get%20started%20click%20on,addresses%20button%20and%20upload%20the%20.
 - [ ] Adding a feature to do the difference from french research and other
+- [ ] Adding middle name feature
 
 
 ## TODO Scraping sites:

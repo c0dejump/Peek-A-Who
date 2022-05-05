@@ -39,7 +39,7 @@ def run_modules():
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword)
         snapchat.snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year)
         tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
-        instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
+        instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year, phone_n)
         linkedin.linkedin_search(firstname, lastname, dir_name, picture)
         #email
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)

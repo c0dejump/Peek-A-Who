@@ -83,69 +83,40 @@ def email_validation(i, q, requestPwnedStartTimer, s):
             """with open("{}.txt".format(sys.argv[2]), "a+") as write_email:
                 write_email.write(email+"\n")"""
             url = "https://www.skypli.com/search/" + email
-            page = requests.get(url, verify=False)
-            # If an e-mail was found registered to only one user in Skype, print his details
-            # Else if found registered to multiple users, show link to the tool user to decide if he wants to see more info
-            # Else if found on breached database, return that the e-mail address is found to be Pwned
-            # Else, return that the e-mail was not found to be pwned (does not exist)
-            if page.status_code != 500: 
-                soup = BeautifulSoup(page.content, "html.parser")
-                results = soup.find_all(class_="search-results__title")
-                for n in results:
-                    if n.text.strip() == "1 results for " + email:
-                        final_emails_text.insert(0, email)
-                        print(blue + "  \u251c" + email + reset + " was found in Skype")
-                        result = soup.find(class_="search-results__block-info-username")
-                        url_new = "https://www.skypli.com/profile/" + result.text.strip()
-                        page_new = s.get(url_new, verify=False)
-                        soup_new = BeautifulSoup(page_new.content, "html.parser")
-                        email = blue + email + reset
-                        result_new = soup_new.find_all(class_="profile-box__table-value")
-                        for r in result_new:
-                            email = email + "\n" + r.text.strip()
-                        final_emails.insert(0, email + "\nMore info: " + url_new + "\n") # Add it to the top of the list in order to be shown first as Skype account
-                    elif n.text.strip() != "0 results for " + email:
-                        final_emails_text.insert(0, email)
-                        print(blue + " \u251c " + email + reset + " was found in multiple Skype accounts")
-                        final_emails.insert(0, blue + email + reset + " Multiple skype accounts found: " + url) # Add it to the top of the list in order to be shown first as Skype account
-                    else:
-                        check_haveibeenpwnd(email, requestPwnedStartTimer)
-            else:
-                # If skypli.com is down (error 500), use tools.epieos.com/skype.php
-                url = "https://tools.epieos.com/skype.php"
-                my_data = {"data": email}
-                page = s.post(url, data=my_data, verify=False)
-                if page.status_code not in [404, 403, 401]:
+            try:
+                page = requests.get(url, verify=False)
+                # If an e-mail was found registered to only one user in Skype, print his details
+                # Else if found registered to multiple users, show link to the tool user to decide if he wants to see more info
+                # Else if found on breached database, return that the e-mail address is found to be Pwned
+                # Else, return that the e-mail was not found to be pwned (does not exist)
+                if page.status_code != 500: 
                     soup = BeautifulSoup(page.content, "html.parser")
-                    results = soup.find_all(class_="col-md-4 offset-md-4 mt-5 pt-3 border")
-                    avatars = soup.find_all(src=re.compile("avatar.skype.com"))
+                    results = soup.find_all(class_="search-results__title")
                     for n in results:
-                        if len(results) == 1 and "No skype account" not in n.text.strip():
+                        if n.text.strip() == "1 results for " + email:
                             final_emails_text.insert(0, email)
-                            print(blue + " \u251c " + email + reset + " was found in Skype")
-                            find_name = n.text.strip().find("Name : ")
-                            find_skype_id = n.text.strip().find("Skype Id : ")
-                            end_text = n.text.strip().rfind("</p>")
-                            avatar = soup.find(src=re.compile("avatar.skype.com"))
-                            email = blue + email + reset + "\n" + n.text.strip()[find_name:find_skype_id] + "\n" + n.text.strip()[find_skype_id:end_text] + "\nAvatar : " + blue + str(avatar["src"]) + reset
-                            final_emails.insert(0, email + "\n") # Add it to the top of the list in order to be shown first as Skype account
-                        elif len(results) > 1:
+                            print(blue + "  \u251c" + email + reset + " was found in Skype")
+                            result = soup.find(class_="search-results__block-info-username")
+                            url_new = "https://www.skypli.com/profile/" + result.text.strip()
+                            page_new = s.get(url_new, verify=False)
+                            soup_new = BeautifulSoup(page_new.content, "html.parser")
+                            email = blue + email + reset
+                            result_new = soup_new.find_all(class_="profile-box__table-value")
+                            for r in result_new:
+                                email = email + "\n" + r.text.strip()
+                            final_emails.insert(0, email + "\nMore info: " + url_new + "\n") # Add it to the top of the list in order to be shown first as Skype account
+                        elif n.text.strip() != "0 results for " + email:
                             final_emails_text.insert(0, email)
                             print(blue + " \u251c " + email + reset + " was found in multiple Skype accounts")
-                            email = blue + email + reset + " --> Multiple skype accounts found: \n"
-                            for n in results:
-                                find_name = n.text.strip().find("Name : ")
-                                find_skype_id = n.text.strip().find("Skype Id : ")
-                                end_text = n.text.strip().rfind("</p>")
-                                email += n.text.strip()[find_name:find_skype_id] + "\n" + n.text.strip()[find_skype_id:end_text] + "\n"
-                            final_emails.insert(0, email + "\n")  # Add it to the top of the list in order to be shown first as Skype account
-                            break
+                            final_emails.insert(0, blue + email + reset + " Multiple skype accounts found: " + url) # Add it to the top of the list in order to be shown first as Skype account
                         else:
                             check_haveibeenpwnd(email, requestPwnedStartTimer)
                 else:
                     #print("https://tools.epieos.com/skype.php not available")
                     check_haveibeenpwnd(email, requestPwnedStartTimer)
-            check_haveibeenpwnd(email, requestPwnedStartTimer)
+            except:
+                check_haveibeenpwnd(email, requestPwnedStartTimer)
+                pass
         q.task_done()
         sys.stdout.write(" {} \r".format(email))
 
@@ -373,37 +344,6 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
                                     structure.append(test_text[5:-3])
                         else:
                             structure.append(test_text)
-            else:
-                print("No results on Skype for this name!")
-        else:
-            # If skypli.com is down (error 500), use tools.epieos.com/skype.php
-            url = "https://tools.epieos.com/skype.php"
-            my_data = {"data": name_input + " " + last_name_input} if identity else {"data": username_input}
-            page = s.post(url, data=my_data, verify=False)
-            soup = BeautifulSoup(page.content, "html.parser")
-            results = soup.find_all(class_="col-md-4 offset-md-4 mt-5 pt-3 border")
-            check_results = soup.find(class_="col-md-4 offset-md-4 mt-5 pt-3 border")
-            if len(results) >= 1 and "No skype account" not in check_results.text.strip():
-                print("Found " + str(len(results)) + " Skype users with that name. Autocompleting list of e-mail usernames...")
-                for n in results:
-                    test_text = n.text.strip()
-                    if test_text.find(".cid.") == -1:
-                        if test_text.find("live:") != -1:
-                            test_text = test_text[test_text.find("live:"):]
-                            if len(test_text) != 21:
-                                structure.append(test_text[5:])
-                                # find account using same e-mail username as someone else in skype (only look for underscore followed by last 1 or 2 chars being digits)
-                                # then add them also to the pool (original string is also added before reduced in size)
-                                if test_text[-1].isdigit() == True and test_text[-2] == "_":
-                                    structure.append(test_text[5:-2])
-                                if test_text[-1].isdigit() == True and test_text[-2].isdigit() == True and \
-                                        test_text[-3] == "_":
-                                    structure.append(test_text[5:-3])
-                        else:
-                            test_text = test_text[test_text.find("Id : ")+5:]
-                            structure.append(test_text)
-            else:
-                print("No results on Skype for this name!")
     print(separator)
 
 
