@@ -4,7 +4,7 @@
 </p>
 
 
-<img src="https://img.shields.io/badge/Disclaimer-Peek-A-Who developers are not responsible for misuse or abuse of the tool, this is the responsibility of the end user-red.svg">
+<img src="https://img.shields.io/badge/Disclaimer-PAW developers are not responsible for misuse or abuse of the tool, this is the responsibility of the end user-red.svg">
 
 ---
 
