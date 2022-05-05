@@ -1,22 +1,22 @@
 # Peek-A-Who
 <p align="center">
-  <img src="https://github.com/c0dejump/Argos_dev/blob/master/static/logo_WHOAREU.png" height="375px" alt="Logo WhoAreU"/>
+  <img src="https://github.com/c0dejump/Argos_dev/blob/master/static/logo_PAW.png" height="375px" alt="Logo Peek-A-Who"/>
 </p>
 
 
-<img src="https://img.shields.io/badge/Disclaimer-WhoAreU developers are not responsible for misuse or abuse of the tool, this is the responsibility of the end user-red.svg">
+<img src="https://img.shields.io/badge/Disclaimer-Peek-A-Who developers are not responsible for misuse or abuse of the tool, this is the responsibility of the end user-red.svg">
 
 ---
 
-- [Features](https://github.com/c0dejump/WhoAreU/#features)
-- [TODO](https://github.com/c0dejump/WhoAreU/#todo)
-- [Usage](https://github.com/c0dejump/WhoAreU/#usage)
-- [Config](https://github.com/c0dejump/WhoAreU/#config)
-- [Usage](https://github.com/c0dejump/WhoAreU/#usage)
-- [Exemples](https://github.com/c0dejump/WhoAreU/#exemples)
-- [Thanks](https://github.com/c0dejump/WhoAreU/#thanks)
-- [Donations](https://github.com/c0dejump/WhoAreU/#donations)
-- [Tools used](https://github.com/c0dejump/WhoAreU/#tools-used)
+- [Features](https://github.com/c0dejump/Peek-A-Who/#features)
+- [TODO](https://github.com/c0dejump/Peek-A-Who/#todo)
+- [Usage](https://github.com/c0dejump/Peek-A-Who/#usage)
+- [Config](https://github.com/c0dejump/Peek-A-Who/#config)
+- [Usage](https://github.com/c0dejump/Peek-A-Who/#usage)
+- [Exemples](https://github.com/c0dejump/Peek-A-Who/#exemples)
+- [Thanks](https://github.com/c0dejump/Peek-A-Who/#thanks)
+- [Donations](https://github.com/c0dejump/Peek-A-Who/#donations)
+- [Tools used](https://github.com/c0dejump/Peek-A-Who/#tools-used)
 
 
 **For the moment most of the personal tools (except ghunt, toutatis, holehe...) that use "city" or "phone number" will be for french search**
@@ -80,7 +80,7 @@
 ## Usage
 
 ```
-usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c CITY] [-b BIRTH_YEAR] [-k KEYWORD] [--pic PICTURE]
+usage: paw.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c CITY] [-b BIRTH_YEAR] [-k KEYWORD] [--pic PICTURE]
 ````
 
 ```
@@ -90,7 +90,7 @@ usage: whoareu.py [-h] [-i IDENTITY] [-n PHONE_NUMBER] [-m MAIL] [-p PSEUDO] [-c
 	-m MAIL          Mail adress, exemple: -m toto@gmail.com
 	-p PSEUDO        Pseudo, exemple: -p codejump
 > Assistance:         
-  -c CITY          City adress, exemple: -c Paris
+  	-c CITY          City adress, exemple: -c Paris
 	-b BIRTH_YEAR    Birth year, exemple: -b 1999; -b 1990-1999
 	-k KEYWORD       One or multiple keywords to refine the search, exemple: -k security -k karate
 	--pic PICTURE    Picture, if you have a picture, it will allow you to compare it with the ones found during the scan: --pic image.png, --pic http://image.png
