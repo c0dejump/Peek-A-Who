@@ -130,11 +130,11 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
                     spinner.next()
                     time.sleep(0.9)
                 i = 30
+        except KeyboardInterrupt:
+            q.task_done()
         except:
             ua = UserAgent().random
             pass
-        except KeyboardInterrupt:
-            q.task_done()
         q.task_done()
         bar += 1
         sys.stdout.write(" {}/{} | https://www.tiktok.com/@{} \r".format(bar, len_datas, endpoint))
