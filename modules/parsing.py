@@ -3,20 +3,28 @@
 
 import requests
 from bs4 import BeautifulSoup
+from geopy.geocoders import Nominatim
 
 
 def get_postal_code(city):
-    # If the principal website dosn't work: https://www.dcode.fr/post-code-france
-    url_geocode = "http://geofree.fr/gf/zipfinder.asp"
-    datas = {"todo": "2", "runok": "1", "isdom": "0", "town": "{}".format(city), "deptnb": '', "rgroup1": ''}
-    req_geo = requests.post(url_geocode, data=datas, verify=False, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
-    soup = BeautifulSoup(req_geo.text, "html.parser")
-    find_geocode = soup.find("td", {"bgcolor":"#CCCCCC"})
-    if find_geocode and not "exactement" in find_geocode:
-        geo_code = find_geocode.text.split(":")[1].strip()
-        return(geo_code[0:2])
-    else:
-        return "00"
+    try:
+        locator = Nominatim(user_agent="myGeocoder")
+        location = locator.geocode(city)
+        geo_code = location.address.split(",")[5].strip()[:2]
+        if geo_code:
+            return geo_code
+    except IndexError:
+        # If the principal website dosn't work: https://www.dcode.fr/post-code-france
+        url_geocode = "http://geofree.fr/gf/zipfinder.asp"
+        datas = {"todo": "2", "runok": "1", "isdom": "0", "town": "{}".format(city), "deptnb": '', "rgroup1": ''}
+        req_geo = requests.post(url_geocode, data=datas, verify=False, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
+        soup = BeautifulSoup(req_geo.text, "html.parser")
+        find_geocode = soup.find("td", {"bgcolor":"#CCCCCC"})
+        if find_geocode and not "exactement" in find_geocode:
+            geo_code = find_geocode.text.split(":")[1].strip()
+            return(geo_code[0:2])
+        else:
+            return "00"
 
 
 def parsing_data(identity, pseudo, city, keyword, birth_year):

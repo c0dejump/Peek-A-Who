@@ -32,6 +32,7 @@
 - [x] societe.com informations
 - [x] Social media checking
 	- [x] Facebook
+	- [x] Facebook marketplace
 	- [x] Snapchat
 	- [x] Instagram
 	- [x] TikTok
@@ -59,6 +60,7 @@
 - [ ] If image not a person define what category is (animals, anime...)
 
 ### Others
+- [ ] Get instagram location (https://github.com/bernsteining/instaloctrack)
 - [ ] Ghunt (epieos? → captcha or not)
 - [ ] Scraping social medias:
 	- linkedin (Get CV and OCR action to get informations)

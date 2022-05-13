@@ -20,10 +20,10 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 
 currentDateTime = datetime.datetime.now()
 date = currentDateTime.date()
+
 global actual_year
 actual_year = date.year
 
-found = False
 
 def get_infos(diplomas_type, identity, url, candidate, city, keyword):
     #print(" {}\033[33m{}\033[0m {} diplomas found: {}".format(p_match, identity, diplomas_type, url))
@@ -60,6 +60,7 @@ def get_infos(diplomas_type, identity, url, candidate, city, keyword):
 
 def brevet(identity, city, keyword, s):
     diplomas_type = "Brevet"
+
     for year in range(2015,actual_year):
         url = "https://search-candidate.linternaute.com/brevet/{}/1?candidate-name={}".format(year, identity.replace("_","%20"))
         req = s.get(url, verify=False, timeout=15, headers={'User-agent': UserAgent().random})
@@ -67,10 +68,11 @@ def brevet(identity, city, keyword, s):
         candidate = res["candidates"]
         if candidate != []:
             get_infos(diplomas_type, identity, url, candidate, city, keyword)
-            found = True
+
 
 def bac(identity, city, keyword, s):
     diplomas_type = "Bac"
+
     for year in range(2015,actual_year):
         url = "https://search-candidate.linternaute.com/bac/{}/1?candidate-name={}".format(year, identity.replace("_","%20"))
         req = s.get(url, verify=False, timeout=15, headers={'User-agent': UserAgent().random})
@@ -78,7 +80,6 @@ def bac(identity, city, keyword, s):
         candidate = res["candidates"]
         if candidate != []:
             get_infos(diplomas_type, identity, url, candidate, city, keyword)
-            found = True
 
 
 def qualifications_search(identity, city, keyword, birth_year):
@@ -91,8 +92,6 @@ def qualifications_search(identity, city, keyword, birth_year):
             bac(identity, city, keyword, s)
     except:
         pass
-    if not found:
-        print(" {}Not diplomas found".format(no_match))
     print(separator)
 
 

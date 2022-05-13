@@ -8,6 +8,7 @@ import traceback
 from bs4 import BeautifulSoup
 import json
 
+from geopy.geocoders import Nominatim
 from static.colors import info, match, p_match, no_match, error, separator
 from config import FB_USERNAME, FB_PASSWORD
 from output import raw_output
@@ -72,6 +73,7 @@ def check_facial_reco(dir_name, account, picture):
     if fid:
         print("   \033[32m\u251c Facial recognition matching with the {} account !\033[0m".format(account))
 
+
 def get_facebook_info(dir_name, account, s, city, keyword, facebook_id, url):
     """
     TODO:
@@ -100,9 +102,17 @@ def get_facebook_info(dir_name, account, s, city, keyword, facebook_id, url):
         else:
             experience = "   \u251c Experience: N/A"
         if find_city:
+            locator = Nominatim(user_agent="myGeocoder")
+            location = locator.geocode(city)
+
             if city and city.lower() in find_city.text.lower():
                 get_city = "   {}City: {}".format(match, find_city.text)
                 matching = True
+            elif "," in find_city.text:
+                for fc in find_city.text.split(","):
+                    if fc in location.address:
+                        get_city = "   {}City: {}".format(match, find_city.text)
+                        matching = True 
             else:
                 get_city = "   \u251c City: {}".format(find_city.text)
         else:

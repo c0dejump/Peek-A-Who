@@ -14,6 +14,7 @@ from static.colors import info, match, p_match, no_match, error, separator
 from output import raw_output
 from modules.parsing import parsing_data
 from modules.image_analysis.facial_recognition import face_identification
+#from exif import Image
 
 try:
     from fake_useragent import UserAgent
@@ -44,7 +45,7 @@ def get_ig_obfu_infos(s, endpoint, phone_n):
     'ig_sig_key_version': 4,
     'signed_body':'{}'.format(_data)
     }
-    get_obfu = s.post(url_obfu, headers=headers, data=datas, verify=False, timeout=15)
+    get_obfu = s.post(url_obfu, headers=headers, data=datas, verify=False, timeout=20)
     if get_obfu.status_code == 200:
         res = json.loads(get_obfu.text)
         #print(res)
@@ -79,7 +80,7 @@ class parse_ig:
         endpoint = endpoint if endpoint else pseudo
         url = "https://privatephotoviewer.com/usr/{}".format(endpoint)
         matching = False
-        req_ig = s.get(url, verify=False, timeout=15, headers={'User-agent': UserAgent().random})
+        req_ig = s.get(url, verify=False, timeout=20, headers={'User-agent': UserAgent().random})
         soup = BeautifulSoup(req_ig.text, "html.parser")
         following = soup.find('span', {'id': 'following'})
         if req_ig.status_code == 200 and "error" not in req_ig.text and following.text != " ":
@@ -111,8 +112,10 @@ class parse_ig:
                 print(" {}\033[33m{}\033[0m Username seems exist on https://www.instagram.com/{} :".format(p_match, endpoint, endpoint))
             else:
                 print(" {}\033[32m{}\033[0m Username seems matching \033[34mhttps://www.instagram.com/{} :\033[0m".format(match, endpoint, endpoint))
-            print("   \u251c Real name: {}".format(real_name))
-            print("   \u251c Description: {}".format(" ".join(desc.splitlines())))
+            if real_name != "N/A":
+                print("   \u251c Real name: {}".format(real_name))
+            if desc != "N/A":
+                print("   \u251c Description: {}".format(" ".join(desc.splitlines())))
             if matching:
                 results = "link: https://www.instagram.com/{}\nusername: {}\nreal_name: {}\ndesc: {}".format(endpoint, endpoint, real_name.replace("\033[32m","").replace("\033[0m",""), " ".join(desc.splitlines()).replace("\033[32m","").replace("\033[0m",""))
                 raw_output(dir_name, "instagram", results)
@@ -134,6 +137,13 @@ class parse_ig:
                 fid = face_identification(picture, "{}/{}.jpg".format(dir_name, pseudo))
                 if fid:
                     print("   \033[32m\u251c Facial recognition matching with the https://www.instagram.com/{} account !\033[0m".format(pseudo))
+            """
+            https://pypi.org/project/exif/
+            with open("{}/{}.jpg", 'rb') as image_file:
+                my_image = Image(image_file)
+            if my_image.has_exif:
+                print("   \u251c Exif: True") Really need ?
+            """
             return True
 
 
@@ -198,7 +208,8 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
             #print(emails_for_verification)
             for endpoint in datas:
                 enclosure_queue.put(endpoint)
-            for i in range(10):
+            for i in range(5):
+                #5 threads for obfuscation informations and appli used
                 worker = Thread(target=parsing_ig.get_ig_info, args=(i, enclosure_queue, s, city, keyword, pseudo, picture, dir_name, phone_n))
                 worker.setDaemon(True)
                 worker.start()
