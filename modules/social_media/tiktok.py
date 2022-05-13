@@ -72,7 +72,7 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
 
     change_ua = 0
 
-    for d in range(len_datas):
+    while not q.empty():
         endpoint = q.get() if type(q) != str() else q
         url_tiktok = "https://www.tiktok.com/@{}".format(endpoint)
 
@@ -90,7 +90,7 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
             change_ua = 0
 
         try:
-            req_tiktok = s.get(url_tiktok, verify=False, headers=headers, timeout=10)
+            req_tiktok = s.get(url_tiktok, verify=False, headers=headers, timeout=13)
 
             matching = False
 
@@ -130,14 +130,15 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
                     spinner.next()
                     time.sleep(0.9)
                 i = 30
+            q.task_done()
+            bar += 1
+            sys.stdout.write(" {}/{} | https://www.tiktok.com/@{} \r".format(bar, len_datas, endpoint))
         except KeyboardInterrupt:
             q.task_done()
+            break
         except:
             ua = UserAgent().random
             pass
-        q.task_done()
-        bar += 1
-        sys.stdout.write(" {}/{} | https://www.tiktok.com/@{} \r".format(bar, len_datas, endpoint))
 
 
 def tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year):
@@ -169,12 +170,13 @@ def tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year
                 enclosure_queue.join()
             except KeyboardInterrupt:
                 results_found = 0
-                print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
+                enclosure_queue.queue.clear() #To clear the queue
+                print(" {}Canceled by keyboard interrupt (Ctrl-C)  ".format(info))
+                sys.stdout.write("\033[K")
             except Timeout:
                 print(" {}Timeout with {} please check it manually".format(error, endpoint))
             except Exception:
                 pass
-            sys.stdout.write("\033[K")
         else:
             print(" {} Tiktok returned {} satus code, please verify if it's blocked...".format(error, req_verif.status_code))
             results_found = 0
