@@ -31,14 +31,15 @@ def run_modules():
     #google_search.google_s(identity, phone_n, mail, pseudo, keyword, city, dir_name, picture)
     if identity:
         #french touch
-        #etymology.lastname_ety(dir_name, lastname)
-        #societe.society_search(dir_name, identity, city, keyword, birth_year)
-        #qualifications.qualifications_search(identity, city, keyword, birth_year)
-        #whitepage.whitepage_search(dir_name, firstname, lastname, city)
+        if language == "fr" or language == "all":
+            etymology.lastname_ety(dir_name, lastname)
+            societe.society_search(dir_name, identity, city, keyword, birth_year)
+            qualifications.qualifications_search(identity, city, keyword, birth_year)
+            whitepage.whitepage_search(dir_name, firstname, lastname, city)
         #social
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword)
-        #snapchat.snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year)
-        tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
+        snapchat.snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year)
+        #tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
         instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year, phone_n)
         linkedin.linkedin_search(firstname, lastname, dir_name, picture)
         #email
@@ -46,7 +47,7 @@ def run_modules():
         if pseudo:
             telegram.telegram_search(pseudo, city, keyword, picture)
             try:
-                print("\033[36m Pseudo search \033[0m")
+                print("\033[36m Sherlock tool\033[0m")
                 print(separator)
                 os.system("python3 tools/sherlock/sherlock/sherlock.py {} -o {}/{}.txt >/dev/null 2>&1".format(pseudo, dir_name, pseudo))
                 with open("{}/{}.txt".format(dir_name, pseudo), "r") as result:
@@ -63,11 +64,13 @@ def run_modules():
         facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword)
         snapchat.snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year)
         tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
-        instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
+        instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year, phone_n)
         telegram.telegram_search(pseudo, city, keyword, picture)
         email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
         try:
-            os.system("python3 tools/sherlock/sherlock/sherlock.py {} -o {}/{}.txt >/dev/null 2>&1".format(pseudo, dir_name, pseudo))
+            print("\033[36m Sherlock tool\033[0m")
+            print(separator)
+            os.system("python3.9 tools/sherlock/sherlock/sherlock.py {} -o {}/{}.txt >/dev/null 2>&1".format(pseudo, dir_name, pseudo))
             with open("{}/{}.txt".format(dir_name, pseudo), "r") as result:
                 for r in result.read().splitlines():
                     req = requests.get(r, verify=False, timeout=15)
@@ -92,7 +95,7 @@ def resume():
     """
     print("""
  \033[36m Pseudo:           \033[0m {}       
- \033[36m Identity:         \033[0m {} {}
+ \033[36m Identity:         \033[0m {} {} {}
  \033[36m Mail adress:      \033[0m {}
  \033[36m Phone number:     \033[0m {}
  \033[36m Birth year:       \033[0m {}
@@ -101,7 +104,7 @@ def resume():
  \033[36m Image:            \033[0m {}
 
 {}
-    """.format("\033[32m{}\033[0m".format(pseudo) if pseudo else "N/A", "\033[32m{}\033[0m".format(firstname) if firstname else "N/A", "\033[32m{}\033[0m".format(lastname) if lastname else "", "\033[32m{}\033[0m".format(mail) if mail else "N/A","\033[32m{}\033[0m".format(phone_n) if phone_n else "N/A", "\033[32m{}\033[0m".format(birth_year) if birth_year else "N/A", "\033[32m{}\033[0m".format(city) if city else "N/A", "\033[32m{}\033[0m".format([k for k in keyword]) if keyword else "N/A", "\033[32m{}\033[0m".format(picture) if picture else "N/A", separator))
+    """.format("\033[32m{}\033[0m".format(pseudo) if pseudo else "N/A", "\033[32m{}\033[0m".format(firstname) if firstname else "N/A", "\033[32m{}\033[0m".format(middlename) if middlename else "", "\033[32m{}\033[0m".format(lastname) if lastname else "", "\033[32m{}\033[0m".format(mail) if mail else "N/A","\033[32m{}\033[0m".format(phone_n) if phone_n else "N/A", "\033[32m{}\033[0m".format(birth_year) if birth_year else "N/A", "\033[32m{}\033[0m".format(city) if city else "N/A", "\033[32m{}\033[0m".format([k for k in keyword]) if keyword else "N/A", "\033[32m{}\033[0m".format(picture) if picture else "N/A", separator))
 
 
 if __name__ == '__main__':
@@ -115,6 +118,7 @@ if __name__ == '__main__':
     group.add_argument("-n", help="Phone number, exemple: -n +337000000", dest='phone_number', required=False)
     group.add_argument("-m", help="Mail adress, exemple: -m toto@gmail.com", dest='mail', required=False)
     group.add_argument("-p", help="Pseudo, exemple: -p codejump", dest='pseudo', required=False)
+    group.add_argument("-l", help="Language research: /all/en/fr/ ; \033[32mDefault: all\033[0m", dest='language', required=False, default="all")
 
     group = parser.add_argument_group('\033[34m> Assistance\033[0m')
     group.add_argument("-c", help="City adress, exemple: -c Paris", dest='city', required=False)
@@ -139,7 +143,7 @@ if __name__ == '__main__':
     birth_year = results.birth_year
     keyword = results.keyword
     picture = results.picture
-
+    language = results.language
 
     if identity and not "_" in identity:
         print("{}Please put a _ under firstname and lastname.".format(error))
@@ -157,6 +161,7 @@ if __name__ == '__main__':
 
     firstname = identity.split("_")[0] if identity else None
     lastname = identity.split("_")[1] if identity else None
+    middlename = None #identity.split("_")[2] if identity and "-" in identity else None #TODO
 
     dir_name = "reports/results/"+sys.argv[2]
     resume()
@@ -166,7 +171,7 @@ if __name__ == '__main__':
         run_modules()
     else:
         """
-        #TODO for futur
+        #TODO potential for futur
         #finish_sorting = input("Have you finished sorting the informations ? [y/n] ")
         if finish_sorting == "Y" or finish_sorting == "y":
             print("ok")

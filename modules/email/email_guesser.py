@@ -37,13 +37,14 @@ yellow = "\033[33m"
 reset = "\033[39m"
 
 # User input about all domains to be searched
-domain = ["gmail.com", "hotmail.com", "orange.fr", "yopmail.com", "protonmail.com", "msn.com", "icloud.com", "live.fr"] #"yahoo.com", "free.fr" dosn't seem work
+domain = ["gmail.com", "hotmail.com", "orange.fr", "yopmail.com", "protonmail.com", "msn.com", "icloud.com", "live.fr", "onionmail.org"] #"yahoo.com", "free.fr" dosn't seem work
 
 # Lists with which we will work during the script
 emails = []
 emails_for_verification = []
 final_emails = []
 final_emails_text = []
+
 
 def check_haveibeenpwnd(mailcheck, requestPwnedStartTimer):
     # Count time elapsed since last haveIbeenPwned iteration/check
@@ -71,14 +72,30 @@ def check_haveibeenpwnd(mailcheck, requestPwnedStartTimer):
         requestPwnedStartTimer = time.perf_counter()
 
 
+def check_email_status(email):
+    global valid
+    valid = False
+
+    is_valid = requests.get("https://isitarealemail.com/api/email/validate", params = {'email': email})
+    time.sleep(1)
+    status = is_valid.text
+    if 'status":"valid"' in status:
+        print("yep")
+        valid = True
+    elif '"status":"invalid"' in status:
+        print("nop")
+        valid = False
+    elif "error" in status:
+        time.sleep(3)
+        check_email_status(email)
+
 def email_validation(i, q, requestPwnedStartTimer, s):
     for n in range(len_mails):
         email = q.get()
-        try:
-            is_valid = validate_email(email, verify=True)
-        except:
-            print(" {}Error with {}".format(error, email))
-        if is_valid:
+        #print(email)
+        # is_valid = validate_email(email, verify=True) # seem not working
+        check_email_status(email)
+        if valid:
             print("\033[32m \u251c {}\033[0m exist".format(email))
             """with open("{}.txt".format(sys.argv[2]), "a+") as write_email:
                 write_email.write(email+"\n")"""
@@ -119,6 +136,7 @@ def email_validation(i, q, requestPwnedStartTimer, s):
                 pass
         q.task_done()
         sys.stdout.write(" {} \r".format(email))
+        sys.stdout.write("\033[K")
 
 
 # User inputs
@@ -223,16 +241,16 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
 
         # Add username format if specified by the user
         if username_input or keyword:
-            if username_input and not keyword:
+            if username_input and not keyword and not identity:
                 structure.append(username_input)
-                if username_input and identity:
-                    structure.append("last!!first!!" + username_input)
-                    structure.append("first!!last!!" + username_input)
-                    structure.append("f!!last!!" + username_input)
-                    structure.append("f!!.last!!" + username_input)
-                    structure.append("f!!_last!!" + username_input)
-                    structure.append("first!!.l!!" + username_input)
-                    structure.append("first!!_l!!" + username_input)
+            elif username_input and identity:
+                structure.append("last!!first!!" + username_input)
+                structure.append("first!!last!!" + username_input)
+                structure.append("f!!last!!" + username_input)
+                structure.append("f!!.last!!" + username_input)
+                structure.append("f!!_last!!" + username_input)
+                structure.append("first!!.l!!" + username_input)
+                structure.append("first!!_l!!" + username_input)
             elif username_input and keyword:
                 structure.append(username_input)
                 for k in keyword:
@@ -317,7 +335,7 @@ def emails_guess(firstname, lastname, pseudo, birth_year, keyword):
             #traceback.print_exc()
 
 
-        # Search Skype based on name and surname input to find hidden e-mail addresses
+    # Search Skype based on name and surname input to find hidden e-mail addresses
     if skype_input == "y":
         print("")
         print("Searching Skype users...")
@@ -358,7 +376,7 @@ if __name__ == '__main__':
 
     group = parser.add_argument_group('\033[34m> Assistance\033[0m')
     group.add_argument("-b", help="birth year, exemple: -b 1999 (yeah my birth year)", dest='birth_year', required=False)
-    group.add_argument("-k", help="Keyword, the script will be based on this, exemple: -k security; -k pro", dest='keyword', required=False)
+    group.add_argument("-k", help="Keyword, the script will be based on this, exemple: -k security; -k pro", dest='keyword', required=False, nargs="+")
 
     results = parser.parse_args()
 

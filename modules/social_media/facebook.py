@@ -58,6 +58,8 @@ def get_marketplace(dir_name, account, s, city, keyword, facebook_id, url):
         print(city)
         print(group)
         print("     \u251c Marketing UserID: https://www.facebook.com/{}".format(res["data"]["user"]["marketplace_user_profile"]["id"]))
+    else:
+        print("   \u251c Marketplace: None")
 
 
 def check_facial_reco(dir_name, account, picture):
@@ -154,6 +156,35 @@ def get_facebook_id(account):
     if find_id:
         return(find_id.text)
 
+def basic_search(dir_name, firstname, lastname, pseudo, city, picture, keyword, s):
+    basic_names = [f"{firstname}-{lastname}", f"{lastname}-{firstname}"]
+    if pseudo:
+        basic_names.extend([f"{pseudo}-{firstname}", f"{pseudo}-{lastname}", f"{firstname}-{pseudo}", f"{lastname}-{pseudo}", ])
+    if keyword:
+        for k in keyword:
+            basic_names.extend([f"{k}-{firstname}", f"{k}-{lastname}", f"{firstname}-{k}", f"{lastname}-{k}"])
+    if pseudo and keyword:
+        for k in keyword:
+            basic_names.extend([f"{pseudo}-{k}", f"{pseudo}-{k}", f"{k}-{pseudo}", f"{k}-{pseudo}"])
+    #print(basic_names)
+    for bn in basic_names:
+        url = "https://m.facebook.com/{}".format(bn.lower())
+        req = s.get(url, verify=False, timeout=15, allow_redirects=False, headers={'User-agent': UserAgent().random})
+        if req.status_code == 200:
+            bn = "/" + bn
+            facebook_id = get_facebook_id(bn)
+            facebook_id = facebook_id if facebook_id else "N/A"
+            get_facebook_info(dir_name, bn, s, city, keyword, facebook_id, url)
+        elif req.status_code in [301, 302]:
+            url = "https://www.facebook.com/{}".format(bn.lower())
+            req = s.get(url, verify=False, timeout=15, allow_redirects=False, headers={'User-agent': UserAgent().random})
+            if req.status_code == 200:
+                bn = "/" + bn
+                facebook_id = get_facebook_id(bn)
+                facebook_id = facebook_id if facebook_id else "N/A"
+                get_facebook_info(dir_name, bn, s, city, keyword, facebook_id, url)
+
+
 
 def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword):
 
@@ -165,9 +196,12 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
         print(separator)
 
         if firstname and lastname:
+
             count_result = 0
 
             account_found = []
+
+            basic_search(dir_name, firstname, lastname, pseudo, city, picture, keyword, s)
 
             url = "https://m.facebook.com/public/{}-{}".format(firstname, lastname)
             req = s.get(url, verify=False, timeout=15, allow_redirects=False, headers={'User-agent': UserAgent().random})

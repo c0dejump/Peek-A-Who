@@ -81,13 +81,14 @@ class parse_ig:
         url = "https://privatephotoviewer.com/usr/{}".format(endpoint)
         matching = False
         req_ig = s.get(url, verify=False, timeout=20, headers={'User-agent': UserAgent().random})
+        #print(req_ig.text)
         soup = BeautifulSoup(req_ig.text, "html.parser")
-        following = soup.find('span', {'id': 'following'})
-        if req_ig.status_code == 200 and "error" not in req_ig.text and following.text != " ":
+        following = soup.find('span', {'class': 'profile-following'})
+        if req_ig.status_code == 200 and "error" not in req_ig.text and following != " ":
             find_pic = soup.find('img', {'style': ''})
             find_pic = find_pic.get("src")
-            find_name = soup.find('h1', {'id': 'userfullname'})
-            find_desc = soup.find('p', {'id': 'biofull'})
+            find_name = soup.find('h1', {'class': 'profile-name'})
+            find_desc = soup.find('span', {'class': 'profile-desc'})
             real_name = find_name.text.strip() if find_name else "None"
             desc = find_desc.text.strip() if find_desc else "None"
             # filters
@@ -147,7 +148,7 @@ class parse_ig:
             return True
 
 
-    def get_ig_pseudo(self, endpoint, s, city, keyword, pseudo, picture, dir_name):
+    def get_ig_pseudo(self, endpoint, s, city, keyword, pseudo, picture, dir_name, phone_n):
         global results_found
         results_found = 0
 
@@ -171,9 +172,10 @@ class parse_ig:
                 if gid:
                     results_found += 1
                 bar += 1
-                sys.stdout.write(" {}/{} | https://www.instagram.com/{} \r".format(bar, len_datas, endpoint))
+                sys.stdout.write(" {}/{} | {} \r".format(bar, len_datas, endpoint))
             except Timeout:
-                print(" {}Timeout with {} please check it manually".format(error, endpoint))
+                pass
+                #print(" {}Timeout with {} please check it manually".format(error, endpoint))
             except Exception:
                 #traceback.print_exc()
                 pass
@@ -189,6 +191,7 @@ def deleted_image(dir_name):
 def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year, phone_n):
     print("\033[36m Instagram search\033[0m")
     print(separator)
+    sys.stdout.write("\033[K")
 
     global len_datas
     len_datas = 0
@@ -199,7 +202,7 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
 
     if pseudo and not identity:
         endpoint = None
-        parsing_ig.get_ig_pseudo(endpoint, s, city, keyword, pseudo, picture, dir_name)
+        parsing_ig.get_ig_pseudo(endpoint, s, city, keyword, pseudo, picture, dir_name, phone_n)
     else:
         datas = parsing_data(identity, pseudo, city, keyword, birth_year)
         for n in datas:
@@ -215,14 +218,13 @@ def instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_y
                 worker.start()
             enclosure_queue.join()
         except KeyboardInterrupt:
-            print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
             enclosure_queue.queue.clear()
-            time.sleep(1)
+            print(" {}Canceled by keyboard interrupt (Ctrl-C)  ".format(info))
+            sys.stdout.write("\033[K")
             #sys.exit()
         except Exception:
             #traceback.print_exc()
             pass
-    sys.stdout.write("\033[K")
     #deleted_image(dir_name)
     results = "Instagram returned {} accounts".format(results_found)
     raw_output(dir_name, "results_number", results)

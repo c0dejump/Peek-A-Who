@@ -51,6 +51,8 @@
  	- If date or age => Do a link between us
  	- ...
 - [ ] Report, he'll contain informations and picture found from networks (graph too ?)
+- [ ] Adding a feature to do the difference from french research and other
+- [ ] Adding middle name feature
 
 ### Image
 - [ ] OCR => for the images found
@@ -71,8 +73,8 @@
 	-	hxxps://leadsbridge.com/blog/how-to-use-google-customer-match-like-a-pro-in-your-marketing-strategy/
 	- hxxps://developers.google.com/google-ads/api/docs/remarketing/audience-types/customer-match 
 	-	hxxps://cypressnorth.com/display-advertising-and-retargeting/email-address-targeting-google-facebook-twitter/#:text=To%20get%20started%20click%20on,addresses%20button%20and%20upload%20the%20.
-- [ ] Adding a feature to do the difference from french research and other
-- [ ] Adding middle name feature
+- [ ] Do a resume of potentials area of interests ?
+
 
 
 ## TODO Scraping sites:

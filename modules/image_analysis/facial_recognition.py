@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 import base64
 import json
 
-from static.colors import info, match, p_match, no_match, error, separator
+#from static.colors import info, match, p_match, no_match, error, separator
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
@@ -40,7 +40,7 @@ def face_identification(known_image, unkown_image):
 
     try:
         soup = BeautifulSoup(response.text, "html.parser")
-        #print(soup)
+        print(soup)
         score_text = soup.find("span", {"class":"text-bold"})
         if score_text:
             score = ".".join(score_text.text.split(" ")[-1].split(".")[0:2])
@@ -52,4 +52,4 @@ def face_identification(known_image, unkown_image):
         pass
         #print(response.text)
 
-#face_identification("/mnt/c/Users/NathanFAILLENOT/OneDrive - Constellation/Images/louis_giesen.jpg", "reports/results/louis_giesen/louis.giesen.jpg")
+face_identification("/mnt/c/Users/codej/OneDrive/Pictures/OSINT-IMG/jjg1.jpg", "/mnt/c/Users/codej/OneDrive/Pictures/OSINT-IMG/jj2.jpg")

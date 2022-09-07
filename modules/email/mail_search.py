@@ -14,7 +14,6 @@ def mail_site(mail_adress, dir_name):
                 print(site)
 
 
-
 def mail_breach(mail, dir_name):
     check = requests.get("https://haveibeenpwned.com/unifiedsearch/{}".format(mail), verify=False, timeout=15)
     if check.status_code == 404: # The address has not been breached.
@@ -33,7 +32,7 @@ def skypli(mail_adress, dir_name):
     
     url = "https://www.skypli.com/search/{}".format(mail_adress) 
     print(url)
-    page = s.get(url, verify=False)
+    page = requests.get(url, verify=False)
     soup = BeautifulSoup(page.content, "html.parser")
     results = soup.find(class_="search-results__title")
     if page.status_code != 500:
@@ -57,9 +56,12 @@ def skypli(mail_adress, dir_name):
         else:
             print("No results on Skype for this name")
 
+def email2phone(mail_adress, dir_name):
+    os.system("python3.9 tools/email2phonenumber/email2phonenumber.py scrpae -e {} ".format(mail_adress))
 
 def mail_actions(mail_adress, dir_name):
 
     mail_breach(mail_adress, dir_name)
     mail_site(mail_adress, dir_name)
     skypli(mail_adress, dir_name)
+    email2phone(mail_adress, dir_name)

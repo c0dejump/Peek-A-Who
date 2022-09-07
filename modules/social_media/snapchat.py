@@ -45,15 +45,20 @@ def get_snapchat(i, q, s):
         if req_snapchat.status_code not in [404, 403, 401]:
             soup = BeautifulSoup(req_snapchat.text, "html.parser")
             try:
-                find_name = soup.find('span', {'class': re.compile(r'UserDetailsCard_title*')})
+                #find_name = soup.find('span', {'class': re.compile(r'UserDetailsCard_title*')}) # if title change
+                find_name = soup.find("title")
                 if find_name.text:
-                    print(" {}\033[33m{}\033[0m Username seems exist with real name {} on https://www.snapchat.com/add/{}".format(p_match, endpoint, "\033[33m{}\033[0m".format(find_name.text), endpoint))
+                    print(" {} {}seems exist on https://www.snapchat.com/add/{}".format(p_match, "\033[33m{}\033[0m".format(find_name.text.replace("on Snapchat", "")), endpoint))
                     results_found += 1
                 else:
                     pass
             except AttributeError:
                 pass
+                #traceback.print_exc()
                 #print(" \033[32m\u251c {}\033[0m snapchat seem exit with real name \033[31mNone\033[0m".format(endpoint))
+        elif req_snapchat.status_code == 500:
+            print(" 500 Error server please wait 30 seconds...")
+            time.sleep(30)
         bar += 1
         q.task_done()
         sys.stdout.write(" {}/{} | https://www.snapchat.com/add/{} \r".format(bar, len_datas, endpoint))
@@ -89,6 +94,8 @@ def snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year):
             enclosure_queue.join()
         except KeyboardInterrupt:
             print(" {}Canceled by keyboard interrupt (Ctrl-C)".format(info))
+        except:
+            traceback.print_exc()
     sys.stdout.write("\033[K")
     results = "Snapchat returned {} accounts".format(results_found)
     raw_output(dir_name, "results_number", results)
