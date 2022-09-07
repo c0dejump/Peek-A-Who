@@ -80,10 +80,8 @@ def check_email_status(email):
     time.sleep(1)
     status = is_valid.text
     if 'status":"valid"' in status:
-        print("yep")
         valid = True
     elif '"status":"invalid"' in status:
-        print("nop")
         valid = False
     elif "error" in status:
         time.sleep(3)
