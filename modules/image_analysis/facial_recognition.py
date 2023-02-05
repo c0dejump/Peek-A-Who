@@ -52,4 +52,4 @@ def face_identification(known_image, unkown_image):
         pass
         #print(response.text)
 
-face_identification("/mnt/c/Users/codej/OneDrive/Pictures/OSINT-IMG/jjg1.jpg", "/mnt/c/Users/codej/OneDrive/Pictures/OSINT-IMG/jj2.jpg")
+#face_identification("/mnt/c/Users/codej/OneDrive/Pictures/OSINT-IMG/jjg1.jpg", "/mnt/c/Users/codej/OneDrive/Pictures/OSINT-IMG/jj2.jpg")
