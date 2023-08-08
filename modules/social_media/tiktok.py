@@ -36,7 +36,7 @@ except:
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
-
+"""
 def get_tiktok(i, q, city, keyword, s, dir_name):
     global bar
     bar = 0 
@@ -169,6 +169,7 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
 
 
 """
+
 #If first function dosn't work (but result not trusted by waf)
 def get_tiktok(i, q, city, keyword, s, dir_name):
     global bar
@@ -262,7 +263,6 @@ def get_tiktok(i, q, city, keyword, s, dir_name):
         except:
             ua = UserAgent().random
             pass
-"""
 
 def tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year):
 

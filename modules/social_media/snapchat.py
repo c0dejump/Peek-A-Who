@@ -48,7 +48,7 @@ def get_snapchat(i, q, s):
                 #find_name = soup.find('span', {'class': re.compile(r'UserDetailsCard_title*')}) # if title change
                 find_name = soup.find("title")
                 if find_name.text:
-                    print(" {} {}seems exist on https://www.snapchat.com/add/{}".format(p_match, "\033[33m{}\033[0m".format(find_name.text.replace("on Snapchat", "")), endpoint))
+                    print(" {} {} seems exist on https://www.snapchat.com/add/{}".format(p_match, "\033[33m{}\033[0m".format(find_name.text.replace("on Snapchat", "")), endpoint))
                     results_found += 1
                 else:
                     pass
