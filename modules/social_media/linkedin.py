@@ -36,7 +36,7 @@ def linkedin_scraping(url, picture, dir_name, username=False):
     len_info = 0
     try:
         print(" {}{}".format(p_match, linkedin_user))
-        api = Linkedin(LINKEDIN_USERNAME,LINKEDIN_PASSWORD)
+        api = Linkedin(LINKEDIN_USERNAME, LINKEDIN_PASSWORD)
 
         profile = api.get_profile(linkedin_user) # GET a profile
         contact = api.get_profile_contact_info(linkedin_user) # Get information profile
@@ -82,7 +82,7 @@ def linkedin_scraping(url, picture, dir_name, username=False):
             #traceback.print_exc()
             pass
     except:
-        #traceback.print_exc() #DEBUG
+        traceback.print_exc() #DEBUG
         print(" {}This module need to login for search informations, please define it config.py".format(info))
 
 

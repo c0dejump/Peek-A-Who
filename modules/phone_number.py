@@ -12,11 +12,10 @@ def skypli(phone_number, dir_name):
     print(separator)
     
     url = "https://www.skypli.com/search/{}".format(phone_number) 
-    print(url)
     page = requests.get(url, verify=False)
     soup = BeautifulSoup(page.content, "html.parser")
     results = soup.find(class_="search-results__title")
-    if page.status_code != 500:
+    if page.status_code not in [500,403]:
         if results.text.strip() != "0 results for":
             print(results.text.strip() + ". Autocompleting list of e-mail usernames...")
             results = soup.find_all(class_="search-results__block-info-username")
@@ -33,7 +32,9 @@ def skypli(phone_number, dir_name):
                     else:
                         structure.append(test_text)
         else:
-            print("No results on Skype for this name")
+            print(" {} No results on Skype for this name".format(no_match))
+    else:
+        print(" {} skypli return {} please check manually: https://www.skypli.com/search/{}".format(error, page.status_code, phone_number))
 
 
 

@@ -37,13 +37,13 @@ def run_modules():
             qualifications.qualifications_search(identity, city, keyword, birth_year)
             whitepage.whitepage_search(dir_name, firstname, lastname, city)
         #social
-        facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword)
-        snapchat.snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year)
+        facebook.facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword, phone_n)
+        #snapchat.snapchat_search(dir_name, identity, pseudo, city, keyword, birth_year)
         #tiktok.tiktok_search(dir_name, identity, pseudo, city, keyword, picture, birth_year)
-        instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year, phone_n)
-        linkedin.linkedin_search(firstname, lastname, dir_name, picture)
+        #instagram.instagram_search(dir_name, identity, pseudo, city, keyword, picture, birth_year, phone_n)
+        #linkedin.linkedin_search(firstname, lastname, dir_name, picture)
         #email
-        email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
+        #email_guesser.emails_guess(firstname, lastname, pseudo, birth_year, keyword)
         if pseudo:
             telegram.telegram_search(pseudo, city, keyword, picture)
             try:

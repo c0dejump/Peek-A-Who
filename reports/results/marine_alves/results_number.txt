@@ -1,0 +1,4 @@
+Facebook returned 0 accounts
+Snapchat returned 10 accounts
+Instagram returned 15 accounts
+Linkedin returned 0 accounts

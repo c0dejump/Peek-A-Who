@@ -42,7 +42,7 @@ def get_snapchat(i, q, s):
         endpoint = q.get() if type(q) != str() else q
         url_snapchat = "https://www.snapchat.com/add/{}".format(endpoint)
         req_snapchat = s.get(url_snapchat, verify=False, headers={'User-agent': "Mozilla/5.0 (Windows NT 6.3; WOW64; Trident/7.0; LCJB; rv:11.0) like Gecko"})
-        if req_snapchat.status_code not in [404, 403, 401]:
+        if req_snapchat.status_code not in [404, 403, 401, 429]:
             soup = BeautifulSoup(req_snapchat.text, "html.parser")
             try:
                 #find_name = soup.find('span', {'class': re.compile(r'UserDetailsCard_title*')}) # if title change

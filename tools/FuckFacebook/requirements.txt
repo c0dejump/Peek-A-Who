@@ -1,0 +1,7 @@
+argparse
+requests
+tabulate
+bs4
+colorama
+terminaltables
+PrettyTable

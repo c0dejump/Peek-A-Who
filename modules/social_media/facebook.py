@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import sys, re
+import sys, re, os
 import requests
 import time
 import traceback
@@ -13,6 +13,9 @@ from static.colors import info, match, p_match, no_match, error, separator
 from config import FB_USERNAME, FB_PASSWORD
 from output import raw_output
 from modules.image_analysis.facial_recognition import face_identification
+
+from tools.FuckFacebook.main import main as fuckfb
+from tools.FuckFacebook.token_config import URL_TOKEN
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
@@ -183,10 +186,12 @@ def basic_search(dir_name, firstname, lastname, pseudo, city, picture, keyword, 
                 facebook_id = get_facebook_id(bn)
                 facebook_id = facebook_id if facebook_id else "N/A"
                 get_facebook_info(dir_name, bn, s, city, keyword, facebook_id, url)
+        elif req.status_code == 403:
+            pass
 
 
 
-def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword):
+def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keyword, phone_n):
 
     s = requests.session()
 
@@ -250,3 +255,13 @@ def facebook_search(dir_name, firstname, lastname, pseudo, city, picture, keywor
         print(separator)
     else:
         print("\033[36m Facebook search with account #TODO\033[0m")
+    ## FuckFacebook
+    params = {
+        'f': firstname if firstname else '',
+        'l': lastname if lastname else '',
+    }
+    print("\033[36m FuckFacebook search\033[0m")
+    print(separator)
+    filters = [pseudo, city, picture, keyword, phone_n]
+    fuckfb(URL_TOKEN, params, filters)
+    print(separator)
