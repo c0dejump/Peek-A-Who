@@ -19,3 +19,13 @@ fake_useragent
 geopy
 progress
 mac-vendor-lookup
+argparse
+requests
+tabulate
+bs4
+colorama
+terminaltables
+PrettyTable
+socks
+socket
+tqdm
