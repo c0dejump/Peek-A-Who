@@ -1,5 +1,0 @@
-category = [
-"gaming",
-"coding",
-"music",
-]
