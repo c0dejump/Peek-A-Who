@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAW — Investigation History</title>
+  <link rel="icon" type="image/png" href="/static/logo_PAW.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #1c2128;
+      --border: #30363d; --accent: #58a6ff; --accent2: #3fb950;
+      --muted: #8b949e; --text: #c9d1d9; --danger: #f85149; --warning: #d29922;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; padding: 0 1rem 3rem;
+    }
+    nav {
+      width: 100%; max-width: 900px;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 1rem 0; margin-bottom: .75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: .5rem; text-decoration: none; }
+    .logo img { width: 55px; }
+    .logo span { font-weight: 700; color: #fff; font-size: .92rem; }
+    .logo span em { color: var(--accent); font-style: normal; }
+    nav a.nav-link {
+      color: var(--muted); text-decoration: none; font-size: .85rem;
+      padding: .25rem .1rem; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    nav a.nav-link:hover { color: var(--text); }
+    nav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    h1 { font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 1rem;
+         width: 100%; max-width: 900px; }
+
+    .empty {
+      width: 100%; max-width: 900px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 2rem; text-align: center;
+      color: var(--muted); font-size: .85rem;
+    }
+    .empty a { color: var(--accent); text-decoration: none; }
+
+    table {
+      width: 100%; max-width: 900px;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: .82rem;
+    }
+    thead th {
+      background: var(--surface2); border-bottom: 1px solid var(--border);
+      padding: .6rem 1rem; text-align: left;
+      font-size: .65rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface2); }
+    td { padding: .55rem 1rem; vertical-align: middle; }
+    .td-name { font-weight: 600; color: #fff; }
+    .td-ts   { font-family: monospace; color: var(--muted); font-size: .75rem; }
+
+    .risk-badge {
+      font-size: .65rem; font-weight: 700; padding: .15rem .45rem;
+      border-radius: 3px; letter-spacing: .04em; text-transform: uppercase;
+    }
+    .risk-high   { background: rgba(248,81,73,.15);  color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+    .risk-medium { background: rgba(210,153,34,.15); color: #d29922; border: 1px solid rgba(210,153,34,.3); }
+    .risk-low    { background: rgba(88,166,255,.12); color: #58a6ff; border: 1px solid rgba(88,166,255,.25); }
+    .risk-none   { background: rgba(139,148,158,.1); color: #8b949e; border: 1px solid rgba(139,148,158,.2); }
+
+    .btn-json {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 5px; color: var(--muted); font-size: .72rem;
+      padding: .2rem .55rem; cursor: pointer; text-decoration: none;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-json:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-del {
+      background: transparent; border: 1px solid rgba(248,81,73,.3);
+      border-radius: 5px; color: var(--danger); font-size: .72rem;
+      padding: .2rem .55rem; cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .btn-del:hover { border-color: var(--danger); background: rgba(248,81,73,.08); }
+
+    footer { margin-top: 1.5rem; color: var(--muted); font-size: .72rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/">
+    <img src="/static/logo_PAW.png" alt="PAW" />
+    <span>Peek&#8209;A&#8209;<em>Who</em></span>
+  </a>
+  <a class="nav-link" href="/">New investigation</a>
+  <a class="nav-link" href="/cases">Cases</a>
+  <a class="nav-link active" href="/history">History</a>
+  <a class="nav-link" href="/config">Config</a>
+</nav>
+
+<h1>Investigation History</h1>
+
+{% if not entries %}
+<div class="empty">
+  No investigations saved yet. <a href="/">Start one.</a>
+</div>
+{% else %}
+<table>
+  <thead>
+    <tr>
+      <th>Date / Time</th>
+      <th>Target</th>
+      <th>Risk</th>
+      <th>Breached emails</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in entries %}
+    <tr>
+      <td class="td-ts">{{ e.saved_at[:4] }}-{{ e.saved_at[4:6] }}-{{ e.saved_at[6:8] }}
+        &nbsp;{{ e.saved_at[9:11] }}:{{ e.saved_at[11:13] }}</td>
+      <td class="td-name">
+        {{ e.firstname }} {{ e.lastname }}
+        {% if e.pseudo %}<span style="color:var(--muted);font-weight:400"> / @{{ e.pseudo }}</span>{% endif %}
+      </td>
+      <td><span class="risk-badge risk-{{ e.risk_level }}">{{ e.risk_level }}</span></td>
+      <td>{{ e.emails_found or '—' }}</td>
+      <td style="display:flex;gap:.4rem;align-items:center;">
+        <a class="btn-json" href="/history/{{ e.filename }}" target="_blank">JSON</a>
+        <button class="btn-del" onclick="delEntry(this, '{{ e.filename }}')">&#128465;</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<script>
+async function delEntry(btn, filename) {
+  if (!confirm('Delete this history entry permanently?')) return;
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/history/' + encodeURIComponent(filename) + '/delete', { method: 'POST' });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    btn.closest('tr').remove();
+  } catch (e) {
+    alert('Error: ' + e.message);
+    btn.disabled = false;
+  }
+}
+</script>
+
+<footer>
+  <a href="https://github.com/c0dejump/Peek-A-Who" target="_blank">Peek-A-Who</a>
+  &mdash; OSINT for authorised investigations only
+</footer>
+
+</body>
+</html>

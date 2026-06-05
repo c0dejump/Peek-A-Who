@@ -1,0 +1,2016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAW — Investigation</title>
+  <link rel="icon" type="image/png" href="/static/logo_PAW.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --surface2:#1c2128;
+      --border:  #30363d;
+      --accent:  #58a6ff;
+      --accent2: #3fb950;
+      --muted:   #8b949e;
+      --text:    #c9d1d9;
+      --danger:  #f85149;
+      --warning: #d29922;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 1rem 3rem;
+    }
+
+    /* ── Nav ── */
+    nav {
+      width: 100%; max-width: 980px;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 1rem 0; margin-bottom: .75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: .5rem; text-decoration: none; }
+    .logo img { width: 65px; }
+    .logo span { font-weight: 700; color: #fff; font-size: .92rem; }
+    .logo span em { color: var(--accent); font-style: normal; }
+    nav a.nav-link {
+      color: var(--muted); text-decoration: none; font-size: .85rem;
+      padding: .25rem .1rem; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    nav a.nav-link:hover { color: var(--text); }
+    nav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
+    nav .nav-right { margin-left: auto; display: flex; align-items: center; gap: .75rem; }
+
+    .inv-badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      font-size: .72rem; font-weight: 600;
+      padding: .2rem .6rem; border-radius: 20px;
+    }
+    .inv-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .badge-running { background: rgba(63,185,80,.12); color: var(--accent2); }
+    .badge-running .dot { background: var(--accent2); animation: blink 1.2s infinite; }
+    .badge-done    { background: rgba(88,166,255,.12); color: var(--accent); }
+    .badge-done    .dot { background: var(--accent); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── Target strip ── */
+    .target-strip {
+      width: 100%; max-width: 980px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: .65rem 1.1rem;
+      display: flex; align-items: center; gap: 1.2rem;
+      flex-wrap: wrap;
+      margin-bottom: .75rem;
+      font-size: .82rem;
+    }
+    .target-strip .ts-name {
+      font-weight: 700; color: #fff; font-size: .9rem;
+    }
+    .target-strip .ts-sep { color: var(--border); }
+    .target-strip .ts-lbl { color: var(--muted); margin-right: .25rem; }
+    .target-strip .tag {
+      display: inline-block;
+      background: rgba(88,166,255,.1);
+      border: 1px solid rgba(88,166,255,.2);
+      border-radius: 4px; color: var(--accent);
+      font-size: .7rem; padding: .05rem .35rem;
+      margin: 0 .1rem;
+    }
+
+    .btn-rerun {
+      margin-left: auto; flex-shrink: 0;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--muted);
+      cursor: pointer; font-size: .78rem; font-weight: 600;
+      padding: .35rem .9rem;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-rerun:hover { border-color: var(--muted); color: var(--text); }
+    .btn-rerun:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Terminal ── */
+    .terminal-wrap {
+      width: 100%; max-width: 980px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .terminal-header {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: .6rem 1rem;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .terminal-dots { display: flex; gap: .35rem; }
+    .terminal-dots span { width: 11px; height: 11px; border-radius: 50%; }
+    .dot-red    { background: #ff5f57; }
+    .dot-yellow { background: #febc2e; }
+    .dot-green  { background: #28c840; }
+    .terminal-title {
+      font-size: .75rem; color: var(--muted);
+      font-family: monospace; flex: 1;
+      text-align: center; margin-right: 3rem;
+    }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: .35rem;
+      font-size: .72rem; font-weight: 600;
+      padding: .2rem .6rem; border-radius: 20px;
+    }
+    .status-pill .sdot { width: 6px; height: 6px; border-radius: 50%; }
+    .pill-idle    { color: var(--muted); }
+    .pill-idle    .sdot { background: #484f58; }
+    .pill-running { background: rgba(63,185,80,.12); color: var(--accent2); }
+    .pill-running .sdot { background: var(--accent2); animation: blink 1.2s infinite; }
+    .pill-done    { background: rgba(88,166,255,.12); color: var(--accent); }
+    .pill-done    .sdot { background: var(--accent); }
+    .pill-error   { background: rgba(248,81,73,.12); color: var(--danger); }
+    .pill-error   .sdot { background: var(--danger); }
+
+    #terminal {
+      font-family: 'Cascadia Code','Fira Mono','Consolas', monospace;
+      font-size: .78rem;
+      line-height: 1.65;
+      color: #adbac7;
+      padding: 1rem 1.25rem;
+      min-height: 420px;
+      max-height: calc(100vh - 260px);
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    #terminal .line-separator { color: #3fb950; }
+    #terminal .line-tool      { color: #58a6ff; }
+    #terminal .line-result    { color: #3fb950; }
+    #terminal .line-warn      { color: #d29922; }
+    #terminal .line-error     { color: #f85149; }
+    #terminal .line-done      { color: #3fb950; font-weight: bold; }
+    #terminal .line-empty     { height: .5rem; display: block; }
+
+    .cursor {
+      display: inline-block; width: 7px; height: 13px;
+      background: var(--accent); vertical-align: middle;
+      margin-left: 2px; animation: blink 1s infinite;
+    }
+    .cursor.hidden { display: none; }
+
+    footer { margin-top: 1.5rem; color: var(--muted); font-size: .72rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ── Report panel ── */
+    #report-panel {
+      display: none;
+      width: 100%; max-width: 980px;
+      margin-top: 1.25rem;
+    }
+
+    .report-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .report-header {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: .75rem 1.25rem;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .report-header h2 {
+      font-size: .88rem; font-weight: 700; color: #fff;
+      flex: 1;
+    }
+    .risk-badge {
+      font-size: .72rem; font-weight: 700;
+      padding: .2rem .6rem; border-radius: 20px;
+      letter-spacing: .04em; text-transform: uppercase;
+    }
+    .risk-high   { background: rgba(248,81,73,.15);  color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+    .risk-medium { background: rgba(210,153,34,.15); color: #d29922; border: 1px solid rgba(210,153,34,.3); }
+    .risk-low    { background: rgba(88,166,255,.12); color: #58a6ff; border: 1px solid rgba(88,166,255,.25); }
+    .risk-none   { background: rgba(139,148,158,.1); color: #8b949e; border: 1px solid rgba(139,148,158,.2); }
+
+    .report-body {
+      padding: 1.25rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 680px) { .report-body { grid-template-columns: 1fr; } }
+
+    .report-section {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .9rem 1rem;
+    }
+    .report-section.full { grid-column: 1 / -1; }
+
+    .rs-title {
+      font-size: .65rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: .65rem;
+      display: flex; align-items: center; gap: .4rem;
+    }
+
+    .email-list { list-style: none; display: flex; flex-direction: column; gap: .35rem; }
+    .email-list li {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .8rem; font-family: monospace;
+    }
+    .email-tag {
+      font-size: .65rem; padding: .05rem .3rem; border-radius: 3px;
+      font-weight: 600; font-family: sans-serif;
+    }
+    .tag-smtp    { background: rgba(63,185,80,.15);  color: #3fb950; border: 1px solid rgba(63,185,80,.3); }
+    .tag-google  { background: rgba(88,166,255,.12); color: #58a6ff; border: 1px solid rgba(88,166,255,.25); }
+    .tag-breached{ background: rgba(248,81,73,.15);  color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+
+    .breach-item {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: .55rem .75rem;
+      margin-bottom: .5rem;
+      font-size: .8rem;
+    }
+    .breach-email { font-family: monospace; color: var(--accent); font-size: .78rem; margin-bottom: .25rem; }
+    .breach-names { color: var(--warning); font-size: .75rem; }
+    .breach-classes { color: var(--muted); font-size: .72rem; margin-top: .2rem; }
+
+    .ghunt-card {
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: .55rem .75rem; margin-bottom: .5rem; font-size: .8rem;
+    }
+    .ghunt-email { font-family: monospace; color: var(--accent2); font-size: .78rem; margin-bottom: .3rem; }
+    .ghunt-row { display: flex; gap: .5rem; font-size: .75rem; color: var(--muted); margin-top: .15rem; }
+    .ghunt-row .gv { color: var(--text); }
+
+    .demo-row { display: flex; gap: .5rem; font-size: .8rem; margin-bottom: .3rem; }
+    .demo-row .dl { color: var(--muted); min-width: 120px; }
+    .demo-row .dv { color: var(--text); }
+
+    .dept-list { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .4rem; }
+    .dept-pill {
+      background: rgba(88,166,255,.08); border: 1px solid rgba(88,166,255,.2);
+      border-radius: 4px; color: var(--accent); font-size: .72rem; padding: .1rem .4rem;
+    }
+
+    .llm-summary {
+      font-size: .8rem; line-height: 1.7; color: var(--text);
+      word-break: break-word;
+    }
+    .llm-summary p { margin-bottom: .55rem; }
+    .llm-summary h1, .llm-summary h2, .llm-summary h3 {
+      color: #fff; font-size: .85rem; font-weight: 700;
+      margin: .75rem 0 .3rem;
+    }
+    .llm-summary ul, .llm-summary ol { margin: .3rem 0 .5rem 1.2rem; }
+    .llm-summary li { margin-bottom: .2rem; }
+    .llm-summary strong { color: #fff; font-weight: 600; }
+    .llm-summary em { color: var(--muted); font-style: italic; }
+    .llm-summary code {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 3px; padding: .05rem .3rem; font-size: .75rem;
+      font-family: monospace;
+    }
+
+    .empty-state { color: var(--muted); font-size: .8rem; font-style: italic; }
+
+    /* ── Data tables ── */
+    .data-table {
+      width: 100%; border-collapse: collapse; font-size: .78rem;
+    }
+    .data-table th {
+      text-align: left; font-size: .65rem; font-weight: 700;
+      letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
+      padding: .4rem .6rem; border-bottom: 1px solid var(--border);
+    }
+    .data-table td {
+      padding: .45rem .6rem; border-bottom: 1px solid rgba(48,54,61,.5);
+      color: var(--text); vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(88,166,255,.03); }
+    .data-table .td-platform { color: var(--muted); font-size: .72rem; }
+    .data-table .td-mono { font-family: monospace; }
+    .data-table .td-conf { font-size: .72rem; }
+    .kw-chip {
+      display: inline-block;
+      background: rgba(88,166,255,.1); border: 1px solid rgba(88,166,255,.2);
+      border-radius: 4px; color: var(--accent); font-size: .75rem;
+      padding: .1rem .45rem; margin: .15rem .1rem;
+    }
+
+    /* ── Download button ── */
+    .dl-wrap { position: relative; }
+    .btn-dl {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--muted);
+      cursor: pointer; font-size: .78rem; font-weight: 600;
+      padding: .35rem .85rem;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-dl:hover { border-color: var(--accent); color: var(--accent); }
+    .dl-menu {
+      display: none;
+      position: absolute; right: 0; top: calc(100% + 6px);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; overflow: hidden;
+      min-width: 160px; z-index: 50;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    .dl-wrap.open .dl-menu { display: block; }
+    .dl-menu button {
+      display: flex; align-items: center; gap: .6rem;
+      width: 100%; background: none; border: none;
+      color: var(--text); cursor: pointer;
+      font-size: .8rem; padding: .6rem 1rem;
+      text-align: left;
+      transition: background .1s;
+    }
+    .dl-menu button:hover { background: rgba(88,166,255,.08); color: var(--accent); }
+    .dl-menu .dl-sep { height: 1px; background: var(--border); margin: .2rem 0; }
+
+    /* ── Confirmation checkpoint ── */
+    #confirm-panel {
+      display: none;
+      width: 100%; max-width: 980px;
+      margin-top: 1rem;
+    }
+    .confirm-card {
+      background: var(--surface);
+      border: 1px solid var(--warning);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .confirm-header {
+      background: rgba(210,153,34,.08);
+      border-bottom: 1px solid var(--warning);
+      padding: .75rem 1.25rem;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .confirm-header h2 {
+      font-size: .9rem; font-weight: 700; color: #fff; flex: 1;
+    }
+    .confirm-body { padding: 1.25rem; }
+    .confirm-summary {
+      font-size: .85rem; line-height: 1.7; color: var(--text);
+      margin-bottom: 1rem;
+      padding: .75rem 1rem;
+      background: rgba(88,166,255,.05);
+      border: 1px solid rgba(88,166,255,.15);
+      border-radius: 7px;
+    }
+    .confirm-evidence { font-size: .8rem; margin-bottom: 1.1rem; }
+    .confirm-evidence .ce-row { display: flex; gap: .5rem; margin-bottom: .3rem; }
+    .confirm-evidence .ce-lbl { color: var(--muted); min-width: 100px; }
+    .confirm-evidence .ce-val { color: var(--text); }
+    .confirm-actions {
+      display: flex; gap: .75rem; justify-content: flex-end; flex-wrap: wrap;
+    }
+    .btn-confirm-stop {
+      background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.3);
+      border-radius: 8px; color: var(--danger); cursor: pointer;
+      font-size: .85rem; font-weight: 600; padding: .6rem 1.4rem;
+      transition: opacity .15s;
+    }
+    .btn-confirm-stop:hover { opacity: .8; }
+    .btn-confirm-go {
+      background: var(--accent); border: none;
+      border-radius: 8px; color: #0d1117; cursor: pointer;
+      font-size: .9rem; font-weight: 700; padding: .65rem 1.6rem;
+      transition: opacity .15s;
+    }
+    .btn-confirm-go:hover { opacity: .88; }
+
+    /* ── Timeline + Maigret ── */
+    .timeline-line { display: flex; gap: .75rem; margin-bottom: .5rem; align-items: flex-start; font-size: .8rem; }
+    .timeline-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: .3rem; }
+    .timeline-text { color: var(--text); line-height: 1.55; }
+    .loc-tag {
+      display: inline-block;
+      background: rgba(63,185,80,.1); border: 1px solid rgba(63,185,80,.25);
+      border-radius: 4px; color: var(--accent2); font-size: .72rem; padding: .1rem .4rem;
+      margin: .1rem .15rem;
+    }
+    .platform-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: .5rem;
+      margin-top: .5rem;
+    }
+    .platform-card {
+      display: flex; align-items: center; gap: .5rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: .5rem .75rem; font-size: .78rem;
+    }
+    .platform-card a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .platform-card a:hover { text-decoration: underline; }
+    .pcat-loc  { border-left: 3px solid var(--accent2); }
+    .pcat-mkt  { border-left: 3px solid var(--warning); }
+    .pcat-game { border-left: 3px solid #a371f7; }
+    .pcat-soc  { border-left: 3px solid var(--accent); }
+
+    /* ── Social platforms grid ── */
+    .splat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: .65rem;
+      margin-top: .5rem;
+    }
+    .splat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .65rem .9rem;
+      font-size: .8rem;
+    }
+    .splat-card.splat-found   { border-color: var(--accent2); background: rgba(63,185,80,.05); }
+    .splat-card.splat-weak    { border-color: rgba(210,153,34,.45); background: rgba(210,153,34,.03); }
+    .splat-card.splat-manual  { border-color: var(--warning);  background: rgba(210,153,34,.05); }
+    .splat-card.splat-none    { opacity: .5; }
+    .splat-header {
+      display: flex; align-items: center; gap: .45rem;
+      font-weight: 700; font-size: .78rem; margin-bottom: .35rem;
+    }
+    .splat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .splat-dot.dot-found  { background: var(--accent2); }
+    .splat-dot.dot-weak   { background: var(--warning); }
+    .splat-dot.dot-manual { background: var(--warning); }
+    .splat-dot.dot-none   { background: var(--border); }
+    .splat-profile { margin-top: .2rem; }
+    .splat-profile a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: .82rem; }
+    .splat-profile a:hover { text-decoration: underline; }
+    .splat-rel { font-size: .7rem; color: var(--muted); margin-left: .3rem; }
+    .splat-dn  { font-size: .75rem; color: var(--text); }
+    .confirm-timeline {
+      font-size: .8rem; line-height: 1.7;
+      padding: .65rem .9rem;
+      background: rgba(63,185,80,.04); border: 1px solid rgba(63,185,80,.15);
+      border-radius: 7px; margin-bottom: .75rem;
+    }
+    .confirm-locations { margin-bottom: .75rem; }
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <img src="/static/logo_PAW.png" alt="PAW" />
+    <span>Peek-<em>A</em>-Who</span>
+  </a>
+  <a href="/" class="nav-link">New investigation</a>
+  <a href="/investigation" class="nav-link active">Terminal</a>
+  <a href="/cases" class="nav-link">Cases</a>
+  <a href="/history" class="nav-link">History</a>
+  <a href="/config" class="nav-link">Configuration</a>
+  <div class="nav-right">
+    <span class="inv-badge {% if inv_done %}badge-done{% else %}badge-running{% endif %}" id="nav-badge">
+      <span class="dot"></span>
+      <span id="nav-badge-text">{% if inv_done %}Done{% else %}Running{% endif %}</span>
+    </span>
+  </div>
+</nav>
+
+<!-- ── Target summary strip ── -->
+<div class="target-strip">
+  <span class="ts-name">
+    {{ target.firstname }} {{ target.lastname }}
+    {% if target.pseudo %}<span class="ts-sep">·</span> {{ target.pseudo }}{% endif %}
+  </span>
+  {% if target.birth_year %}
+  <span><span class="ts-lbl">Born</span>{{ target.birth_year }}</span>
+  {% endif %}
+  {% if target.city %}
+  <span><span class="ts-lbl">Location</span>{{ target.city }}</span>
+  {% endif %}
+  {% if target.keywords %}
+  <span>
+    <span class="ts-lbl">Keywords</span>
+    {% for kw in target.keywords %}<span class="tag">{{ kw }}</span>{% endfor %}
+  </span>
+  {% endif %}
+  {% if target.modules %}
+  <span>
+    <span class="ts-lbl">Modules</span>
+    {% for m in target.modules %}<span class="tag">{{ m }}</span>{% endfor %}
+  </span>
+  {% endif %}
+  <button id="btn-rerun" class="btn-rerun" onclick="rerun()" {% if not inv_done %}disabled{% endif %}>
+    &#8635; Re-run
+  </button>
+  <button id="btn-save-case" class="btn-rerun" onclick="saveAsCase()" {% if not inv_done %}disabled{% endif %}
+    style="margin-left:.5rem;border-color:var(--accent);color:var(--accent);" title="Create a new case from this investigation">
+    &#128269; Save as Case
+  </button>
+</div>
+
+<!-- ── Terminal ── -->
+<div class="terminal-wrap">
+  <div class="terminal-header">
+    <div class="terminal-dots">
+      <span class="dot-red"></span>
+      <span class="dot-yellow"></span>
+      <span class="dot-green"></span>
+    </div>
+    <span class="terminal-title">paw — osint agent</span>
+    <span class="status-pill pill-idle" id="status-pill">
+      <span class="sdot"></span>
+      <span id="status-text">Connecting…</span>
+    </span>
+  </div>
+  <div id="terminal"><span id="cursor" class="cursor"></span></div>
+</div>
+
+<!-- ── Confirmation checkpoint panel ── -->
+<div id="confirm-panel">
+  <div class="confirm-card">
+    <div class="confirm-header">
+      <span style="font-size:1.1rem">&#9208;</span>
+      <h2>&#128064; Confirmation required — Is this the right person?</h2>
+      <span class="status-pill pill-running">
+        <span class="sdot"></span>
+        <span>Awaiting confirmation</span>
+      </span>
+    </div>
+    <div class="confirm-body">
+      <div class="confirm-summary" id="confirm-summary">Passive intelligence has been gathered. Please review the evidence and confirm whether this is the correct target.</div>
+      <div id="confirm-timeline-wrap" style="display:none">
+        <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem">Last known activities</div>
+        <div class="confirm-timeline" id="confirm-timeline"></div>
+      </div>
+      <div id="confirm-locations-wrap" class="confirm-locations" style="display:none">
+        <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem">Key locations</div>
+        <div id="confirm-locations"></div>
+      </div>
+      <div class="confirm-evidence" id="confirm-evidence"></div>
+      <div class="confirm-actions">
+        <button class="btn-confirm-stop" onclick="confirmAction('stop')">&#10007; Wrong target — Stop</button>
+        <button class="btn-confirm-go" onclick="confirmAction('continue')">&#10003; This is the right person — Continue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Report panel (shown after investigation) ── -->
+<div id="report-panel">
+  <div class="report-card">
+    <div class="report-header">
+      <h2>&#128203; Investigation Report</h2>
+      <span class="risk-badge" id="risk-badge">—</span>
+      <div class="dl-wrap" id="dl-wrap">
+        <button class="btn-dl" onclick="toggleDlMenu(event)">&#11015; Export</button>
+        <div class="dl-menu" id="dl-menu">
+          <button onclick="downloadReport('md')">&#128196; Markdown (.md)</button>
+          <button onclick="downloadReport('html')">&#127760; HTML (.html)</button>
+          <div class="dl-sep"></div>
+          <button onclick="downloadReport('csv')">&#128202; CSV (.csv)</button>
+        </div>
+      </div>
+    </div>
+    <div class="report-body">
+
+      <!-- Emails confirmed -->
+      <div class="report-section" id="sect-emails">
+        <div class="rs-title">&#9993; Email findings</div>
+        <ul class="email-list" id="email-list">
+          <li class="empty-state">No emails confirmed.</li>
+        </ul>
+      </div>
+
+      <!-- Surname demographics -->
+      <div class="report-section" id="sect-demo">
+        <div class="rs-title">&#127758; Surname demographics</div>
+        <div id="demo-content" class="empty-state">No data available.</div>
+      </div>
+
+      <!-- Diplomas & publications -->
+      <div class="report-section full" id="sect-diplomas" style="display:none">
+        <div class="rs-title">&#127891; Diplomas &amp; publications</div>
+        <div id="diploma-list"></div>
+      </div>
+
+      <!-- Business registries -->
+      <div class="report-section full" id="sect-business" style="display:none">
+        <div class="rs-title">&#127968; Business registries (SIRENE / Pappers)</div>
+        <div id="business-list"></div>
+      </div>
+
+      <!-- Phone OSINT -->
+      <div class="report-section full" id="sect-phone" style="display:none">
+        <div class="rs-title">&#128222; Phone OSINT</div>
+        <div id="phone-content"></div>
+      </div>
+
+      <!-- Digital footprint (maigret) -->
+      <div class="report-section full" id="sect-maigret" style="display:none">
+        <div class="rs-title">&#127759; Digital Footprint — Cross-platform accounts</div>
+        <div id="maigret-content"></div>
+      </div>
+
+      <!-- Last-known timeline -->
+      <div class="report-section full" id="sect-timeline" style="display:none">
+        <div class="rs-title">&#128197; Last known activities &amp; locations</div>
+        <div id="timeline-content"></div>
+      </div>
+
+      <!-- Social platforms -->
+      <div class="report-section full" id="sect-platforms" style="display:none">
+        <div class="rs-title">&#128241; Social Media — Multi-platform</div>
+        <div id="platforms-content"></div>
+      </div>
+
+      <!-- Instagram -->
+      <div class="report-section full" id="sect-social" style="display:none">
+        <div class="rs-title">&#128247; Instagram</div>
+        <div id="social-list"></div>
+      </div>
+
+      <!-- Annuaires -->
+      <div class="report-section full" id="sect-annuaires" style="display:none">
+        <div class="rs-title">&#128222; Annuaires (Pages Blanches / Pages Jaunes)</div>
+        <div id="annuaires-list"></div>
+      </div>
+
+      <!-- Breach details -->
+      <div class="report-section full" id="sect-breaches" style="display:none">
+        <div class="rs-title">&#9888; Breach details</div>
+        <div id="breach-list"></div>
+      </div>
+
+      <!-- GHunt details -->
+      <div class="report-section full" id="sect-ghunt" style="display:none">
+        <div class="rs-title">&#128269; Google account details</div>
+        <div id="ghunt-list"></div>
+      </div>
+
+      <!-- Pseudos & Usernames table -->
+      <div class="report-section full" id="sect-pseudos" style="display:none">
+        <div class="rs-title">&#127917; Pseudos &amp; Usernames</div>
+        <div id="pseudos-content"></div>
+      </div>
+
+      <!-- Key dates table -->
+      <div class="report-section full" id="sect-dates" style="display:none">
+        <div class="rs-title">&#128197; Key dates</div>
+        <div id="dates-content"></div>
+      </div>
+
+      <!-- Keywords -->
+      <div class="report-section" id="sect-keywords" style="display:none">
+        <div class="rs-title">&#128273; Keywords</div>
+        <div id="keywords-content"></div>
+      </div>
+
+      <!-- LLM summary -->
+      <div class="report-section full" id="sect-summary" style="display:none">
+        <div class="rs-title">&#129302; AI analysis</div>
+        <div class="llm-summary" id="llm-summary"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<footer>
+  PAW — Peek-A-Who &nbsp;|&nbsp; <a href="https://github.com/c0dejump" target="_blank">@c0dejump</a> &nbsp;|&nbsp; OSINT Tool
+</footer>
+
+<script>
+  const term    = document.getElementById('terminal');
+  const cursor  = document.getElementById('cursor');
+  const pill    = document.getElementById('status-pill');
+  const statTxt = document.getElementById('status-text');
+  const btnRerun= document.getElementById('btn-rerun');
+  const navBadge= document.getElementById('nav-badge');
+
+  const INV_DONE    = {{ inv_done | tojson }};
+  const CREATE_CASE = {{ create_case | tojson }};
+  let autoCreated   = false;
+  let es = null;
+
+  function classify(text) {
+    if (!text.trim()) return 'line-empty';
+    if (text.includes('━') || text.includes('─')) return 'line-separator';
+    if (text.includes('🔧') || text.includes('│') || text.includes('┌') || text.includes('└')) return 'line-tool';
+    if (text.includes('📦')) return 'line-result';
+    if (text.includes('✓') || text.includes('complete') || text.includes('Pipeline') || text.includes('Done')) return 'line-done';
+    if (text.includes('⚠') || text.includes('BREACHED')) return 'line-warn';
+    if (text.includes('✗') || text.includes('error') || text.includes('Error')) return 'line-error';
+    return '';
+  }
+
+  function appendLine(text) {
+    const cls = classify(text);
+    if (cls === 'line-empty') {
+      const br = document.createElement('span');
+      br.className = 'line-empty';
+      term.insertBefore(br, cursor);
+      term.insertBefore(document.createTextNode('\n'), cursor);
+      return;
+    }
+    const span = document.createElement('span');
+    if (cls) span.className = cls;
+    span.textContent = text;
+    term.insertBefore(span, cursor);
+    term.insertBefore(document.createTextNode('\n'), cursor);
+    term.scrollTop = term.scrollHeight;
+  }
+
+  function setStatus(state, label) {
+    pill.className = 'status-pill pill-' + state;
+    statTxt.textContent = label;
+  }
+
+  function setNavDone(done) {
+    navBadge.className = 'inv-badge ' + (done ? 'badge-done' : 'badge-running');
+    navBadge.querySelector('.dot').style.animation = done ? 'none' : '';
+    document.getElementById('nav-badge-text').textContent = done ? 'Done' : 'Running';
+  }
+
+  function connectSSE() {
+    if (es) es.close();
+    setStatus('running', 'Running…');
+    cursor.classList.remove('hidden');
+
+    es = new EventSource('/run');
+
+    es.onmessage = function(e) {
+      const event = JSON.parse(e.data);
+      if (event.type === 'log') {
+        appendLine(event.text);
+      } else if (event.type === 'report') {
+        renderReport(event.data);
+      } else if (event.type === 'confirmation') {
+        renderConfirmation(event.data);
+      } else if (event.type === 'error') {
+        appendLine('ERROR: ' + event.text);
+        es.close();
+        cursor.classList.add('hidden');
+        setStatus('error', 'Error');
+        btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
+        setNavDone(true);
+      } else if (event.type === 'done') {
+        es.close();
+        cursor.classList.add('hidden');
+        setStatus('done', 'Done');
+        btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
+        setNavDone(true);
+        if (CREATE_CASE && !INV_DONE) { autoCreateCase(); }
+      }
+    };
+
+    es.onerror = function() {
+      es.close();
+      cursor.classList.add('hidden');
+      setStatus('error', 'Connection lost');
+      btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
+    };
+  }
+
+  async function saveAsCase() {
+    const btn = document.getElementById('btn-save-case');
+    btn.disabled = true;
+    btn.textContent = '⏳ Creating…';
+    try {
+      const resp = await fetch('/cases/from-investigation', { method: 'POST' });
+      if (!resp.ok) throw new Error('Failed');
+      const data = await resp.json();
+      if (data.redirect) {
+        window.location.href = data.redirect;
+      } else {
+        btn.textContent = '✓ Case created';
+        setTimeout(() => { btn.textContent = '🔍 Save as Case'; btn.disabled = false; }, 2000);
+      }
+    } catch(err) {
+      btn.textContent = 'Error';
+      setTimeout(() => { btn.textContent = '🔍 Save as Case'; btn.disabled = false; }, 2000);
+    }
+  }
+
+  async function autoCreateCase() {
+    if (autoCreated) return;
+    autoCreated = true;
+    const btn = document.getElementById('btn-save-case');
+    btn.disabled = true;
+    btn.textContent = '⏳ Creating case…';
+    try {
+      const resp = await fetch('/cases/from-investigation', { method: 'POST' });
+      if (!resp.ok) throw new Error('Failed');
+      const data = await resp.json();
+      btn.textContent = '✓ Case created';
+      btn.style.borderColor = 'var(--accent2)';
+      btn.style.color       = 'var(--accent2)';
+      // Show banner with link to the case
+      if (data.case_id) {
+        showCaseBanner(data.case_id);
+      }
+    } catch(err) {
+      btn.textContent = '🔍 Save as Case';
+      btn.disabled = false;
+    }
+  }
+
+  function showCaseBanner(caseId) {
+    let banner = document.getElementById('case-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'case-banner';
+      banner.style.cssText = [
+        'position:fixed','bottom:1.5rem','right:1.5rem',
+        'background:#161b22','border:1px solid #3fb950',
+        'border-radius:10px','padding:.75rem 1.1rem',
+        'display:flex','align-items:center','gap:.75rem',
+        'box-shadow:0 6px 24px rgba(0,0,0,.6)',
+        'z-index:999','font-size:.82rem','color:#c9d1d9',
+      ].join(';');
+      document.body.appendChild(banner);
+    }
+    banner.innerHTML = `
+      <span style="font-size:1.1rem;">&#128203;</span>
+      <span>Case created automatically</span>
+      <a href="/cases/${caseId}" style="color:#3fb950;font-weight:700;text-decoration:none;
+         border:1px solid rgba(63,185,80,.4);border-radius:6px;padding:.2rem .6rem;">
+        Open &#8594;
+      </a>
+      <button onclick="this.parentNode.remove()" style="background:none;border:none;
+              color:#8b949e;cursor:pointer;font-size:1rem;line-height:1;padding:0 .2rem;">&#10005;</button>
+    `;
+  }
+
+  async function rerun() {
+    btnRerun.disabled = true;
+    term.innerHTML = '';
+    term.appendChild(cursor);
+    setNavDone(false);
+    document.getElementById('report-panel').style.display = 'none';
+    document.getElementById('sect-diplomas').style.display = 'none';
+    document.getElementById('sect-business').style.display = 'none';
+    document.getElementById('sect-phone').style.display = 'none';
+    document.getElementById('sect-maigret').style.display = 'none';
+    document.getElementById('sect-timeline').style.display = 'none';
+    document.getElementById('sect-platforms').style.display = 'none';
+    document.getElementById('sect-social').style.display = 'none';
+    document.getElementById('sect-annuaires').style.display = 'none';
+    document.getElementById('sect-breaches').style.display = 'none';
+    document.getElementById('sect-ghunt').style.display = 'none';
+    document.getElementById('sect-summary').style.display = 'none';
+    document.getElementById('sect-pseudos').style.display = 'none';
+    document.getElementById('sect-dates').style.display = 'none';
+    document.getElementById('sect-keywords').style.display = 'none';
+    document.getElementById('confirm-panel').style.display = 'none';
+
+    try {
+      const resp = await fetch('/investigation/rerun', { method: 'POST' });
+      if (!resp.ok) throw new Error('Failed');
+      connectSSE();
+    } catch(err) {
+      setStatus('error', 'Re-run failed');
+      btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
+    }
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  let lastReport = null;
+
+  // ── Confirmation checkpoint ────────────────────────────────
+  function renderConfirmation(data) {
+    const panel = document.getElementById('confirm-panel');
+
+    // Identity summary
+    const summaryEl = document.getElementById('confirm-summary');
+    summaryEl.textContent = data.candidate_summary ||
+      'Passive intelligence has been gathered. Please review and confirm whether this is the correct target.';
+
+    // Timeline
+    const tlText = data.timeline_text || '';
+    if (tlText) {
+      document.getElementById('confirm-timeline-wrap').style.display = 'block';
+      const lines = tlText.split('\n').filter(l => l.trim());
+      document.getElementById('confirm-timeline').innerHTML = lines.map(l => {
+        const clean = esc(l.replace(/^[•\-\*]\s*/, ''));
+        return `<div class="timeline-line"><span class="timeline-dot"></span><span class="timeline-text">${clean}</span></div>`;
+      }).join('');
+    }
+
+    // Locations
+    const locText = data.locations_text || '';
+    if (locText) {
+      document.getElementById('confirm-locations-wrap').style.display = 'block';
+      const locs = locText.split(',').map(l => l.trim()).filter(Boolean);
+      document.getElementById('confirm-locations').innerHTML =
+        locs.map(l => `<span class="loc-tag">&#128205; ${esc(l)}</span>`).join('');
+    }
+
+    // Evidence grid
+    const ev = data.evidence || {};
+    let evHtml = '';
+    const demo = ev.demographics || {};
+    if (demo.bearers_since_1890)
+      evHtml += `<div class="ce-row"><span class="ce-lbl">Demographics</span><span class="ce-val">${esc(String(demo.bearers_since_1890))} bearers since 1890${demo.national_rank ? ', rank #'+esc(String(demo.national_rank)) : ''}</span></div>`;
+    if (ev.diplomas_count > 0)
+      evHtml += `<div class="ce-row"><span class="ce-lbl">Academic</span><span class="ce-val">${ev.diplomas_count} academic record(s)</span></div>`;
+    if (ev.business_count > 0)
+      evHtml += `<div class="ce-row"><span class="ce-lbl">Business</span><span class="ce-val">${ev.business_count} business registration(s)</span></div>`;
+
+    const ph = ev.phone || {};
+    if (ph.valid) {
+      let phStr = `${esc(ph.type||'?')}${ph.carrier ? ' — '+esc(ph.carrier) : ''}${ph.region ? ' ('+esc(ph.region)+')' : ''}`;
+      if (ph.social && ph.social.length) phStr += ` — seen on: ${ph.social.map(s=>esc(s)).join(', ')}`;
+      evHtml += `<div class="ce-row"><span class="ce-lbl">Phone</span><span class="ce-val">${phStr}</span></div>`;
+    }
+
+    if (ev.instagram && ev.instagram.length) {
+      const top = ev.instagram[0];
+      let s = `${ev.instagram.length} profile(s) — @${esc(top.username)}`;
+      if (top.display_name) s += ` "${esc(top.display_name)}"`;
+      s += ` [${top.relevance}/10]`;
+      evHtml += `<div class="ce-row"><span class="ce-lbl">Instagram</span><span class="ce-val">${s}</span></div>`;
+    }
+
+    const mg = ev.maigret || {};
+    if (mg.total_found > 0) {
+      const locSites = (mg.location_relevant || []).map(p => esc(p.site)).join(', ');
+      evHtml += `<div class="ce-row"><span class="ce-lbl">Cross-platform</span><span class="ce-val">${mg.total_found} profile(s) found${locSites ? ' — location/sport: '+locSites : ''}</span></div>`;
+    }
+
+    const act = ev.activity_signals || {};
+    if (act.reddit)
+      evHtml += `<div class="ce-row"><span class="ce-lbl">Reddit</span><span class="ce-val">Last active ${esc(act.reddit.last_active||'?')}${act.reddit.subreddits&&act.reddit.subreddits.length ? ' — r/'+act.reddit.subreddits.slice(0,4).map(s=>esc(s)).join(', r/') : ''}</span></div>`;
+    if (act.github && act.github.location)
+      evHtml += `<div class="ce-row"><span class="ce-lbl">GitHub</span><span class="ce-val">Location: ${esc(act.github.location)}</span></div>`;
+
+    document.getElementById('confirm-evidence').innerHTML =
+      evHtml || '<span style="color:var(--muted)">Limited passive intel gathered.</span>';
+
+    panel.style.display = 'block';
+    setStatus('running', 'Awaiting confirmation…');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function confirmAction(action) {
+    document.getElementById('confirm-panel').style.display = 'none';
+    try {
+      await fetch('/investigation/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+    } catch(err) {
+      setStatus('error', 'Confirm request failed');
+    }
+    if (action === 'stop') {
+      setStatus('done', 'Stopped');
+      btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
+      setNavDone(true);
+    } else {
+      setStatus('running', 'Running…');
+    }
+  }
+
+  // ── Download / export ──────────────────────────────────────
+  function toggleDlMenu(e) {
+    e.stopPropagation();
+    document.getElementById('dl-wrap').classList.toggle('open');
+  }
+  document.addEventListener('click', () => document.getElementById('dl-wrap').classList.remove('open'));
+
+  function triggerDownload(content, filename, mime) {
+    const blob = new Blob([content], { type: mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function reportFilename(ext) {
+    const t = lastReport && lastReport.target || {};
+    const name = [t.firstname, t.lastname].filter(Boolean).join('_') || 'paw';
+    const d = new Date().toISOString().slice(0,10);
+    return `PAW_${name}_${d}.${ext}`;
+  }
+
+  function downloadReport(fmt) {
+    document.getElementById('dl-wrap').classList.remove('open');
+    if (!lastReport) return;
+    if (fmt === 'md')   triggerDownload(buildMD(lastReport),   reportFilename('md'),   'text/markdown');
+    if (fmt === 'html') triggerDownload(buildHTML(lastReport), reportFilename('html'), 'text/html');
+    if (fmt === 'csv')  triggerDownload(buildCSV(lastReport),  reportFilename('csv'),  'text/csv');
+  }
+
+  function buildMD(r) {
+    const t = r.target || {};
+    const lines = [];
+    const h = (n, s) => lines.push('\n' + '#'.repeat(n) + ' ' + s);
+    const row = (l, v) => v ? lines.push(`- **${l}:** ${v}`) : null;
+
+    lines.push(`# PAW Investigation Report`);
+    lines.push(`> Generated ${new Date().toLocaleString()}`);
+
+    h(2, 'Target');
+    row('Name',       [t.firstname, t.lastname].filter(Boolean).join(' ') || '—');
+    row('Birth year', t.birth_year);
+    row('Location',   (t.cities || []).join(', '));
+    row('Keywords',   (t.keywords || []).join(', '));
+
+    // Demographics
+    const demo = r.demographics || {};
+    if (demo.bearers_since_1890) {
+      h(2, 'Demographics');
+      row('Bearers since 1890', demo.bearers_since_1890);
+      row('National rank', demo.national_rank ? '#' + demo.national_rank : null);
+      row('Birth period note', demo.birth_year_context);
+      const depts = (demo.top_departments || []).map(d => `${d.department} (${d.count})`).join(', ');
+      if (depts) row('Top departments', depts);
+    }
+
+    // Phone
+    const ph = r.phone || {};
+    if (ph.e164) {
+      h(2, 'Phone OSINT');
+      row('Number (E.164)',    ph.e164);
+      row('International',    ph.international);
+      row('Type',             ph.type);
+      row('Carrier',          ph.carrier);
+      row('Region',           ph.region);
+      row('Valid',            ph.valid ? 'Yes' : 'No');
+      const igFound = (ph.ignorant_platforms || []).filter(p => p.status === 'found').map(p => p.site);
+      if (igFound.length) row('Registered on (ignorant)', igFound.join(', '));
+    }
+
+    // Emails
+    const emails = r.emails || {};
+    const allEmails = [...new Set([...(emails.smtp_valid||[]), ...(emails.ghunt_confirmed||[])])];
+    if (allEmails.length) {
+      h(2, 'Confirmed Emails');
+      allEmails.forEach(e => {
+        const tags = [];
+        if ((emails.smtp_valid||[]).includes(e))     tags.push('SMTP ✓');
+        if ((emails.ghunt_confirmed||[]).includes(e)) tags.push('Google ✓');
+        if ((emails.breached||[]).includes(e))        tags.push('BREACHED');
+        lines.push(`- \`${e}\` — ${tags.join(', ')}`);
+      });
+    }
+
+    // Breaches
+    const hibp = (r.hibp_details || []).filter(h => h.breached);
+    if (hibp.length) {
+      h(2, 'Breach Details');
+      hibp.forEach(h => {
+        lines.push(`\n### ${h.email} (${h.count} breach${h.count > 1 ? 'es' : ''})`);
+        (h.breaches || []).forEach(b => lines.push(`- ${b.name}${b.BreachDate ? ' ('+b.BreachDate+')' : ''}`));
+        const classes = [...new Set((h.breaches||[]).flatMap(b => b.DataClasses||[]))].slice(0, 8);
+        if (classes.length) row('Data exposed', classes.join(', '));
+      });
+    }
+
+    // Diplomas
+    const dip = r.diplomas || {};
+    const bacs    = dip.bac_results || [];
+    const brevets = dip.brevet_results || [];
+    const theses  = dip.theses || [];
+    const pubs    = dip.publications || [];
+    if (bacs.length || brevets.length || theses.length || pubs.length) {
+      h(2, 'Academic Records');
+      bacs.forEach(b    => lines.push(`- [BAC] ${b.name} — ${b.diploma||'?'} (${b.year}, âge ${b.age_at_bac}) ${b.relevance||''}`));
+      brevets.forEach(b => lines.push(`- [BREVET] ${b.name} (${b.year}, âge ${b.age_at_brevet}) ${b.relevance||''}`));
+      theses.forEach(th => lines.push(`- [THESIS] ${th.title}${th.year?' ('+th.year+')':''} — ${th.institution||''} ${th.url?'<'+th.url+'>':''}`));
+      pubs.forEach(p    => lines.push(`- [PUB] ${p.title}${p.year?' ('+p.year+')':''} ${p.url?'<'+p.url+'>':''}`));
+    }
+
+    // Business
+    const biz = r.business || {};
+    const sirene = biz.sirene || [];
+    const pappers = biz.pappers || [];
+    if (sirene.length || pappers.length) {
+      h(2, 'Business Registries');
+      sirene.forEach(s => {
+        const active = s.status && s.status.toLowerCase().startsWith('a') ? 'Actif' : 'Fermé';
+        lines.push(`- [SIRENE] SIREN ${s.siren} — ${s.name||'?'} (${active})${s.city ? ', ' + s.city : ''}`);
+      });
+      pappers.forEach(p => (p.companies||[]).forEach(c =>
+        lines.push(`- [PAPPERS] ${p.name} [${c.role||'?'}] → ${c.name||'?'} (SIREN ${c.siren})`)
+      ));
+    }
+
+    // Instagram
+    const igMD = (r.social_media?.instagram?.found || []);
+    if (igMD.length) {
+      h(2, 'Instagram');
+      igMD.forEach(p => {
+        const dn = p.display_name ? ` — "${p.display_name}"` : '';
+        const age = p.first_seen ? ` (first seen ${p.first_seen})` : '';
+        lines.push(`- [@${p.username}](${p.url})${dn}${age} [${p.relevance}/10]`);
+      });
+    }
+
+    // Social platforms
+    const mdPlat = r.social_media?.platforms || {};
+    const mdPlatKeys = ['twitter','tiktok','snapchat','bereal','linkedin','facebook'];
+    const mdPlatLabels = {twitter:'Twitter/X',tiktok:'TikTok',snapchat:'Snapchat',bereal:'BeReal',linkedin:'LinkedIn',facebook:'Facebook'};
+    const anyPlatFound = mdPlatKeys.some(k => (mdPlat[k]?.found||[]).length > 0);
+    if (anyPlatFound || Object.keys(mdPlat).length > 0) {
+      h(2, 'Social Platforms');
+      for (const pk of mdPlatKeys) {
+        const pd = mdPlat[pk] || {};
+        const fnd = pd.found || [];
+        if (fnd.length) {
+          fnd.forEach(p => {
+            const dn = p.display_name ? ` — "${p.display_name}"` : '';
+            lines.push(`- [${mdPlatLabels[pk]}] [@${p.username}](${p.url})${dn} [${p.relevance}/10]`);
+          });
+        } else if (pd.search_url) {
+          lines.push(`- [${mdPlatLabels[pk]}] Search: ${pd.search_url}`);
+        }
+      }
+    }
+
+    // Maigret (cross-platform)
+    const mg = r.social_media?.maigret || {};
+    if (mg.total_found > 0) {
+      h(2, 'Cross-Platform Presence (maigret)');
+      lines.push(`> ${mg.total_found} profile(s) found for: ${(mg.checked_usernames||[]).join(', ')}`);
+      const mgCats = [
+        ['location_relevant', 'Location & Sport'],
+        ['marketplace',       'Marketplace'],
+        ['gaming',            'Gaming'],
+        ['social',            'Social'],
+      ];
+      mgCats.forEach(([key, label]) => {
+        const items = mg[key] || [];
+        if (!items.length) return;
+        lines.push(`\n**${label}**`);
+        items.forEach(p => lines.push(`- [${p.site}](${p.url||''})`));
+      });
+      // Activity signals
+      const act = mg.activity_signals || {};
+      if (act.reddit) {
+        lines.push(`\n**Reddit** @${act.reddit.username||'?'} — last active: ${act.reddit.last_active||'?'}`);
+        if (act.reddit.subreddits?.length) lines.push(`  Subreddits: r/${act.reddit.subreddits.join(', r/')}`);
+      }
+      if (act.github) {
+        lines.push(`\n**GitHub** @${act.github.username||'?'} — last activity: ${act.github.last_active||'?'}`);
+        if (act.github.location) lines.push(`  Location: ${act.github.location}`);
+        if (act.github.bio)      lines.push(`  Bio: ${act.github.bio}`);
+      }
+    }
+
+    // Timeline (LLM synthesis)
+    const tl = r.timeline || {};
+    if (tl.llm_identity || tl.llm_timeline || tl.llm_locations) {
+      h(2, 'Investigation Timeline & Profile');
+      if (tl.llm_identity)  { lines.push(''); lines.push(tl.llm_identity); }
+      if (tl.llm_locations) lines.push(`\n**Locations:** ${tl.llm_locations}`);
+      if (tl.llm_timeline) {
+        lines.push('\n**Activity Timeline:**');
+        tl.llm_timeline.split('\n').filter(l => l.trim()).forEach(l => lines.push(l));
+      }
+    }
+
+    // Annuaires
+    const ann = r.annuaires || {};
+    if (ann.pages_blanches || ann.pages_jaunes) {
+      h(2, 'Annuaires (manual)');
+      if (ann.pages_blanches) lines.push(`- Pages Blanches: ${ann.pages_blanches}`);
+      if (ann.pages_jaunes)   lines.push(`- Pages Jaunes: ${ann.pages_jaunes}`);
+    }
+
+    // LLM summary
+    if (r.llm_summary) {
+      h(2, 'AI Analysis');
+      lines.push('');
+      lines.push(r.llm_summary);
+    }
+
+    return lines.join('\n');
+  }
+
+  function buildHTML(r) {
+    const md = buildMD(r);
+    const body = typeof marked !== 'undefined' ? marked.parse(md) : md.replace(/\n/g, '<br>');
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<title>PAW Report</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.5rem;background:#0d1117;color:#c9d1d9;line-height:1.7}
+h1,h2,h3{color:#fff}
+h1{border-bottom:2px solid #30363d;padding-bottom:.5rem}
+h2{border-bottom:1px solid #30363d;padding-bottom:.3rem;margin-top:2rem}
+code{background:#161b22;border:1px solid #30363d;border-radius:4px;padding:.1rem .35rem;font-family:monospace;font-size:.9em}
+a{color:#58a6ff}
+blockquote{border-left:3px solid #30363d;margin:0;padding-left:1rem;color:#8b949e}
+ul{padding-left:1.5rem}
+</style>
+</head>
+<body>
+${body}
+</body>
+</html>`;
+  }
+
+  function buildCSV(r) {
+    const rows = [['Category', 'Type', 'Value', 'Details', 'URL']];
+    const add = (cat, type, val, det = '', url = '') =>
+      rows.push([cat, type, val, det, url].map(v => `"${String(v).replace(/"/g,'""')}"`));
+
+    const t = r.target || {};
+    add('target', 'name',       [t.firstname, t.lastname].filter(Boolean).join(' '));
+    add('target', 'birth_year', t.birth_year || '');
+    add('target', 'location',   (t.cities || []).join('; '));
+    add('target', 'keywords',   (t.keywords || []).join('; '));
+
+    const demo = r.demographics || {};
+    if (demo.bearers_since_1890) {
+      add('demographics', 'bearers_since_1890', demo.bearers_since_1890);
+      if (demo.national_rank) add('demographics', 'national_rank', '#' + demo.national_rank);
+      (demo.top_departments || []).forEach(d => add('demographics', 'top_dept', d.department, d.count));
+    }
+
+    const ph = r.phone || {};
+    if (ph.e164) {
+      add('phone', 'e164', ph.e164);
+      add('phone', 'type', ph.type || '');
+      add('phone', 'carrier', ph.carrier || '');
+      add('phone', 'region', ph.region || '');
+      add('phone', 'valid', ph.valid ? 'yes' : 'no');
+      (ph.ignorant_platforms || []).forEach(p =>
+        add('phone', 'social_' + p.status, p.site)
+      );
+    }
+
+    const emails = r.emails || {};
+    [...new Set([...(emails.smtp_valid||[]), ...(emails.ghunt_confirmed||[])])].forEach(e => {
+      const tags = [];
+      if ((emails.smtp_valid||[]).includes(e))      tags.push('smtp');
+      if ((emails.ghunt_confirmed||[]).includes(e)) tags.push('google');
+      if ((emails.breached||[]).includes(e))        tags.push('breached');
+      add('email', 'confirmed', e, tags.join(';'));
+    });
+
+    (r.hibp_details || []).filter(h => h.breached).forEach(h => {
+      const names  = (h.breaches||[]).map(b => b.name).join(';');
+      const classes = [...new Set((h.breaches||[]).flatMap(b => b.DataClasses||[]))].join(';');
+      add('breach', 'hibp', h.email, `${h.count} breaches: ${names}`, classes);
+    });
+
+    (r.diplomas?.bac_results || []).forEach(b =>
+      add('diploma', 'bac', b.name, `${b.diploma||'?'} ${b.year} age ${b.age_at_bac} ${b.relevance||''}`, b.url||'')
+    );
+    (r.diplomas?.brevet_results || []).forEach(b =>
+      add('diploma', 'brevet', b.name, `${b.year} age ${b.age_at_brevet} ${b.relevance||''}`, b.url||'')
+    );
+    (r.diplomas?.theses || []).forEach(th =>
+      add('diploma', 'thesis', th.title, `${th.year||''} ${th.institution||''}`, th.url||'')
+    );
+    (r.diplomas?.publications || []).forEach(p =>
+      add('diploma', 'publication', p.title, `${p.year||''} ${p.institution||''}`, p.url||'')
+    );
+
+    (r.business?.sirene || []).forEach(s =>
+      add('business', 'sirene', s.siren, `${s.name||''} - ${s.status||''} - ${s.city||''}`)
+    );
+    (r.business?.pappers || []).forEach(p =>
+      (p.companies||[]).forEach(c =>
+        add('business', 'pappers_dirigeant', p.name, `${c.role||''} → ${c.name||''} (${c.siren||''})`)
+      )
+    );
+
+    (r.social_media?.instagram?.found || []).forEach(p =>
+      add('instagram', 'profile', p.username,
+          `${p.display_name||''} — relevance ${p.relevance}/10${p.first_seen ? ' — first seen '+p.first_seen : ''}`,
+          p.url||'')
+    );
+
+    // Social platforms
+    const csvPlatKeys = ['twitter','tiktok','snapchat','bereal','linkedin','facebook'];
+    const csvPlat = r.social_media?.platforms || {};
+    csvPlatKeys.forEach(pk => {
+      const pd = csvPlat[pk] || {};
+      (pd.found || []).forEach(p =>
+        add('social_platform', pk, p.username,
+            `${p.display_name||''} — relevance ${p.relevance}/10`, p.url||'')
+      );
+      if (!pd.found?.length && pd.search_url)
+        add('social_platform', pk + '_search', pd.search_url);
+    });
+
+    // Maigret cross-platform
+    const mgCSV = r.social_media?.maigret || {};
+    const mgCatKeys = ['location_relevant','marketplace','gaming','social'];
+    mgCatKeys.forEach(cat => {
+      (mgCSV[cat] || []).forEach(p =>
+        add('maigret', cat, p.site, `username: ${p.username||'?'}`, p.url||'')
+      );
+    });
+    const actCSV = mgCSV.activity_signals || {};
+    if (actCSV.reddit) {
+      add('maigret', 'reddit', actCSV.reddit.username||'?',
+          `last_active: ${actCSV.reddit.last_active||'?'} — subreddits: r/${(actCSV.reddit.subreddits||[]).join(', r/')}`);
+    }
+    if (actCSV.github) {
+      add('maigret', 'github', actCSV.github.username||'?',
+          `last_active: ${actCSV.github.last_active||'?'} — location: ${actCSV.github.location||''}`,
+          `https://github.com/${actCSV.github.username||''}`);
+    }
+
+    // Timeline
+    const tlCSV = r.timeline || {};
+    if (tlCSV.llm_identity)  add('timeline', 'identity',  tlCSV.llm_identity);
+    if (tlCSV.llm_locations) add('timeline', 'locations', tlCSV.llm_locations);
+    if (tlCSV.llm_timeline) {
+      tlCSV.llm_timeline.split('\n').filter(l => l.trim()).forEach(l =>
+        add('timeline', 'event', l.replace(/^[•\-\*]\s*/,''))
+      );
+    }
+
+    return rows.map(r => r.join(',')).join('\r\n');
+  }
+
+  function renderReport(r) {
+    lastReport = r;
+    const panel = document.getElementById('report-panel');
+    panel.style.display = 'block';
+
+    // Risk badge
+    const risk = r.risk_level || 'none';
+    const riskLabels = { high: '🔴 High risk', medium: '🟡 Medium', low: '🔵 Low', none: '⚪ No findings' };
+    const badge = document.getElementById('risk-badge');
+    badge.textContent = riskLabels[risk] || risk;
+    badge.className = 'risk-badge risk-' + risk;
+
+    // ── Emails ──────────────────────────────────────────────
+    const emails = r.emails || {};
+    const smtp      = emails.smtp_valid || [];
+    const google    = emails.ghunt_confirmed || [];
+    const breached  = emails.breached || [];
+    const allEmails = [...new Set([...smtp, ...google])];
+
+    const emailList = document.getElementById('email-list');
+    if (allEmails.length > 0) {
+      emailList.innerHTML = allEmails.map(e => {
+        const tags = [];
+        if (smtp.includes(e))     tags.push('<span class="email-tag tag-smtp">SMTP ✓</span>');
+        if (google.includes(e))   tags.push('<span class="email-tag tag-google">Google ✓</span>');
+        if (breached.includes(e)) tags.push('<span class="email-tag tag-breached">BREACHED</span>');
+        return `<li>${tags.join('')} <span>${esc(e)}</span></li>`;
+      }).join('');
+    } else {
+      emailList.innerHTML = '<li class="empty-state">No emails confirmed.</li>';
+    }
+
+    // ── Demographics ─────────────────────────────────────────
+    const demo = r.demographics || {};
+    const demoEl = document.getElementById('demo-content');
+    if (demo.bearers_since_1890) {
+      let html = '';
+      html += `<div class="demo-row"><span class="dl">Bearers since 1890</span><span class="dv">${esc(demo.bearers_since_1890)}</span></div>`;
+      if (demo.national_rank)      html += `<div class="demo-row"><span class="dl">National rank</span><span class="dv">#${esc(demo.national_rank)}</span></div>`;
+      if (demo.birth_year_context) html += `<div class="demo-row"><span class="dl">Birth period</span><span class="dv">${esc(demo.birth_year_context)}</span></div>`;
+      const depts = demo.top_departments || [];
+      if (depts.length) {
+        html += `<div class="dept-list">` + depts.map(d => `<span class="dept-pill">${esc(d.department)} <b>${esc(d.count)}</b></span>`).join('') + `</div>`;
+      }
+      demoEl.innerHTML = html;
+    }
+
+    // ── Breach details ────────────────────────────────────────
+    const hibp = r.hibp_details || [];
+    const breached_hibp = hibp.filter(h => h.breached);
+    if (breached_hibp.length) {
+      document.getElementById('sect-breaches').style.display = 'block';
+      document.getElementById('breach-list').innerHTML = breached_hibp.map(h => {
+        const names = (h.breaches || []).map(b => esc(b.name)).join(', ');
+        const classes = [...new Set((h.breaches || []).flatMap(b => b.DataClasses || []))].slice(0, 8).join(', ');
+        return `<div class="breach-item">
+          <div class="breach-email">${esc(h.email)}</div>
+          <div class="breach-names">&#9888; ${h.count} breach${h.count > 1 ? 'es' : ''}: ${names}</div>
+          ${classes ? `<div class="breach-classes">Data leaked: ${esc(classes)}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    // ── GHunt details ─────────────────────────────────────────
+    const ghunt = r.ghunt_details || [];
+    if (ghunt.length) {
+      document.getElementById('sect-ghunt').style.display = 'block';
+      document.getElementById('ghunt-list').innerHTML = ghunt.map(g => {
+        let rows = '';
+        if (g.name)         rows += `<div class="ghunt-row"><span class="dl">Name</span><span class="gv">${esc(g.name)}</span></div>`;
+        if (g.gaia_id)      rows += `<div class="ghunt-row"><span class="dl">Gaia ID</span><span class="gv">${esc(g.gaia_id)}</span></div>`;
+        if (g.maps_reviews) rows += `<div class="ghunt-row"><span class="dl">Maps reviews</span><span class="gv">${esc(g.maps_reviews)}</span></div>`;
+        if (g.photo_url)    rows += `<div class="ghunt-row"><span class="dl">Profile photo</span><span class="gv"><a href="${esc(g.photo_url)}" target="_blank" style="color:var(--accent)">View ↗</a></span></div>`;
+        if (g.cal_events)   rows += `<div class="ghunt-row"><span class="dl">Calendar events</span><span class="gv">${esc(g.cal_events)}</span></div>`;
+        return `<div class="ghunt-card"><div class="ghunt-email">${esc(g.email)}</div>${rows}</div>`;
+      }).join('');
+    }
+
+    // ── Diplomas ─────────────────────────────────────────────
+    const dip  = r.diplomas || {};
+    const theses = dip.theses || [];
+    const pubs   = dip.publications || [];
+    const bacs    = dip.bac_results || [];
+    const brevets = dip.brevet_results || [];
+    if (theses.length || pubs.length || bacs.length || brevets.length) {
+      document.getElementById('sect-diplomas').style.display = 'block';
+      let dipHtml = '';
+
+      bacs.forEach(b => {
+        const yr  = ` <span style="color:var(--muted)">(${esc(b.year)}, âge ${esc(String(b.age_at_bac))})</span>`;
+        const rel = b.relevance ? ` <span style="font-size:.68rem;color:var(--muted)">${esc(b.relevance)}</span>` : '';
+        const url = b.url ? ` <a href="${esc(b.url)}" target="_blank" style="color:var(--accent);font-size:.72rem">↗ linternaute</a>` : '';
+        const dipLabel = b.diploma ? `<span style="color:var(--muted);font-size:.72rem"> — ${esc(b.diploma)}</span>` : '';
+        dipHtml += `<div class="breach-item">
+          <div style="font-size:.72rem;color:#f0883e;font-weight:600;margin-bottom:.2rem">BAC</div>
+          <div style="font-size:.8rem;color:var(--text)">${esc(b.name)}${dipLabel}${yr}${url}</div>
+          ${rel ? `<div style="margin-top:.2rem">${rel}</div>` : ''}
+        </div>`;
+      });
+
+      brevets.forEach(b => {
+        const yr  = ` <span style="color:var(--muted)">(${esc(b.year)}, âge ${esc(String(b.age_at_brevet))})</span>`;
+        const rel = b.relevance ? ` <span style="font-size:.68rem;color:var(--muted)">${esc(b.relevance)}</span>` : '';
+        const url = b.url ? ` <a href="${esc(b.url)}" target="_blank" style="color:var(--accent);font-size:.72rem">↗ linternaute</a>` : '';
+        dipHtml += `<div class="breach-item">
+          <div style="font-size:.72rem;color:#79c0ff;font-weight:600;margin-bottom:.2rem">BREVET</div>
+          <div style="font-size:.8rem;color:var(--text)">${esc(b.name)}${yr}${url}</div>
+          ${rel ? `<div style="margin-top:.2rem">${rel}</div>` : ''}
+        </div>`;
+      });
+
+      theses.forEach(th => {
+        const yr   = th.year ? ` <span style="color:var(--muted)">(${esc(th.year)})</span>` : '';
+        const inst = th.institution ? ` — <em style="color:var(--muted)">${esc(th.institution)}</em>` : '';
+        const url  = th.url ? ` <a href="${esc(th.url)}" target="_blank" style="color:var(--accent);font-size:.72rem">↗ theses.fr</a>` : '';
+        const rel  = th.relevance ? `<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">${esc(th.relevance)}</div>` : '';
+        dipHtml += `<div class="breach-item">
+          <div style="font-size:.72rem;color:var(--accent2);font-weight:600;margin-bottom:.2rem">THESIS</div>
+          <div style="font-size:.8rem;color:var(--text)">${esc(th.title)}${yr}${inst}${url}</div>
+          ${rel}
+        </div>`;
+      });
+
+      pubs.forEach(pub => {
+        const yr   = pub.year ? ` <span style="color:var(--muted)">(${esc(pub.year)})</span>` : '';
+        const inst = pub.institution ? ` — <em style="color:var(--muted)">${esc(pub.institution)}</em>` : '';
+        const url  = pub.url ? ` <a href="${esc(pub.url)}" target="_blank" style="color:var(--accent);font-size:.72rem">↗ HAL</a>` : '';
+        const type = pub.type ? `<span style="font-size:.65rem;color:var(--muted);text-transform:uppercase;margin-right:.4rem">${esc(pub.type)}</span>` : '';
+        const rel  = pub.relevance ? `<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">${esc(pub.relevance)}</div>` : '';
+        dipHtml += `<div class="breach-item">
+          <div style="font-size:.72rem;color:var(--accent);font-weight:600;margin-bottom:.2rem">${type}PUBLICATION</div>
+          <div style="font-size:.8rem;color:var(--text)">${esc(pub.title)}${yr}${inst}${url}</div>
+          ${rel}
+        </div>`;
+      });
+
+      document.getElementById('diploma-list').innerHTML = dipHtml;
+    }
+
+    // ── Business registries ───────────────────────────────────
+    const biz     = r.business || {};
+    const sirene  = biz.sirene || [];
+    const pappers = biz.pappers || [];
+    if (sirene.length || pappers.length) {
+      document.getElementById('sect-business').style.display = 'block';
+      let bizHtml = '';
+
+      sirene.forEach(s => {
+        const active  = (s.status || '').toLowerCase().startsWith('a');
+        const badge   = active ? `<span style="color:var(--accent2)">● Actif</span>` : `<span style="color:var(--danger)">● Fermé</span>`;
+        const city    = s.city ? ` — ${esc(s.city)}${s.dept ? ' ('+esc(s.dept)+')' : ''}` : '';
+        const created = s.created ? ` créé ${esc(s.created)}` : '';
+        const act     = s.activity ? `<span style="color:var(--muted);font-size:.72rem"> — NAF ${esc(s.activity)}</span>` : '';
+        bizHtml += `<div class="breach-item">
+          <div style="font-size:.72rem;color:var(--muted);font-weight:600;margin-bottom:.2rem">SIRENE — ${badge}</div>
+          <div style="font-size:.8rem;color:var(--text)">${esc(s.name || s.company || '?')}${act}</div>
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">SIREN ${esc(s.siren)}${city}${created}</div>
+        </div>`;
+      });
+
+      pappers.forEach(p => {
+        (p.companies || []).forEach(c => {
+          const role   = c.role ? ` <span style="color:var(--warning)">[${esc(c.role)}]</span>` : '';
+          const status = c.status ? ` (${esc(c.status)})` : '';
+          bizHtml += `<div class="breach-item">
+            <div style="font-size:.72rem;color:#d2a679;font-weight:600;margin-bottom:.2rem">PAPPERS — DIRIGEANT</div>
+            <div style="font-size:.8rem;color:var(--text)">${esc(p.name)}${role} → ${esc(c.name || '?')}${status}</div>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">SIREN ${esc(c.siren)} — ${esc(c.form || '')}</div>
+          </div>`;
+        });
+      });
+
+      document.getElementById('business-list').innerHTML = bizHtml;
+    }
+
+    // ── Phone OSINT ───────────────────────────────────────────
+    const ph = r.phone || {};
+    if (ph.raw) {
+      document.getElementById('sect-phone').style.display = 'block';
+      let phHtml = '';
+
+      if (ph.error) {
+        phHtml += `<div class="empty-state">${esc(ph.error)}</div>`;
+      } else {
+        // ── Header: number + badges ──
+        const validBadge = ph.valid
+          ? `<span style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.3);border-radius:4px;color:var(--accent2);font-size:.72rem;padding:.1rem .4rem;font-weight:600">✓ Valid</span>`
+          : `<span style="background:rgba(248,81,73,.12);border:1px solid rgba(248,81,73,.3);border-radius:4px;color:var(--danger);font-size:.72rem;padding:.1rem .4rem;font-weight:600">✗ Invalid</span>`;
+        const typeBadge = `<span style="background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.2);border-radius:4px;color:var(--accent);font-size:.72rem;padding:.1rem .4rem">${esc(ph.type || 'Unknown')}</span>`;
+        phHtml += `<div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.9rem">
+          <span style="font-size:1.05rem;font-weight:700;color:#fff;font-family:monospace">${esc(ph.international || ph.e164 || ph.raw)}</span>
+          ${typeBadge} ${validBadge}
+        </div>`;
+
+        // ── Info grid ──
+        const infoRows = [
+          ['E.164',      ph.e164],
+          ['National',   ph.national],
+          ['Carrier',    ph.carrier],
+          ['Region',     ph.region],
+          ['Timezone',   ph.timezone],
+        ].filter(([,v]) => v);
+        if (infoRows.length) {
+          phHtml += `<div style="display:grid;grid-template-columns:110px 1fr;gap:.25rem .75rem;font-size:.8rem;margin-bottom:.9rem;padding:.65rem .75rem;background:var(--bg);border:1px solid var(--border);border-radius:7px">`;
+          infoRows.forEach(([l,v]) => {
+            phHtml += `<span style="color:var(--muted)">${esc(l)}</span><span style="color:var(--text);font-family:monospace">${esc(v)}</span>`;
+          });
+          phHtml += `</div>`;
+        }
+
+        // ── Numverify enrichment ──
+        const nv = ph.numverify || {};
+        if (nv.carrier || nv.line_type || nv.location) {
+          phHtml += `<div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem">Numverify</div>
+          <div style="display:grid;grid-template-columns:110px 1fr;gap:.2rem .75rem;font-size:.78rem;margin-bottom:.9rem;padding:.6rem .75rem;background:rgba(88,166,255,.04);border:1px solid rgba(88,166,255,.15);border-radius:7px">
+            ${nv.line_type ? `<span style="color:var(--muted)">Line type</span><span style="color:var(--text)">${esc(nv.line_type)}</span>` : ''}
+            ${nv.carrier   ? `<span style="color:var(--muted)">Carrier</span><span style="color:var(--text)">${esc(nv.carrier)}</span>` : ''}
+            ${nv.location  ? `<span style="color:var(--muted)">Location</span><span style="color:var(--text)">${esc(nv.location)}</span>` : ''}
+          </div>`;
+        }
+
+        // ── PhoneInfoga results ──
+        const pif = ph.phoneinfoga || {};
+        if (pif.carrier || pif.line_type || (pif.urls && pif.urls.length)) {
+          phHtml += `<div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem">PhoneInfoga</div>
+          <div style="padding:.6rem .75rem;background:rgba(210,153,34,.04);border:1px solid rgba(210,153,34,.2);border-radius:7px;margin-bottom:.9rem;font-size:.78rem">`;
+          if (pif.carrier)   phHtml += `<div><span style="color:var(--muted)">Carrier</span> <span style="color:var(--text)">${esc(pif.carrier)}</span></div>`;
+          if (pif.line_type) phHtml += `<div><span style="color:var(--muted)">Line type</span> <span style="color:var(--text)">${esc(pif.line_type)}</span></div>`;
+          if (pif.urls && pif.urls.length) {
+            phHtml += `<div style="margin-top:.4rem;font-size:.72rem;color:var(--muted)">Footprint URLs found:</div>`;
+            pif.urls.forEach(u => {
+              phHtml += `<div style="margin-top:.2rem"><a href="${esc(u)}" target="_blank" style="color:var(--accent);word-break:break-all;font-size:.73rem">${esc(u)} ↗</a></div>`;
+            });
+          }
+          phHtml += `</div>`;
+        } else if (pif.not_installed) {
+          phHtml += `<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">&#128269; PhoneInfoga not installed — <a href="https://github.com/sundowndev/phoneinfoga" target="_blank" style="color:var(--accent)">install guide ↗</a></div>`;
+        }
+
+        // ── Link groups ──
+        function linkGroup(title, entries, color) {
+          if (!entries.length) return '';
+          let h = `<div style="margin-bottom:.75rem">
+            <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">${title}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:.35rem">`;
+          entries.forEach(([label, url]) => {
+            h += `<a href="${esc(url)}" target="_blank"
+              style="display:inline-flex;align-items:center;gap:.25rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:${color};font-size:.75rem;padding:.28rem .6rem;text-decoration:none"
+              >${esc(label)} ↗</a>`;
+          });
+          h += `</div></div>`;
+          return h;
+        }
+
+        const rl = ph.reverse_links || {};
+        phHtml += linkGroup('Reverse lookup', [
+          ['Pages Blanches', rl.pages_blanches],
+          ['118712',         rl.google_e164 ? rl['118712'] : ''],
+          ['Google (E.164)',  rl.google_e164],
+          ['Google (national)', rl.google_national],
+        ].filter(([,v]) => v), 'var(--accent)');
+
+        const il = ph.identity_links || {};
+        phHtml += linkGroup('Identity dorks — social & marketplace', [
+          ['Facebook',  il.facebook],
+          ['LinkedIn',  il.linkedin],
+          ['Twitter/X', il.twitter],
+          ['Viadeo',    il.viadeo],
+          ['Leboncoin', il.leboncoin],
+          ['Skypli (Skype)', il.skypli],
+        ].filter(([,v]) => v), '#d2a679');
+
+        const al = ph.app_links || {};
+        phHtml += linkGroup('Messaging apps', [
+          ['WhatsApp',   al.whatsapp],
+          ['Telegram',   al.telegram],
+          ['Truecaller', al.truecaller],
+        ].filter(([,v]) => v), 'var(--accent2)');
+
+        // ── ignorant social platform checks ──
+        const igPlatforms = ph.ignorant_platforms || [];
+        if (igPlatforms.length) {
+          const found    = igPlatforms.filter(p => p.status === 'found');
+          const notFound = igPlatforms.filter(p => p.status === 'not_found');
+          const limited  = igPlatforms.filter(p => p.status === 'rate_limited');
+          phHtml += `<div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem">ignorant — automated social checks</div>`;
+          if (found.length) {
+            phHtml += `<div style="margin-bottom:.4rem"><span style="color:var(--accent2);font-size:.72rem;font-weight:600">✓ Registered on (${found.length})</span><div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem">`;
+            found.forEach(p => {
+              phHtml += `<span style="background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.3);border-radius:4px;color:var(--accent2);font-size:.75rem;padding:.1rem .45rem">${esc(p.site)}</span>`;
+            });
+            phHtml += `</div></div>`;
+          }
+          if (limited.length) {
+            phHtml += `<div style="margin-bottom:.4rem"><span style="color:var(--warning);font-size:.72rem">⚠ Rate limited (${limited.length})</span><div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem">`;
+            limited.forEach(p => {
+              phHtml += `<span style="background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.25);border-radius:4px;color:var(--warning);font-size:.75rem;padding:.1rem .45rem">${esc(p.site)}</span>`;
+            });
+            phHtml += `</div></div>`;
+          }
+          if (notFound.length) {
+            phHtml += `<div><span style="color:var(--muted);font-size:.72rem">Not found (${notFound.length})</span><div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem">`;
+            notFound.forEach(p => {
+              phHtml += `<span style="background:rgba(139,148,158,.08);border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:.75rem;padding:.1rem .45rem">${esc(p.site)}</span>`;
+            });
+            phHtml += `</div></div>`;
+          }
+        }
+      }
+
+      document.getElementById('phone-content').innerHTML = phHtml;
+    }
+
+    // ── Digital footprint (maigret) ─────────────────────────
+    const mg = (r.social_media || {}).maigret || {};
+    if (mg.total_found > 0) {
+      document.getElementById('sect-maigret').style.display = 'block';
+      const cats = [
+        { key: 'location_relevant', label: '📍 Location &amp; Sport', cls: 'pcat-loc' },
+        { key: 'marketplace',       label: '🛒 Marketplace',          cls: 'pcat-mkt' },
+        { key: 'gaming',            label: '🎮 Gaming',               cls: 'pcat-game' },
+        { key: 'social',            label: '💬 Social',               cls: 'pcat-soc' },
+      ];
+      let mgHtml = `<div style="font-size:.75rem;color:var(--muted);margin-bottom:.85rem">${mg.total_found} profile(s) found across <strong style="color:var(--text)">${(mg.checked_usernames||[]).join(', ') || '?'}</strong></div>`;
+
+      // Activity signals banner
+      const act = mg.activity_signals || {};
+      if (act.reddit || act.github) {
+        mgHtml += `<div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">`;
+        if (act.reddit) {
+          const subs = (act.reddit.subreddits||[]).slice(0,5).map(s=>`<span style="color:var(--accent);font-size:.7rem">r/${esc(s)}</span>`).join(' ');
+          mgHtml += `<div style="background:rgba(255,86,0,.07);border:1px solid rgba(255,86,0,.2);border-radius:7px;padding:.5rem .8rem;font-size:.78rem">
+            <div style="color:#ff5700;font-weight:600;margin-bottom:.2rem">Reddit @${esc(act.reddit.username||'?')}</div>
+            <div style="color:var(--muted)">Last active: <span style="color:var(--text)">${esc(act.reddit.last_active||'?')}</span></div>
+            ${subs ? '<div style="margin-top:.2rem">'+subs+'</div>' : ''}
+          </div>`;
+        }
+        if (act.github) {
+          mgHtml += `<div style="background:rgba(88,166,255,.07);border:1px solid rgba(88,166,255,.2);border-radius:7px;padding:.5rem .8rem;font-size:.78rem">
+            <div style="color:var(--accent);font-weight:600;margin-bottom:.2rem">GitHub @${esc(act.github.username||'?')}</div>
+            ${act.github.location ? `<div style="color:var(--muted)">Location: <span style="color:var(--text)">${esc(act.github.location)}</span></div>` : ''}
+            <div style="color:var(--muted)">Last activity: <span style="color:var(--text)">${esc(act.github.last_active||'?')}</span></div>
+          </div>`;
+        }
+        mgHtml += `</div>`;
+      }
+
+      cats.forEach(cat => {
+        const items = mg[cat.key] || [];
+        if (!items.length) return;
+        mgHtml += `<div style="margin-bottom:.9rem">
+          <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem">${cat.label} (${items.length})</div>
+          <div class="platform-grid">`;
+        items.forEach(p => {
+          mgHtml += `<div class="platform-card ${cat.cls}">
+            ${p.url ? `<a href="${esc(p.url)}" target="_blank">${esc(p.site)}</a>` : `<span style="color:var(--text)">${esc(p.site)}</span>`}
+          </div>`;
+        });
+        mgHtml += `</div></div>`;
+      });
+
+      document.getElementById('maigret-content').innerHTML = mgHtml;
+    }
+
+    // ── Timeline ──────────────────────────────────────────────
+    const tl = r.timeline || {};
+    if (tl.llm_timeline || tl.llm_identity || tl.llm_locations) {
+      document.getElementById('sect-timeline').style.display = 'block';
+      let tlHtml = '';
+
+      if (tl.llm_identity) {
+        tlHtml += `<div style="font-size:.82rem;color:var(--text);line-height:1.7;margin-bottom:.9rem;padding:.65rem .9rem;background:rgba(88,166,255,.05);border:1px solid rgba(88,166,255,.15);border-radius:7px">${esc(tl.llm_identity)}</div>`;
+      }
+
+      if (tl.llm_locations) {
+        const locs = tl.llm_locations.split(',').map(l => l.trim()).filter(Boolean);
+        tlHtml += `<div style="margin-bottom:.9rem">` +
+          locs.map(l => `<span class="loc-tag">&#128205; ${esc(l)}</span>`).join('') +
+          `</div>`;
+      }
+
+      if (tl.llm_timeline) {
+        tlHtml += `<div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem">Activity timeline</div>`;
+        tl.llm_timeline.split('\n').filter(l => l.trim()).forEach(l => {
+          tlHtml += `<div class="timeline-line"><span class="timeline-dot"></span><span class="timeline-text">${esc(l.replace(/^[•\-\*]\s*/,''))}</span></div>`;
+        });
+      }
+
+      // Raw activity signals as fallback if no LLM
+      const actSig = tl.activity_signals || {};
+      if (!tl.llm_timeline && (actSig.reddit || actSig.github)) {
+        if (actSig.reddit)
+          tlHtml += `<div class="timeline-line"><span class="timeline-dot"></span><span class="timeline-text"><strong>Reddit</strong> — last active ${esc(actSig.reddit.last_active||'?')}${actSig.reddit.subreddits?.length ? ', r/'+actSig.reddit.subreddits.slice(0,4).join(', r/') : ''}</span></div>`;
+        if (actSig.github && actSig.github.last_active)
+          tlHtml += `<div class="timeline-line"><span class="timeline-dot"></span><span class="timeline-text"><strong>GitHub</strong> — last activity ${esc(actSig.github.last_active)}${actSig.github.location ? ' — '+esc(actSig.github.location) : ''}</span></div>`;
+      }
+
+      document.getElementById('timeline-content').innerHTML = tlHtml || '<div class="empty-state">No timeline data.</div>';
+    }
+
+    // ── Social platforms (Twitter, TikTok, Snapchat, BeReal, LinkedIn, Facebook) ─
+    const social = r.social_media || {};
+    const platforms = social.platforms || {};
+    const _PLAT_META = {
+      twitter:  { label: 'Twitter/X',  icon: '🐦', color: '#1d9bf0' },
+      tiktok:   { label: 'TikTok',     icon: '🎵', color: '#ff0050' },
+      snapchat: { label: 'Snapchat',   icon: '👻', color: '#fffc00' },
+      bereal:   { label: 'BeReal',     icon: '📸', color: '#ffffff' },
+      linkedin: { label: 'LinkedIn',   icon: '💼', color: '#0a66c2' },
+      facebook: { label: 'Facebook',   icon: '👤', color: '#1877f2' },
+    };
+    const platKeys = Object.keys(_PLAT_META);
+    if (platKeys.some(k => platforms[k])) {
+      document.getElementById('sect-platforms').style.display = 'block';
+      let pHtml = '<div class="splat-grid">';
+      for (const pk of platKeys) {
+        const pd = platforms[pk] || {};
+        const meta = _PLAT_META[pk];
+        const found = pd.found || [];
+        const highConf = found.filter(p => (p.relevance || 0) >= 5);
+        const isManual = !found.length && pd.search_url;
+        const hasStrong = highConf.length > 0;
+        const cls    = hasStrong ? 'splat-found' : found.length ? 'splat-weak' : isManual ? 'splat-manual' : 'splat-none';
+        const dotCls = hasStrong ? 'dot-found'   : found.length ? 'dot-weak'   : isManual ? 'dot-manual'   : 'dot-none';
+        const countLabel = hasStrong
+          ? `${highConf.length} found`
+          : found.length
+            ? `${found.length} possible`
+            : '';
+        pHtml += `<div class="splat-card ${cls}">
+          <div class="splat-header">
+            <span class="splat-dot ${dotCls}"></span>
+            <span style="color:${meta.color}">${meta.icon}</span>
+            <span style="color:var(--text)">${meta.label}</span>
+            ${countLabel ? `<span style="font-size:.68rem;color:${hasStrong ? 'var(--accent2)' : 'var(--warning)'};margin-left:auto">${countLabel}</span>` : ''}
+          </div>`;
+        if (found.length) {
+          const highConf = found.filter(p => (p.relevance || 0) >= 5);
+          const lowConf  = found.filter(p => (p.relevance || 0) <  5);
+          const showList = highConf.length ? highConf.slice(0, 3) : found.slice(0, 3);
+          showList.forEach(p => {
+            const rel = p.relevance || 0;
+            const relColor = rel >= 7 ? 'var(--accent2)' : rel >= 4 ? 'var(--warning)' : 'var(--muted)';
+            pHtml += `<div class="splat-profile">
+              <a href="${esc(p.url)}" target="_blank">@${esc(p.username)}</a>
+              ${p.display_name ? `<span class="splat-dn"> — ${esc(p.display_name)}</span>` : ''}
+              <span class="splat-rel" style="color:${relColor}">[${rel}/10]</span>
+            </div>`;
+          });
+          if (lowConf.length && highConf.length === 0) {
+            pHtml += `<div style="font-size:.68rem;color:var(--muted);margin-top:.35rem;font-style:italic">Low confidence — worth checking manually</div>`;
+          } else if (lowConf.length) {
+            pHtml += `<details style="margin-top:.3rem"><summary style="font-size:.68rem;color:var(--muted);cursor:pointer">+ ${lowConf.length} low-confidence match(es)</summary>`;
+            lowConf.slice(0,3).forEach(p => {
+              pHtml += `<div class="splat-profile" style="opacity:.65">
+                <a href="${esc(p.url)}" target="_blank">@${esc(p.username)}</a>
+                <span class="splat-rel" style="color:var(--muted)">[${p.relevance||0}/10]</span>
+              </div>`;
+            });
+            pHtml += `</details>`;
+          }
+        } else if (isManual) {
+          pHtml += `<div style="font-size:.75rem;color:var(--muted);margin-top:.15rem">Requires auth — <a href="${esc(pd.search_url)}" target="_blank" style="color:var(--warning)">Search manually ↗</a></div>`;
+        } else {
+          pHtml += `<div style="font-size:.72rem;color:var(--muted);margin-top:.15rem">Not found (${pd.checked||0} checked)</div>`;
+        }
+        pHtml += `</div>`;
+      }
+      pHtml += '</div>';
+      document.getElementById('platforms-content').innerHTML = pHtml;
+    }
+
+    // ── Social media (Instagram) ─────────────────────────────
+    const ig = social.instagram || {};
+    const igFound = ig.found || [];
+    if (ig.checked > 0 || igFound.length) {
+      document.getElementById('sect-social').style.display = 'block';
+      let igHtml = `<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem">Checked <strong style="color:var(--text)">${esc(String(ig.checked||0))}</strong> / ${esc(String(ig.generated||0))} candidates — ${igFound.length} profile(s) found</div>`;
+      if (igFound.length) {
+        const igHigh = igFound.filter(p => (p.relevance || 0) >= 5);
+        const igLow  = igFound.filter(p => (p.relevance || 0) <  5);
+        const igShow = igHigh.length ? igHigh : igFound;
+        igShow.forEach(p => {
+          const rel = p.relevance || 0;
+          const relColor = rel >= 7 ? 'var(--accent2)' : rel >= 4 ? 'var(--warning)' : 'var(--muted)';
+          const stars = '★'.repeat(Math.max(1, Math.round(rel / 2)));
+          const dn = p.display_name ? `<span style="color:var(--text)"> — "${esc(p.display_name)}"</span>` : '';
+          const age = p.first_seen ? `<div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">First archived: ${esc(p.first_seen)} (Wayback Machine)</div>` : '';
+          igHtml += `<div class="breach-item">
+            <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem">
+              <span style="font-size:.72rem;color:#e1306c;font-weight:600">INSTAGRAM</span>
+              <span style="font-size:.72rem;color:${relColor}">${stars} ${rel}/10</span>
+            </div>
+            <div style="font-size:.82rem">
+              <a href="${esc(p.url)}" target="_blank" style="color:#e1306c;font-weight:600;text-decoration:none">@${esc(p.username)}</a>${dn}
+            </div>
+            ${age}
+          </div>`;
+        });
+        if (igLow.length && igHigh.length) {
+          igHtml += `<details style="margin-top:.5rem"><summary style="font-size:.72rem;color:var(--muted);cursor:pointer">+ ${igLow.length} low-confidence match(es) — worth checking</summary>`;
+          igLow.forEach(p => {
+            const rel = p.relevance || 0;
+            igHtml += `<div class="breach-item" style="opacity:.6">
+              <span style="font-size:.72rem;color:var(--muted)">INSTAGRAM [${rel}/10]</span><br>
+              <a href="${esc(p.url)}" target="_blank" style="color:#e1306c;font-weight:600;text-decoration:none;font-size:.82rem">@${esc(p.username)}</a>
+            </div>`;
+          });
+          igHtml += `</details>`;
+        }
+      } else {
+        igHtml += `<div class="empty-state">No Instagram profiles found among checked candidates.</div>`;
+      }
+      document.getElementById('social-list').innerHTML = igHtml;
+    }
+
+    // ── Annuaires ─────────────────────────────────────────────
+    const ann = r.annuaires || {};
+    if (ann.pages_blanches || ann.pages_jaunes) {
+      document.getElementById('sect-annuaires').style.display = 'block';
+      const note = ann.note ? `<div style="font-size:.72rem;color:var(--warning);margin-bottom:.65rem">&#9888; ${esc(ann.note)}</div>` : '';
+      let annHtml = note;
+      if (ann.pages_blanches) {
+        annHtml += `<div class="breach-item">
+          <div style="font-size:.72rem;color:var(--accent);font-weight:600;margin-bottom:.25rem">Pages Blanches — personnes</div>
+          <div style="font-size:.8rem"><a href="${esc(ann.pages_blanches)}" target="_blank" style="color:var(--accent);word-break:break-all">Ouvrir la recherche ↗</a></div>
+        </div>`;
+      }
+      if (ann.pages_jaunes) {
+        annHtml += `<div class="breach-item">
+          <div style="font-size:.72rem;color:var(--warning);font-weight:600;margin-bottom:.25rem">Pages Jaunes — professionnels</div>
+          <div style="font-size:.8rem"><a href="${esc(ann.pages_jaunes)}" target="_blank" style="color:var(--warning);word-break:break-all">Ouvrir la recherche ↗</a></div>
+        </div>`;
+      }
+      document.getElementById('annuaires-list').innerHTML = annHtml;
+    }
+
+    // ── LLM summary ───────────────────────────────────────────
+    if (r.llm_summary) {
+      document.getElementById('sect-summary').style.display = 'block';
+      const md = typeof marked !== 'undefined' ? marked.parse(r.llm_summary) : r.llm_summary.replace(/\n/g,'<br>');
+      document.getElementById('llm-summary').innerHTML = md;
+    }
+
+    // ── Pseudos & Usernames table ─────────────────────────────
+    (function() {
+      const rows = [];
+
+      (r.social_media?.instagram?.found || []).forEach(p => {
+        rows.push({ platform: 'Instagram', username: '@' + p.username, url: p.url || '', conf: p.relevance + '/10', display: p.display_name || '' });
+      });
+
+      const platMeta = { twitter: 'Twitter/X', tiktok: 'TikTok', snapchat: 'Snapchat', bereal: 'BeReal', linkedin: 'LinkedIn', facebook: 'Facebook' };
+      const plats = r.social_media?.platforms || {};
+      Object.entries(platMeta).forEach(([pk, label]) => {
+        (plats[pk]?.found || []).forEach(p => {
+          rows.push({ platform: label, username: '@' + p.username, url: p.url || '', conf: p.relevance + '/10', display: p.display_name || '' });
+        });
+      });
+
+      const mg2 = r.social_media?.maigret || {};
+      ['location_relevant','marketplace','gaming','social'].forEach(cat => {
+        (mg2[cat] || []).forEach(p => {
+          if (p.username) rows.push({ platform: p.site, username: '@' + p.username, url: p.url || '', conf: '', display: '' });
+        });
+      });
+      const actSig2 = mg2.activity_signals || {};
+      if (actSig2.reddit) rows.push({ platform: 'Reddit', username: '@' + (actSig2.reddit.username || '?'), url: 'https://reddit.com/u/' + (actSig2.reddit.username || ''), conf: '', display: '' });
+      if (actSig2.github) rows.push({ platform: 'GitHub', username: '@' + (actSig2.github.username || '?'), url: 'https://github.com/' + (actSig2.github.username || ''), conf: '', display: actSig2.github.location || '' });
+
+      if (rows.length) {
+        document.getElementById('sect-pseudos').style.display = 'block';
+        let th = `<table class="data-table"><thead><tr>
+          <th>Platform</th><th>Username</th><th>Display name</th><th>Confidence</th><th>Link</th>
+        </tr></thead><tbody>`;
+        rows.forEach(r2 => {
+          const rel = parseInt(r2.conf) || 0;
+          const confColor = rel >= 7 ? 'var(--accent2)' : rel >= 4 ? 'var(--warning)' : rel > 0 ? 'var(--muted)' : 'var(--muted)';
+          const conf = r2.conf ? `<span style="color:${confColor}">${esc(r2.conf)}</span>` : '—';
+          const link = r2.url ? `<a href="${esc(r2.url)}" target="_blank" style="color:var(--accent);font-size:.75rem">↗ open</a>` : '—';
+          th += `<tr>
+            <td class="td-platform">${esc(r2.platform)}</td>
+            <td class="td-mono" style="color:var(--text)">${esc(r2.username)}</td>
+            <td style="color:var(--muted);font-size:.75rem">${esc(r2.display)}</td>
+            <td>${conf}</td>
+            <td>${link}</td>
+          </tr>`;
+        });
+        th += `</tbody></table>`;
+        document.getElementById('pseudos-content').innerHTML = th;
+      }
+    })();
+
+    // ── Key dates table ───────────────────────────────────────
+    (function() {
+      const rows = [];
+      const t2 = r.target || {};
+
+      if (t2.birth_year) rows.push({ label: 'Birth year', date: String(t2.birth_year), source: 'Investigation input', color: 'var(--accent)' });
+
+      const dip2 = r.diplomas || {};
+      (dip2.bac_results || []).forEach(b => {
+        if (b.year) rows.push({ label: 'BAC', date: String(b.year), source: b.name || '', color: '#f0883e' });
+      });
+      (dip2.brevet_results || []).forEach(b => {
+        if (b.year) rows.push({ label: 'Brevet', date: String(b.year), source: b.name || '', color: '#79c0ff' });
+      });
+      (dip2.theses || []).forEach(th => {
+        if (th.year) rows.push({ label: 'Thesis', date: String(th.year), source: th.institution || '', color: 'var(--accent2)' });
+      });
+
+      (r.social_media?.instagram?.found || []).forEach(p => {
+        if (p.first_seen) rows.push({ label: 'Instagram archived', date: p.first_seen, source: '@' + p.username, color: '#e1306c' });
+      });
+
+      const mg3 = r.social_media?.maigret || {};
+      const act3 = mg3.activity_signals || {};
+      if (act3.reddit?.last_active)
+        rows.push({ label: 'Reddit — last active', date: act3.reddit.last_active, source: '@' + (act3.reddit.username || '?'), color: '#ff5700' });
+      if (act3.github?.last_active)
+        rows.push({ label: 'GitHub — last activity', date: act3.github.last_active, source: '@' + (act3.github.username || '?'), color: 'var(--accent)' });
+
+      (r.hibp_details || []).filter(h => h.breached).forEach(h => {
+        (h.breaches || []).forEach(b => {
+          if (b.BreachDate) rows.push({ label: 'Breach', date: b.BreachDate, source: b.name, color: 'var(--danger)' });
+        });
+      });
+
+      if (rows.length) {
+        document.getElementById('sect-dates').style.display = 'block';
+        let th = `<table class="data-table"><thead><tr>
+          <th>Event</th><th>Date</th><th>Source</th>
+        </tr></thead><tbody>`;
+        rows.forEach(row => {
+          th += `<tr>
+            <td><span style="font-size:.72rem;font-weight:700;color:${row.color}">${esc(row.label)}</span></td>
+            <td class="td-mono">${esc(row.date)}</td>
+            <td style="color:var(--muted);font-size:.75rem">${esc(row.source)}</td>
+          </tr>`;
+        });
+        th += `</tbody></table>`;
+        document.getElementById('dates-content').innerHTML = th;
+      }
+    })();
+
+    // ── Keywords ──────────────────────────────────────────────
+    (function() {
+      const kws = r.target?.keywords || [];
+      if (kws.length) {
+        document.getElementById('sect-keywords').style.display = 'block';
+        document.getElementById('keywords-content').innerHTML =
+          kws.map(k => `<span class="kw-chip">${esc(k)}</span>`).join('');
+      }
+    })();
+
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Auto-connect immediately on page load
+  window.addEventListener('DOMContentLoaded', connectSSE);
+</script>
+
+</body>
+</html>

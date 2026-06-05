@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAW — Cases</title>
+  <link rel="icon" type="image/png" href="/static/logo_PAW.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d1117; --surface: #161b22; --surface2: #1c2128;
+      --border:  #30363d; --accent:  #58a6ff; --accent2: #3fb950;
+      --muted:   #8b949e; --text:    #c9d1d9; --danger:  #f85149;
+      --warning: #d29922;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; padding: 0 1rem 4rem;
+    }
+
+    nav {
+      width: 100%; max-width: 960px;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 1rem 0; margin-bottom: .75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: .5rem; text-decoration: none; }
+    .logo img { width: 55px; }
+    .logo span { font-weight: 700; color: #fff; font-size: .92rem; }
+    .logo span em { color: var(--accent); font-style: normal; }
+    nav a.nav-link {
+      color: var(--muted); text-decoration: none; font-size: .85rem;
+      padding: .25rem .1rem; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    nav a.nav-link:hover { color: var(--text); }
+    nav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
+    nav .nav-right { margin-left: auto; }
+
+    .page-header {
+      width: 100%; max-width: 960px; margin: 1.25rem 0 1rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .page-header h2 { font-size: 1.2rem; font-weight: 700; color: #fff; }
+    .page-header p  { color: var(--muted); font-size: .82rem; margin-top: .15rem; }
+
+    .btn-primary {
+      background: var(--accent); border: none; border-radius: 8px;
+      color: #0d1117; cursor: pointer; font-size: .85rem; font-weight: 700;
+      padding: .55rem 1.2rem; transition: opacity .15s, transform .1s;
+      display: inline-flex; align-items: center; gap: .4rem; text-decoration: none;
+    }
+    .btn-primary:hover  { opacity: .88; }
+    .btn-primary:active { transform: scale(.97); }
+
+    .btn-sm {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 6px; color: var(--accent); cursor: pointer;
+      font-size: .78rem; padding: .3rem .75rem; text-decoration: none;
+      transition: border-color .15s, background .15s;
+    }
+    .btn-sm:hover { border-color: var(--accent); background: rgba(88,166,255,.07); }
+
+    .new-panel {
+      width: 100%; max-width: 960px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.5rem;
+      margin-bottom: 1.5rem; display: none;
+    }
+    .new-panel.open { display: block; }
+    .new-panel h3 {
+      font-size: .9rem; font-weight: 700; color: #fff;
+      margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem;
+    }
+
+    .form-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem;
+    }
+    @media(max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: .3rem; }
+    .field label { font-size: .75rem; color: var(--muted); font-weight: 500; }
+    .field.full-width { grid-column: 1 / -1; }
+
+    input[type=text] {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text); font-size: .85rem;
+      padding: .48rem .7rem; outline: none; width: 100%;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,.12); }
+    input::placeholder { color: #484f58; }
+
+    .form-actions { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1rem; }
+    .btn-cancel {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 7px; color: var(--muted); cursor: pointer;
+      font-size: .82rem; padding: .45rem 1rem; transition: border-color .15s;
+    }
+    .btn-cancel:hover { border-color: var(--muted); }
+
+    .table-wrap { width: 100%; max-width: 960px; }
+
+    .empty-state {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 3rem 2rem; text-align: center;
+    }
+    .empty-state p { color: var(--muted); font-size: .9rem; margin-bottom: 1rem; }
+    .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+
+    table {
+      width: 100%; border-collapse: collapse;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; font-size: .83rem;
+    }
+    thead th {
+      background: var(--surface2); border-bottom: 1px solid var(--border);
+      color: var(--muted); font-size: .72rem; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase;
+      padding: .65rem 1rem; text-align: left;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,.025); }
+    tbody td { padding: .75rem 1rem; vertical-align: middle; }
+
+    .title-cell { font-weight: 600; color: #fff; }
+    .title-cell .cid { color: var(--muted); font-size: .72rem; font-weight: 400; margin-left: .4rem; }
+
+    .badge-count {
+      display: inline-flex; align-items: center; gap: .3rem;
+      background: rgba(88,166,255,.1); color: var(--accent);
+      border-radius: 12px; padding: .15rem .5rem; font-size: .72rem; font-weight: 600;
+    }
+    .badge-count.green { background: rgba(63,185,80,.1); color: var(--accent2); }
+
+    .date-cell { color: var(--muted); font-size: .78rem; }
+
+    footer { margin-top: 2rem; color: var(--muted); font-size: .75rem; text-align: center; }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <img src="/static/logo_PAW.png" alt="PAW" />
+    <span>Peek-<em>A</em>-Who</span>
+  </a>
+  <a href="/" class="nav-link">New investigation</a>
+  <a href="/cases" class="nav-link active">Cases</a>
+  <a href="/history" class="nav-link">History</a>
+  <a href="/config" class="nav-link">Configuration</a>
+</nav>
+
+<div class="page-header">
+  <div>
+    <h2>&#128269; Investigation Cases</h2>
+    <p>Persistent case files — add facts, track findings, build the connection graph over time.</p>
+  </div>
+  <button class="btn-primary" onclick="togglePanel()">+ New Case</button>
+</div>
+
+<!-- New case form -->
+<div class="new-panel" id="newPanel">
+  <h3>&#128203; Create New Case</h3>
+  <form action="/cases/new" method="POST" id="newForm">
+    <div class="form-grid">
+      <div class="field">
+        <label>First name</label>
+        <input type="text" name="firstname" placeholder="e.g. Jean" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>Last name</label>
+        <input type="text" name="lastname" placeholder="e.g. Dupont" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>Keywords <span style="color:var(--warning);font-size:.7rem;">(comma-separated)</span></label>
+        <input type="text" name="keywords" placeholder="e.g. mchl, photography" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>Alias / Username</label>
+        <input type="text" name="pseudo" placeholder="e.g. j.dupont" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>City</label>
+        <input type="text" name="city" placeholder="e.g. Paris" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>Birth year</label>
+        <input type="text" name="birth_year" placeholder="e.g. 1993" autocomplete="off" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn-cancel" onclick="togglePanel()">Cancel</button>
+      <button type="submit" class="btn-primary">Create Case &#9654;</button>
+    </div>
+  </form>
+</div>
+
+<!-- Cases table -->
+<div class="table-wrap">
+  {% if cases %}
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Created</th>
+        <th>Updated</th>
+        <th>Facts</th>
+        <th>Findings</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in cases %}
+      <tr>
+        <td class="title-cell">
+          {{ c.title }}
+          <span class="cid">#{{ c.id }}</span>
+        </td>
+        <td class="date-cell">{{ c.created_at[:16] | replace('T',' ') if c.created_at else '—' }}</td>
+        <td class="date-cell">{{ c.updated_at[:16] | replace('T',' ') if c.updated_at else '—' }}</td>
+        <td><span class="badge-count">{{ c.fact_count }} facts</span></td>
+        <td><span class="badge-count green">{{ c.finding_count }} findings</span></td>
+        <td style="display:flex;gap:.4rem;align-items:center;">
+          <a href="/cases/{{ c.id }}" class="btn-sm">Open &#8594;</a>
+          <button class="btn-sm" style="border-color:rgba(248,81,73,.35);color:var(--danger);"
+                  onclick="delCase(this,'{{ c.id }}','{{ c.title | e }}')">&#128465;</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">&#128269;</div>
+    <p>No cases yet. Create your first investigation case above.</p>
+    <button class="btn-primary" onclick="togglePanel()">+ New Case</button>
+  </div>
+  {% endif %}
+</div>
+
+<footer>
+  PAW &mdash; Peek-A-Who &nbsp;|&nbsp; <a href="https://github.com/c0dejump" target="_blank">@c0dejump</a> &nbsp;|&nbsp; OSINT Tool
+</footer>
+
+<script>
+async function delCase(btn, cid, title) {
+  if (!confirm(`Delete "${title}" permanently?`)) return;
+  btn.disabled = true;
+  try {
+    const resp = await fetch(`/cases/${cid}/delete`, { method: 'POST' });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    btn.closest('tr').remove();
+  } catch (e) {
+    alert('Error: ' + e.message);
+    btn.disabled = false;
+  }
+}
+
+function togglePanel() {
+  const panel = document.getElementById('newPanel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    panel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    panel.querySelector('input').focus();
+  }
+}
+</script>
+
+</body>
+</html>

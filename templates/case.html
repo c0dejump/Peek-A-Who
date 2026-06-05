@@ -1,0 +1,2124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAW — {{ case.title }}</title>
+  <link rel="icon" type="image/png" href="/static/logo_PAW.png" />
+  <link href="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/dist/vis-network.min.css" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #1c2128;
+      --surface3: #21262d;
+      --border:   #30363d;
+      --accent:   #58a6ff;
+      --accent2:  #3fb950;
+      --muted:    #8b949e;
+      --text:     #c9d1d9;
+      --danger:   #f85149;
+      --warning:  #d29922;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Full-screen flex column ── */
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── Nav ── */
+    nav {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 0 1.25rem;
+      height: 52px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .logo {
+      display: flex; align-items: center; gap: .45rem;
+      text-decoration: none; flex-shrink: 0;
+    }
+    .logo img { width: 34px; }
+    .logo span { font-weight: 700; color: #fff; font-size: .85rem; }
+    .logo span em { color: var(--accent); font-style: normal; }
+    nav a.nav-link {
+      color: var(--muted); text-decoration: none; font-size: .82rem;
+      padding: .25rem .1rem; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s; white-space: nowrap;
+    }
+    nav a.nav-link:hover { color: var(--text); }
+    nav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
+    .nav-title {
+      margin-left: .5rem;
+      font-size: .82rem; font-weight: 600; color: #fff;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      flex: 1; min-width: 0;
+    }
+    .nav-right {
+      margin-left: auto; display: flex; align-items: center; gap: .6rem; flex-shrink: 0;
+    }
+
+    /* ── Badges ── */
+    .inv-badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      font-size: .72rem; font-weight: 600;
+      padding: .2rem .6rem; border-radius: 20px;
+    }
+    .inv-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .badge-running { background: rgba(63,185,80,.12); color: var(--accent2); }
+    .badge-running .dot { background: var(--accent2); animation: blink 1.2s infinite; }
+    .badge-done { background: rgba(88,166,255,.12); color: var(--accent); }
+    .badge-done .dot { background: var(--accent); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      background: var(--accent); border: none; border-radius: 7px;
+      color: #0d1117; cursor: pointer; font-size: .8rem; font-weight: 700;
+      padding: .45rem 1rem; transition: opacity .15s, transform .1s;
+      display: inline-flex; align-items: center; gap: .35rem; white-space: nowrap;
+    }
+    .btn-primary:hover { opacity: .88; }
+    .btn-primary:active { transform: scale(.97); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-sm {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 6px; color: var(--accent); cursor: pointer;
+      font-size: .75rem; padding: .28rem .6rem;
+      transition: border-color .15s, background .15s; text-decoration: none;
+      display: inline-flex; align-items: center; gap: .25rem;
+    }
+    .btn-sm:hover { border-color: var(--accent); background: rgba(88,166,255,.06); }
+
+    .btn-danger-sm {
+      background: transparent; border: none;
+      color: var(--muted); cursor: pointer; font-size: .78rem;
+      padding: .15rem .3rem; border-radius: 4px;
+      transition: color .15s, background .15s; line-height: 1; flex-shrink: 0;
+    }
+    .btn-danger-sm:hover { color: var(--danger); background: rgba(248,81,73,.08); }
+
+    /* ── Main content row ── */
+    .main-row {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: .75rem;
+    }
+    .sidebar-scroll::-webkit-scrollbar { width: 5px; }
+    .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Sidebar sections ── */
+    .sb-section { margin-bottom: .9rem; }
+
+    .sb-label {
+      font-size: .64rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: .4rem; display: flex; align-items: center; gap: .4rem;
+    }
+    .sb-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* Case info block */
+    .case-info {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: .6rem .75rem; margin-bottom: .75rem;
+    }
+    .case-info-title {
+      font-size: .85rem; font-weight: 700; color: #fff;
+      word-break: break-word; margin-bottom: .2rem;
+    }
+    .case-info-id {
+      font-size: .68rem; color: var(--muted); font-family: monospace;
+    }
+
+    /* Run button */
+    .btn-run-all {
+      width: 100%; justify-content: center; margin-bottom: .75rem;
+      background: var(--accent2); color: #0d1117;
+      border: none; border-radius: 7px; font-size: .8rem; font-weight: 700;
+      padding: .5rem; cursor: pointer; display: flex; align-items: center; gap: .35rem;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-run-all:hover { opacity: .88; }
+    .btn-run-all:active { transform: scale(.97); }
+    .btn-run-all:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* Add fact form */
+    .add-fact-form { display: flex; flex-direction: column; gap: .4rem; }
+    .add-fact-form label {
+      font-size: .7rem; color: var(--muted); font-weight: 500;
+    }
+    select, input[type="text"] {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: .8rem;
+      padding: .38rem .55rem; outline: none; width: 100%;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    select:focus, input[type="text"]:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,.12);
+    }
+    input::placeholder { color: #484f58; }
+
+    .name-fields { display: none; flex-direction: column; gap: .35rem; }
+    .name-fields.visible { display: flex; }
+
+    /* Facts list */
+    .fact-pill {
+      display: flex; align-items: center; gap: .4rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: .38rem .5rem; margin-bottom: .3rem;
+      font-size: .78rem; cursor: pointer; transition: border-color .15s;
+    }
+    .fact-pill:hover { border-color: var(--muted); }
+    .fact-pill.highlighted { border-color: var(--accent); background: rgba(88,166,255,.06); }
+    .fact-pill-icon { font-size: .9rem; flex-shrink: 0; }
+    .fact-pill-body { flex: 1; min-width: 0; }
+    .fact-pill-type {
+      font-size: .6rem; color: var(--muted); text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+    .fact-pill-value {
+      color: var(--text); font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .facts-empty {
+      font-size: .78rem; color: var(--muted); font-style: italic;
+      text-align: center; padding: .5rem 0;
+    }
+
+    /* Audit log */
+    .log-toggle {
+      font-size: .72rem; color: var(--muted); cursor: pointer;
+      background: none; border: none; display: flex; align-items: center; gap: .3rem;
+      padding: 0; margin-bottom: .35rem;
+    }
+    .log-toggle:hover { color: var(--text); }
+    .log-entries {
+      display: none; flex-direction: column; gap: .25rem;
+    }
+    .log-entries.open { display: flex; }
+    .log-entry {
+      font-size: .7rem; color: var(--muted);
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 5px; padding: .3rem .5rem;
+    }
+    .log-entry-ts { color: #484f58; margin-right: .3rem; }
+
+    /* SSE terminal embedded in sidebar */
+    .sb-terminal {
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+    }
+    .sb-terminal-header {
+      background: var(--surface2);
+      padding: .4rem .65rem;
+      display: flex; align-items: center; gap: .5rem;
+      cursor: pointer; user-select: none;
+    }
+    .sb-terminal-header:hover { background: var(--surface3, #21262d); }
+    .terminal-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .dot-red    { background: #ff5f56; }
+    .dot-yellow { background: #ffbd2e; }
+    .dot-green  { background: #27c93f; }
+    .dot-green.blinking { animation: blink 1s infinite; }
+    .sb-terminal-label { font-size: .72rem; color: var(--muted); flex: 1; }
+    .sb-terminal-chevron {
+      font-size: .65rem; color: var(--muted);
+      transition: transform .2s;
+    }
+    .sb-terminal-chevron.open { transform: rotate(180deg); }
+    .sb-terminal-body {
+      display: none;
+      background: #010409;
+      font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: .7rem; color: #7ee787;
+      padding: .6rem .75rem;
+      height: 200px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .sb-terminal-body.open { display: block; }
+    .sb-terminal-body::-webkit-scrollbar { width: 4px; }
+    .sb-terminal-body::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+
+    /* ── Canvas wrapper ── */
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    #network-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Canvas empty state */
+    .canvas-empty {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: .6rem; pointer-events: none;
+      opacity: 1; transition: opacity .3s;
+    }
+    .canvas-empty.hidden { opacity: 0; }
+    .canvas-empty-icon { font-size: 2.8rem; opacity: .25; }
+    .canvas-empty-text { color: var(--muted); font-size: .85rem; }
+
+    /* Canvas controls */
+    .canvas-controls {
+      position: absolute; bottom: 1rem; right: 1rem;
+      display: flex; flex-direction: column; gap: .4rem;
+    }
+    .canvas-btn {
+      width: 32px; height: 32px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; transition: border-color .15s, background .15s;
+    }
+    .canvas-btn:hover { border-color: var(--accent); background: var(--surface2); }
+    .canvas-btn.active {
+      border-color: var(--accent2); background: rgba(63,185,80,.12); color: var(--accent2);
+    }
+
+    /* Canvas action bar (shown when a node is selected) */
+    .canvas-action-bar {
+      position: absolute; top: .75rem; left: 50%; transform: translateX(-50%);
+      background: var(--surface); border: 1px solid var(--accent);
+      border-radius: 24px; padding: .3rem .5rem .3rem .85rem;
+      display: none; align-items: center; gap: .25rem;
+      box-shadow: 0 4px 18px rgba(0,0,0,.55); z-index: 60; white-space: nowrap;
+    }
+    .canvas-action-bar.visible { display: flex; }
+    .action-bar-label {
+      font-size: .72rem; color: var(--accent); font-weight: 700;
+      padding-right: .6rem; border-right: 1px solid var(--border);
+      max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+    }
+    .action-bar-btn {
+      background: none; border: none; color: var(--text); font-size: .75rem;
+      cursor: pointer; padding: .25rem .55rem; border-radius: 12px;
+      transition: background .12s, color .12s; display: flex; align-items: center; gap: .25rem;
+    }
+    .action-bar-btn:hover          { background: var(--surface2); }
+    .action-bar-btn.btn-danger:hover { color: var(--danger); background: rgba(248,81,73,.09); }
+    .action-bar-btn.btn-active     { color: var(--warning); }
+    .action-bar-sep {
+      width: 1px; height: 18px; background: var(--border); flex-shrink: 0; margin: 0 .1rem;
+    }
+
+    /* Link-mode hint banner */
+    .link-mode-hint {
+      position: absolute; top: .75rem; left: 50%; transform: translateX(-50%);
+      background: rgba(63,185,80,.1); border: 1px solid rgba(63,185,80,.35);
+      color: var(--accent2); border-radius: 20px; font-size: .74rem; font-weight: 600;
+      padding: .3rem 1rem; pointer-events: none; display: none; white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+    .link-mode-hint.visible { display: block; }
+
+    /* ── Node popup / tooltip ── */
+    .node-popup {
+      position: absolute;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .7rem .85rem .65rem;
+      min-width: 240px;
+      max-width: 310px;
+      font-size: .78rem;
+      box-shadow: 0 8px 28px rgba(0,0,0,.55);
+      z-index: 100;
+      display: none;
+      pointer-events: auto;
+    }
+    .node-popup.visible { display: block; }
+    .node-popup-close {
+      position: absolute; top: .4rem; right: .5rem;
+      background: none; border: none; color: var(--muted);
+      font-size: .85rem; cursor: pointer; line-height: 1; padding: .1rem .25rem;
+      border-radius: 3px; transition: color .12s, background .12s;
+    }
+    .node-popup-close:hover { color: var(--text); background: rgba(255,255,255,.06); }
+
+    /* Action grid — directly in popup */
+    .popup-actions {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: .3rem; margin-top: .55rem; padding-top: .45rem;
+      border-top: 1px solid var(--border);
+    }
+    .popup-action {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); cursor: pointer;
+      font-size: .72rem; padding: .32rem .4rem; text-align: center;
+      transition: border-color .12s, background .12s, color .12s;
+      display: flex; align-items: center; justify-content: center; gap: .25rem;
+      white-space: nowrap;
+    }
+    .popup-action:hover      { border-color: var(--accent); background: rgba(88,166,255,.08); }
+    .popup-action.full-width { grid-column: 1 / -1; }
+    .popup-action.active     { border-color: var(--warning); color: var(--warning); background: rgba(210,153,34,.08); }
+    .popup-action.active-blue{ border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,.1); }
+    .popup-action.danger:hover { border-color: var(--danger); color: var(--danger); background: rgba(248,81,73,.08); }
+    /* Dismiss = rouge statique, Restore = vert statique */
+    .popup-action.dismiss {
+      border-color: rgba(248,81,73,.5); color: var(--danger);
+      background: rgba(248,81,73,.1);
+    }
+    .popup-action.dismiss:hover { border-color: var(--danger); background: rgba(248,81,73,.18); }
+    .popup-action.restore {
+      border-color: rgba(63,185,80,.5); color: var(--accent2);
+      background: rgba(63,185,80,.12);
+      font-weight: 700;
+    }
+    .popup-action.restore:hover { border-color: var(--accent2); background: rgba(63,185,80,.22); }
+
+    /* Dismissed banner inside popup */
+    .dismissed-banner {
+      background: rgba(248,81,73,.12); border: 1px solid rgba(248,81,73,.35);
+      border-radius: 5px; color: var(--danger); font-size: .72rem; font-weight: 700;
+      padding: .28rem .55rem; margin-bottom: .4rem; text-align: center; letter-spacing: .03em;
+    }
+
+    /* ── Draggable table panels on canvas ── */
+    .graph-table-panel {
+      position: absolute; z-index: 20;
+      background: rgba(22,27,34,.96); border: 1px solid var(--border);
+      border-radius: 8px; min-width: 210px; max-width: 300px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.55);
+      overflow: hidden;
+    }
+    .graph-table-panel.hidden { display: none; }
+    .gtp-header {
+      display: flex; align-items: center; gap: .4rem;
+      background: var(--surface2); border-bottom: 1px solid var(--border);
+      padding: .35rem .6rem; cursor: grab; font-size: .7rem;
+      font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em;
+      user-select: none;
+    }
+    .gtp-header:active { cursor: grabbing; }
+    .gtp-close {
+      margin-left: auto; background: none; border: none;
+      color: var(--muted); cursor: pointer; font-size: .85rem; padding: 0; line-height: 1;
+    }
+    .gtp-close:hover { color: var(--danger); }
+    .gtp-body { max-height: 220px; overflow-y: auto; }
+    .gtp-row {
+      display: flex; gap: .5rem; padding: .26rem .6rem;
+      font-size: .73rem; align-items: baseline;
+      border-bottom: 1px solid rgba(48,54,61,.5);
+    }
+    .gtp-row:last-child { border-bottom: none; }
+    .gtp-key { color: var(--muted); flex-shrink: 0; font-size: .67rem; min-width: 58px; }
+    .gtp-val { color: var(--text); word-break: break-all; }
+    .gtp-empty { padding: .5rem .6rem; color: var(--muted); font-size: .73rem; font-style: italic; }
+
+    /* Inline note textarea in popup */
+    .popup-note-form { margin-top: .4rem; display: flex; flex-direction: column; gap: .3rem; }
+    .popup-note-form textarea {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-size: .75rem; padding: .4rem .5rem;
+      resize: none; outline: none; width: 100%; font-family: inherit;
+      transition: border-color .12s;
+    }
+    .popup-note-form textarea:focus { border-color: var(--accent); }
+    .popup-note-form .note-btns { display: flex; gap: .3rem; }
+    .popup-note-form .note-btns button {
+      flex: 1; padding: .3rem; border-radius: 5px; cursor: pointer;
+      font-size: .72rem; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text);
+      transition: border-color .12s, background .12s;
+    }
+    .popup-note-form .note-btns .btn-save {
+      background: var(--accent); border-color: var(--accent);
+      color: #0d1117; font-weight: 700;
+    }
+    .node-popup-title {
+      font-weight: 700; color: #fff; font-size: .82rem;
+      margin-bottom: .35rem; display: flex; align-items: center; gap: .4rem;
+    }
+    .node-popup-badge {
+      font-size: .6rem; font-weight: 700; text-transform: uppercase;
+      padding: .1rem .35rem; border-radius: 10px;
+      background: rgba(88,166,255,.15); color: var(--accent);
+    }
+    .node-popup-row {
+      display: flex; gap: .4rem; margin-top: .25rem; color: var(--muted);
+    }
+    .node-popup-key { color: var(--muted); flex-shrink: 0; }
+    .node-popup-val { color: var(--text); word-break: break-all; }
+    .node-popup-link a {
+      color: var(--accent); text-decoration: none; font-size: .72rem;
+      word-break: break-all;
+    }
+    .node-popup-link a:hover { text-decoration: underline; }
+    .node-popup-conf {
+      margin-top: .4rem; padding-top: .4rem;
+      border-top: 1px solid var(--border);
+    }
+    .conf-bar-wrap {
+      height: 4px; background: var(--border); border-radius: 2px;
+      margin-top: .2rem; overflow: hidden;
+    }
+    .conf-bar-fill { height: 100%; background: var(--accent2); border-radius: 2px; }
+
+    /* ── Grouped fact sections ── */
+    .fact-section { margin-bottom: .6rem; }
+    .sb-label-sub {
+      font-size: .62rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: .3rem; display: flex; align-items: center; gap: .35rem;
+      padding-left: .1rem;
+    }
+    .facts-group { display: flex; flex-direction: column; }
+
+    /* ── Delete confirmation overlay ── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; display: none;
+    }
+    .overlay.visible { display: flex; }
+    .confirm-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.5rem;
+      max-width: 360px; width: 90%;
+    }
+    .confirm-box h3 { font-size: .95rem; color: #fff; margin-bottom: .5rem; }
+    .confirm-box p { font-size: .82rem; color: var(--muted); margin-bottom: 1.1rem; }
+    .confirm-actions { display: flex; gap: .5rem; justify-content: flex-end; }
+    .btn-confirm-cancel {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 6px; color: var(--muted); cursor: pointer;
+      font-size: .82rem; padding: .4rem .9rem;
+      transition: border-color .15s;
+    }
+    .btn-confirm-cancel:hover { border-color: var(--muted); }
+    .btn-confirm-delete {
+      background: var(--danger); border: none; border-radius: 6px;
+      color: #fff; cursor: pointer; font-size: .82rem; font-weight: 700;
+      padding: .4rem .9rem; transition: opacity .15s;
+    }
+    .btn-confirm-delete:hover { opacity: .85; }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ── Navigation bar ── -->
+  <nav>
+    <a href="/" class="logo">
+      <img src="/static/logo_PAW.png" alt="PAW" />
+      <span>Peek-<em>A</em>-Who</span>
+    </a>
+    <a href="/" class="nav-link">New investigation</a>
+    <a href="/cases" class="nav-link active">Cases</a>
+    <a href="/history" class="nav-link">History</a>
+    <a href="/config" class="nav-link">Configuration</a>
+    <span class="nav-title">{{ case.title }}</span>
+    <div class="nav-right">
+      <span id="invBadge" style="display:none"></span>
+      <button class="btn-sm" style="border-color:rgba(248,81,73,.4);color:var(--danger);"
+              onclick="confirmDeleteCase()">&#128465; Delete case</button>
+    </div>
+  </nav>
+
+  <!-- ── Main row: sidebar + canvas ── -->
+  <div class="main-row">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar">
+      <div class="sidebar-scroll">
+
+        <!-- Case info -->
+        <div class="case-info">
+          <div class="case-info-title">{{ case.title }}</div>
+          <div class="case-info-id">#{{ case.id }}</div>
+        </div>
+
+        <!-- Run all -->
+        <button class="btn-run-all" id="btnRunAll" onclick="runFullInvestigation()">
+          &#9654; Run full investigation
+        </button>
+
+        <!-- Add fact -->
+        <div class="sb-section">
+          <div class="sb-label">Add fact</div>
+          <div class="add-fact-form">
+            <select id="factType" onchange="onFactTypeChange()">
+              <option value="name">&#128100; Name</option>
+              <option value="email">&#128231; Email</option>
+              <option value="phone">&#128222; Phone</option>
+              <option value="keyword">&#128273; Keyword</option>
+              <option value="alias">&#127917; Alias / Pseudo</option>
+              <option value="city">&#127961;&#65039; City</option>
+              <option value="birth_year">&#128197; Birth year</option>
+              <option value="note">&#128221; Note</option>
+            </select>
+
+            <!-- Single value input (non-name types) -->
+            <input type="text" id="factValue" placeholder="Value..." />
+
+            <!-- Name sub-fields -->
+            <div class="name-fields" id="nameFields">
+              <input type="text" id="factFirstname" placeholder="First name" />
+              <input type="text" id="factLastname"  placeholder="Last name" />
+            </div>
+
+            <button class="btn-primary" id="btnAddFact"
+                    style="width:100%;justify-content:center;"
+                    onclick="addFact()">
+              + Add &amp; Investigate
+            </button>
+          </div>
+        </div>
+
+        <!-- Facts grouped by type -->
+        <div class="sb-label" style="margin-bottom:.5rem;">
+          Known facts
+          <span id="factCount" style="font-size:.7rem;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;">{{ case.facts | length }}</span>
+        </div>
+        {%- set ICONS  = {'name':'&#128100;','alias':'&#127917;','email':'&#128231;','phone':'&#128222;','keyword':'&#128273;','city':'&#127961;&#65039;','birth_year':'&#128197;','note':'&#128221;'} -%}
+        {%- set LABELS = {'name':'Identity','alias':'Aliases','email':'Email','phone':'Phone','keyword':'Keywords','city':'Location','birth_year':'Birth year','note':'Notes'} -%}
+        {%- for ftype in ['name','alias','email','phone','keyword','city','birth_year','note'] -%}
+          {%- set ns = namespace(count=0) -%}
+          {%- for fid, fact in case.facts.items() if fact.type == ftype -%}{%- set ns.count = ns.count+1 -%}{%- endfor -%}
+          <div id="section-{{ ftype }}" class="fact-section"{% if ns.count == 0 %} style="display:none"{% endif %}>
+            <div class="sb-label-sub">{{ ICONS[ftype] | safe }} {{ LABELS[ftype] }}</div>
+            <div id="group-{{ ftype }}" class="facts-group">
+              {%- for fid, fact in case.facts.items() if fact.type == ftype -%}
+              <div class="fact-pill" id="fact-{{ fid }}" data-fid="{{ fid }}"
+                   onclick="highlightNode('{{ fid }}')"
+                   ondblclick="confirmDeleteFact('{{ fid }}')">
+                <span class="fact-pill-icon">{{ ICONS.get(fact.type,'&#10067;') | safe }}</span>
+                <div class="fact-pill-body">
+                  <div class="fact-pill-value">
+                    {%- if fact.type == 'name' -%}{{ fact.value.get('firstname','') }} {{ fact.value.get('lastname','') }}
+                    {%- else -%}{{ fact.value }}{%- endif -%}
+                  </div>
+                </div>
+                <button class="btn-danger-sm" title="Remove"
+                        onclick="event.stopPropagation();confirmDeleteFact('{{ fid }}')">&#10005;</button>
+              </div>
+              {%- endfor -%}
+            </div>
+          </div>
+        {%- endfor -%}
+        <div id="factsEmpty" class="facts-empty" style="{% if case.facts %}display:none{% endif %}">No facts yet.</div>
+
+        <!-- Audit log -->
+        <div class="sb-section">
+          <div class="sb-label">Audit log</div>
+          <button class="log-toggle" id="logToggle" onclick="toggleLog()">
+            <span id="logChevron">&#9654;</span> Show last events
+          </button>
+          <div class="log-entries" id="logEntries">
+            {% for entry in (case.log or []) | reverse | list %}
+            {% if loop.index <= 5 %}
+            <div class="log-entry">
+              <span class="log-entry-ts">{{ entry.ts[:19] | replace('T',' ') if entry.ts else '' }}</span>
+              {{ entry.event | replace('_',' ') }}{% if entry.details %} — {{ entry.details }}{% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% if not case.log %}
+            <div class="log-entry" style="color:var(--muted);">No events yet.</div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div><!-- /sidebar-scroll -->
+
+      <!-- SSE Terminal (pinned at bottom of sidebar) -->
+      <div class="sb-terminal" id="sbTerminal">
+        <div class="sb-terminal-header" onclick="toggleTerminal()">
+          <span class="terminal-dot dot-red"></span>
+          <span class="terminal-dot dot-yellow"></span>
+          <span class="terminal-dot dot-green" id="termDotGreen"></span>
+          <span class="sb-terminal-label" id="termLabel">Investigation log</span>
+          <span class="sb-terminal-chevron" id="termChevron">&#9660;</span>
+        </div>
+        <div class="sb-terminal-body" id="terminalBody"></div>
+      </div>
+    </aside>
+
+    <!-- ── Canvas ── -->
+    <div class="canvas-wrap">
+      <div id="network-canvas"></div>
+
+      <!-- Empty state -->
+      <div class="canvas-empty" id="canvasEmpty">
+        <div class="canvas-empty-icon">&#128373;</div>
+        <div class="canvas-empty-text">Add facts and run the investigation to build the graph.</div>
+      </div>
+
+      <!-- Node action bar (appears when a node is selected) -->
+      <div class="canvas-action-bar" id="actionBar">
+        <span class="action-bar-label" id="actionBarLabel">Selected</span>
+        <div class="action-bar-sep"></div>
+        <button class="action-bar-btn" onclick="actionLink()" title="Draw a link from this node">&#128279; Link</button>
+        <button class="action-bar-btn btn-active" id="btnActionCheck" onclick="actionToCheck()" title="Mark as to-check">&#128204; To check</button>
+        <button class="action-bar-btn btn-danger" onclick="actionDelete()" title="Delete / dismiss this node">&#128465; Delete</button>
+        <div class="action-bar-sep"></div>
+        <button class="action-bar-btn" onclick="actionDeselect()" title="Deselect">&#10005;</button>
+      </div>
+
+      <!-- Link-mode hint -->
+      <div class="link-mode-hint" id="linkModeHint">&#128279; Click destination node — Esc to cancel</div>
+
+      <!-- Zoom controls + table toggles -->
+      <div class="canvas-controls">
+        <button class="canvas-btn" title="Zoom in"  onclick="networkZoom(1.3)">+</button>
+        <button class="canvas-btn" title="Zoom out" onclick="networkZoom(0.77)">&#8722;</button>
+        <button class="canvas-btn" title="Fit all"  onclick="networkFit()" style="font-size:.8rem;">&#8859;</button>
+        <div style="height:1px;background:var(--border);margin:.2rem 0;"></div>
+        <button class="canvas-btn" title="Keywords table"        onclick="toggleGTP('gtpKeywords')" style="font-size:.85rem;">&#128273;</button>
+        <button class="canvas-btn" title="Pseudos & usernames"   onclick="toggleGTP('gtpPseudos')"  style="font-size:.85rem;">&#127917;</button>
+        <button class="canvas-btn" title="Key dates"             onclick="toggleGTP('gtpDates')"    style="font-size:.85rem;">&#128197;</button>
+      </div>
+
+      <!-- Draggable table panels -->
+      <div class="graph-table-panel hidden" id="gtpKeywords" style="top:12px;left:12px;">
+        <div class="gtp-header" onmousedown="startDragPanel(event,'gtpKeywords')">
+          &#128273; <span>Keywords &amp; Aliases</span>
+          <button class="gtp-close" onclick="hideGTP('gtpKeywords')">&#10005;</button>
+        </div>
+        <div class="gtp-body" id="gtpKeywordsBody"><div class="gtp-empty">No keywords.</div></div>
+      </div>
+
+      <div class="graph-table-panel hidden" id="gtpPseudos" style="top:12px;left:12px;">
+        <div class="gtp-header" onmousedown="startDragPanel(event,'gtpPseudos')">
+          &#127917; <span>Pseudos &amp; Usernames</span>
+          <button class="gtp-close" onclick="hideGTP('gtpPseudos')">&#10005;</button>
+        </div>
+        <div class="gtp-body" id="gtpPseudosBody"><div class="gtp-empty">No pseudos found.</div></div>
+      </div>
+
+      <div class="graph-table-panel hidden" id="gtpDates" style="top:12px;left:12px;">
+        <div class="gtp-header" onmousedown="startDragPanel(event,'gtpDates')">
+          &#128197; <span>Key dates</span>
+          <button class="gtp-close" onclick="hideGTP('gtpDates')">&#10005;</button>
+        </div>
+        <div class="gtp-body" id="gtpDatesBody"><div class="gtp-empty">No dates found.</div></div>
+      </div>
+
+      <!-- Node popup -->
+      <div class="node-popup" id="nodePopup"></div>
+    </div>
+
+  </div><!-- /main-row -->
+</div><!-- /app-shell -->
+
+<!-- Delete confirmation overlay -->
+<div class="overlay" id="deleteOverlay">
+  <div class="confirm-box">
+    <h3>Remove fact?</h3>
+    <p id="deleteMsg">This will remove the fact and all its associated connections from the investigation.</p>
+    <div class="confirm-actions">
+      <button class="btn-confirm-cancel" onclick="closeDeleteOverlay()">Cancel</button>
+      <button class="btn-confirm-delete" id="btnConfirmDelete" onclick="executeDeleteFact()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete case overlay -->
+<div class="overlay" id="deleteCaseOverlay">
+  <div class="confirm-box">
+    <h3>Delete case?</h3>
+    <p>This will permanently delete <strong>{{ case.title }}</strong> and all its facts, findings, and links. This action cannot be undone.</p>
+    <div class="confirm-actions">
+      <button class="btn-confirm-cancel" onclick="closeDeleteCaseOverlay()">Cancel</button>
+      <button class="btn-confirm-delete" onclick="executeDeleteCase()">Delete permanently</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Embedded data ── -->
+<script>
+const CASE_ID    = {{ case.id | tojson }};
+const CASE_DATA  = {{ case | tojson }};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/vis-network.min.js"></script>
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const FACT_COLORS = {
+  name:       '#58a6ff',
+  email:      '#a371f7',
+  phone:      '#3fb950',
+  keyword:    '#d29922',
+  alias:      '#39d353',
+  city:       '#fb8500',
+  birth_year: '#8b949e',
+  note:       '#e8c84a',
+};
+
+const FINDING_COLORS = {
+  instagram:       '#e1306c',
+  twitter:         '#1d9bf0',
+  tiktok:          '#fe2c55',
+  snapchat:        '#fffc00',
+  linkedin:        '#0077b5',
+  telegram:        '#2ca5e0',
+  facebook:        '#1877f2',
+  youtube:         '#ff0000',
+  github:          '#6e7681',
+  reddit:          '#ff4500',
+  email_validated: '#a371f7',
+  phone_result:    '#3fb950',
+};
+
+const FACT_ICONS = {
+  name: '👤', email: '📧', phone: '📞',
+  keyword: '🔑', alias: '🎭', city: '🏙', birth_year: '📅', note: '📝',
+};
+
+const PLATFORM_ICONS = {
+  instagram: '📸', twitter: '🐦', tiktok: '📱', snapchat: '👻',
+  linkedin: '💼', telegram: '✈️', facebook: '📘', youtube: '▶️',
+  github: '🐙', reddit: '🟠', email_validated: '📧', phone_result: '📞',
+};
+
+const EDGE_STYLES = {
+  name_match:           { color: '#3fb950', dashes: true  },
+  keyword_in_username:  { color: '#d29922', dashes: true  },
+  email_confirmed:      { color: '#a371f7', dashes: false },
+  phone_linked:         { color: '#3fb950', dashes: false },
+  triggered_discovery:  { color: '#8b949e', dashes: [5,5] },
+  manual:               { color: '#58a6ff', dashes: [8,4] },
+  note:                 { color: '#8b949e', dashes: [3,3] },
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let state              = JSON.parse(JSON.stringify(CASE_DATA));
+let network            = null;
+let nodesDS            = null;
+let edgesDS            = null;
+let currentSSE         = null;
+let pendingDeleteFid   = null;
+let terminalOpen       = false;
+let isLinkMode         = false;   // vis.js addEdgeMode active
+let linkFromId         = null;    // node selected via action bar "Link"
+let selectedNodeId     = null;    // node selected via popup "Select"
+let currentPopupNodeId = null;
+
+// ── vis-network initialisation ────────────────────────────────────────────────
+
+function initNetwork() {
+  const container = document.getElementById('network-canvas');
+
+  nodesDS = new vis.DataSet();
+  edgesDS = new vis.DataSet();
+
+  const options = {
+    physics: {
+      enabled: true,
+      stabilization: { iterations: 250, fit: true, updateInterval: 25 },
+      solver: 'forceAtlas2Based',
+      forceAtlas2Based: {
+        gravitationalConstant: -60,
+        centralGravity: 0.01,
+        springLength: 150,
+        springConstant: 0.08,
+        damping: 0.6,
+        avoidOverlap: 1,
+      },
+    },
+    interaction: {
+      hover: true,
+      tooltipDelay: 9999,
+      dragNodes: true,
+      zoomView: true,
+      dragView: true,
+    },
+    nodes: {
+      font: { color: '#c9d1d9', size: 13, face: "'Segoe UI', system-ui, sans-serif" },
+      borderWidth: 1.5,
+      borderWidthSelected: 2.5,
+      shadow: { enabled: true, color: 'rgba(0,0,0,0.4)', size: 8, x: 2, y: 3 },
+    },
+    edges: {
+      arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+      smooth: { type: 'continuous', roundness: 0.15 },
+      font: { size: 10, color: '#8b949e', align: 'middle' },
+      shadow: { enabled: false },
+      color: { opacity: 0.7 },
+    },
+    layout: { improvedLayout: true },
+  };
+
+  network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, options);
+
+  // Freeze physics after initial layout so nodes stay where dragged
+  network.once('stabilized', function() {
+    network.setOptions({ physics: { enabled: false } });
+  });
+
+  // Click handler
+  network.on('click', function(params) {
+    if (linkFromId) {
+      // Direct link-drawing mode — second click = destination
+      if (params.nodes.length === 1 && params.nodes[0] !== linkFromId) {
+        saveManualLink(linkFromId, params.nodes[0]);
+      }
+      restoreNodeVisual(linkFromId);
+      linkFromId = null;
+      exitLinkMode();
+      return;
+    }
+    if (params.nodes.length === 1) {
+      showNodePopup(params.nodes[0], params.event.center);
+    } else if (params.edges.length === 1 && params.nodes.length === 0) {
+      showEdgePopup(params.edges[0], params.event.center);
+    } else {
+      hideNodePopup();
+    }
+  });
+
+  // Double-click on fact node → confirm delete
+  network.on('doubleClick', function(params) {
+    if (params.nodes.length === 1) {
+      const nodeId = params.nodes[0];
+      if (state.facts[nodeId]) {
+        confirmDeleteFact(nodeId);
+      }
+    }
+  });
+
+  // Hover → highlight neighbours
+  network.on('hoverNode', function(params) {
+    highlightNeighbours(params.node);
+  });
+  network.on('blurNode', function() {
+    resetHighlight();
+  });
+
+  // Hide popup when dragging view
+  network.on('dragStart', hideNodePopup);
+
+  // Build initial graph
+  rebuildGraph(state);
+}
+
+// ── Graph build ───────────────────────────────────────────────────────────────
+
+function factLabel(fact) {
+  if (fact.type === 'name') {
+    const v = typeof fact.value === 'string' ? tryParseJSON(fact.value) : fact.value;
+    return ((v.firstname || '') + ' ' + (v.lastname || '')).trim() || 'Name';
+  }
+  return String(fact.value);
+}
+
+function findingLabel(fnd) {
+  if (fnd.type === 'social_profile') {
+    const un = fnd.username || fnd.address || '';
+    return (un ? '@' + un : '') + (fnd.platform ? '\n' + fnd.platform : '');
+  }
+  if (fnd.type === 'phone_result') {
+    const parts = [];
+    if (fnd.carrier) parts.push(fnd.carrier);
+    if (fnd.region)  parts.push(fnd.region);
+    return 'Phone' + (parts.length ? '\n' + parts.join(' ') : '');
+  }
+  if (fnd.type === 'email_validated') return 'Email\nconfirmed';
+  return fnd.type || 'Finding';
+}
+
+function findingColor(fnd) {
+  if (fnd.type === 'social_profile') {
+    const pl = (fnd.platform || '').toLowerCase();
+    return FINDING_COLORS[pl] || '#8b949e';
+  }
+  return FINDING_COLORS[fnd.type] || '#8b949e';
+}
+
+function edgeWidth(confidence) {
+  const c = typeof confidence === 'number' ? confidence : 0;
+  return Math.max(0.5, Math.min(3, 0.5 + c * 2.5));
+}
+
+function nodeFlag(nid) {
+  return (state.node_flags || {})[nid] || null;
+}
+
+function buildNodeForFact(fact) {
+  const color      = FACT_COLORS[fact.type] || '#8b949e';
+  const flag       = nodeFlag(fact.id);
+  const toCheck    = flag === 'to_check';
+  const inProgress = flag === 'in_progress';
+  const border     = toCheck ? '#d29922' : inProgress ? '#58a6ff' : color;
+  return {
+    id:    fact.id,
+    label: factLabel(fact),
+    shape: 'box',
+    mass:  3,   // heavier than findings → stays central during physics
+    color: {
+      background: color,
+      border,
+      highlight:  { background: color, border: '#fff' },
+      hover:      { background: color, border: '#fff' },
+    },
+    font:            { color: '#0d1117', bold: true, size: 13 },
+    borderWidth:     (toCheck || inProgress) ? 3 : 2,
+    shapeProperties: (toCheck || inProgress) ? { borderDashes: [6, 3] } : {},
+    _nodeType:       'fact',
+    _data:           fact,
+  };
+}
+
+function buildNodeForFinding(fnd) {
+  const color      = findingColor(fnd);
+  const dismissed  = (state.dismissed_findings || []).includes(fnd.id);
+  const flag       = nodeFlag(fnd.id);
+  const toCheck    = flag === 'to_check';
+  const inProgress = flag === 'in_progress';
+  const border     = toCheck ? '#d29922' : inProgress ? '#58a6ff' : color;
+  return {
+    id:      fnd.id,
+    label:   findingLabel(fnd),
+    shape:   'ellipse',
+    opacity: dismissed ? 0.25 : 1,
+    color: {
+      background: color + '22',
+      border,
+      highlight:  { background: color + '44', border: '#fff' },
+      hover:      { background: color + '44', border: '#fff' },
+    },
+    font:            { color: '#c9d1d9', size: 12 },
+    borderWidth:     (toCheck || inProgress) ? 2.5 : 1.5,
+    shapeProperties: (toCheck || inProgress) ? { borderDashes: [6, 3] } : {},
+    _nodeType:       'finding',
+    _data:           fnd,
+  };
+}
+
+// Per-edge curve overrides — key: "fromId-->toId"
+const edgeCurveMap = {};
+const edgeCurveKey = (f, t) => `${f}-->${t}`;
+
+function buildEdge(link, idx) {
+  const style  = EDGE_STYLES[link.type] || { color: '#8b949e', dashes: false };
+  const smooth = edgeCurveMap[edgeCurveKey(link.from, link.to)] || { type: 'continuous', roundness: 0.15 };
+  return {
+    id:     `edge-${idx}-${link.from}-${link.to}`,
+    from:   link.from,
+    to:     link.to,
+    color:  { color: style.color, highlight: '#fff', hover: style.color + 'cc', opacity: 0.85 },
+    dashes: style.dashes,
+    width:  edgeWidth(link.confidence),
+    title:  link.reason || link.type,
+    smooth,
+    _data:  link,
+  };
+}
+
+function setEdgeCurve(fromId, toId, smooth) {
+  edgeCurveMap[edgeCurveKey(fromId, toId)] = smooth;
+  // Update the live edge without full rebuild
+  edgesDS.getIds().forEach(eid => {
+    const e = edgesDS.get(eid);
+    if (e && e.from === fromId && e.to === toId) edgesDS.update({ id: eid, smooth });
+  });
+  hideNodePopup();
+}
+
+function _nodeInitPos(nodeId, data) {
+  // Place new findings near their connected fact to avoid random scatter
+  const links = data.links || [];
+  for (const lk of links) {
+    if (lk.to !== nodeId && lk.from !== nodeId) continue;
+    const parentId = lk.to === nodeId ? lk.from : lk.to;
+    const parent   = nodesDS.get(parentId);
+    if (!parent) continue;
+    const pos = network ? network.getPosition(parentId) : null;
+    if (!pos) continue;
+    const angle  = Math.random() * 2 * Math.PI;
+    const radius = 120 + Math.random() * 80;
+    return { x: pos.x + Math.cos(angle) * radius, y: pos.y + Math.sin(angle) * radius };
+  }
+  return undefined;
+}
+
+function rebuildGraph(data) {
+  const newNodes = [];
+  const newEdges = [];
+
+  Object.values(data.facts || {}).forEach(fact => {
+    newNodes.push(buildNodeForFact(fact));
+  });
+
+  Object.values(data.findings || {}).forEach(fnd => {
+    newNodes.push(buildNodeForFinding(fnd));
+  });
+
+  (data.links || []).forEach((link, i) => {
+    newEdges.push(buildEdge(link, i));
+  });
+
+  // Merge into datasets (preserve positions of existing nodes)
+  const existingIds = new Set(nodesDS.getIds());
+  const toAdd    = newNodes.filter(n => !existingIds.has(n.id));
+  const toUpdate = newNodes.filter(n =>  existingIds.has(n.id));
+
+  // Place new findings near their parent facts, not at random coords
+  toAdd.forEach(n => {
+    const pos = _nodeInitPos(n.id, data);
+    if (pos) { n.x = pos.x; n.y = pos.y; }
+  });
+
+  if (toAdd.length)    nodesDS.add(toAdd);
+  if (toUpdate.length) nodesDS.update(toUpdate);
+
+  // Replace edges (they're cheap to re-render)
+  edgesDS.clear();
+  edgesDS.add(newEdges);
+
+  // If new nodes arrived, briefly re-enable physics to settle them, then freeze
+  if (toAdd.length && network) {
+    network.setOptions({ physics: { enabled: true } });
+    network.once('stabilized', function() {
+      network.setOptions({ physics: { enabled: false } });
+    });
+    // Safety timeout in case 'stabilized' never fires
+    setTimeout(() => {
+      if (network) network.setOptions({ physics: { enabled: false } });
+    }, 4000);
+  }
+
+  // Show/hide empty state
+  const totalNodes = nodesDS.length;
+  document.getElementById('canvasEmpty').classList.toggle('hidden', totalNodes > 0);
+}
+
+function mergeGraphData(fresh) {
+  // Called after SSE "done" — add only truly new nodes to preserve positions
+  state = fresh;
+  rebuildGraph(fresh);
+  refreshGTP();
+}
+
+// ── Node popup ────────────────────────────────────────────────────────────────
+
+function showNodePopup(nodeId, center) {
+  const node = nodesDS.get(nodeId);
+  if (!node) return;
+
+  currentPopupNodeId = nodeId;
+  const popup = document.getElementById('nodePopup');
+  const data  = node._data || {};
+
+  let html = `<button class="node-popup-close" onclick="hideNodePopup()">✕</button>`;
+
+  // Dismissed banner for findings
+  if (node._nodeType === 'finding' && (state.dismissed_findings || []).includes(nodeId)) {
+    html += `<div class="dismissed-banner">&#128683; DISMISSED — invisible on graph</div>`;
+  }
+
+  if (node._nodeType === 'fact') {
+    const label = factLabel(data);
+    html += `<div class="node-popup-title">${escHtml(FACT_ICONS[data.type] || '?')} ${escHtml(label)}
+               <span class="node-popup-badge">Fact</span></div>`;
+    html += row('Type', data.type);
+    if (data.type === 'name' && typeof data.value === 'object') {
+      if (data.value.firstname) html += row('First', data.value.firstname);
+      if (data.value.lastname)  html += row('Last',  data.value.lastname);
+    } else if (data.type === 'note') {
+      html += row('Note', String(data.value));
+    } else {
+      html += row('Value', String(data.value));
+    }
+    html += row('Source', data.source || 'investigator');
+    if (data.added_at) html += row('Added', data.added_at.slice(0, 16).replace('T', ' '));
+  } else {
+    const platform = data.platform || data.type || 'Finding';
+    const icon = PLATFORM_ICONS[(data.platform || '').toLowerCase()] || '🌐';
+    html += `<div class="node-popup-title">${escHtml(icon)} ${escHtml(platform)}
+               <span class="node-popup-badge">Finding</span></div>`;
+    if (data.username)     html += row('Username', '@' + data.username);
+    if (data.display_name) html += row('Display',  data.display_name);
+    if (data.phone)        html += row('Phone',     data.phone);
+    if (data.carrier)      html += row('Carrier',   data.carrier);
+    if (data.region)       html += row('Region',    data.region);
+    if (data.valid !== undefined) html += row('Valid', data.valid ? 'Yes' : 'No');
+    if (data.relevance !== undefined) html += row('Relevance', data.relevance + '/10');
+    if (data.url) {
+      html += `<div class="node-popup-row node-popup-link">
+                 <span class="node-popup-key">URL</span>
+                 <span class="node-popup-val"><a href="${escHtml(data.url)}" target="_blank" rel="noopener">${escHtml(data.url.slice(0,46))}${data.url.length > 46 ? '…' : ''}</a></span>
+               </div>`;
+    }
+    if (data.summary) html += row('Note', data.summary);
+
+    const link = (state.links || []).find(l => l.to === nodeId);
+    if (link && typeof link.confidence === 'number') {
+      const pct = Math.round(link.confidence * 100);
+      html += `<div class="node-popup-conf">
+                 <div style="display:flex;justify-content:space-between;">
+                   <span style="color:var(--muted);">Confidence</span>
+                   <span style="color:var(--accent2);">${pct}%</span>
+                 </div>
+                 <div class="conf-bar-wrap">
+                   <div class="conf-bar-fill" style="width:${pct}%"></div>
+                 </div>
+               </div>`;
+    }
+  }
+
+  // Inline action buttons — no "Select" step needed
+  const isFact    = node._nodeType === 'fact';
+  const curFlag   = nodeFlag(nodeId);
+  const statusLabel = curFlag === 'to_check'    ? '&#128204; To check'
+                    : curFlag === 'in_progress'  ? '&#9203; In progress'
+                    : '&#9711; Status';
+  const statusCls   = curFlag === 'to_check'    ? 'active'
+                    : curFlag === 'in_progress'  ? 'active-blue'
+                    : '';
+
+  html += `<div class="popup-actions">`;
+
+  // Link button (always shown)
+  html += `<button class="popup-action" onclick="startLinkFrom('${nodeId}')">&#128279; Link</button>`;
+
+  // Note button
+  html += `<button class="popup-action" onclick="showNoteInput('${nodeId}')">&#128221; Note</button>`;
+
+  // Status cycle button
+  html += `<button class="popup-action ${statusCls}" onclick="cycleStatus('${nodeId}')">${statusLabel}</button>`;
+
+  // Delete / Dismiss button
+  if (isFact) {
+    html += `<button class="popup-action danger" onclick="hideNodePopup();confirmDeleteFact('${nodeId}')">&#128465; Delete</button>`;
+  } else {
+    const dismissed = (state.dismissed_findings || []).includes(nodeId);
+    html += `<button class="popup-action ${dismissed ? 'restore' : 'dismiss'}" onclick="toggleDismissFinding('${nodeId}')">${dismissed ? '&#9100;&#65039; Restore' : '&#128683; Dismiss'}</button>`;
+    html += `<button class="popup-action full-width danger" onclick="deleteFinding('${nodeId}')">&#128465; Delete permanently</button>`;
+  }
+
+  // Open URL — full width (url may have special chars, use a data-attr + click handler)
+  if (data.url) {
+    const safeUrl = escHtml(data.url);
+    html += `<button class="popup-action full-width" data-href="${safeUrl}"
+               onclick="window.open(this.dataset.href,'_blank')">&#127758; Open link</button>`;
+  }
+
+  html += `</div>`;
+  html += `<div id="popupNoteForm" class="popup-note-form" style="display:none">
+    <textarea id="popupNoteText" rows="2" placeholder="Add a note…"></textarea>
+    <div class="note-btns">
+      <button onclick="hideNoteInput()">Cancel</button>
+      <button class="btn-save" onclick="saveNote('${nodeId}')">Save</button>
+    </div>
+  </div>`;
+
+  popup.innerHTML = html;
+
+  // Position near the click — stay within canvas
+  const canvas = document.querySelector('.canvas-wrap');
+  const cRect  = canvas.getBoundingClientRect();
+  const relX   = center.x;
+  const relY   = center.y;
+
+  // Measure dimensions without inline style that would override .visible class
+  popup.style.visibility = 'hidden';
+  popup.style.display    = 'block';
+  const pw = popup.offsetWidth;
+  const ph = popup.offsetHeight;
+  popup.style.display    = '';
+  popup.style.visibility = '';
+
+  let left = relX + 14;
+  let top  = relY - 14;
+  if (left + pw > cRect.width - 10) left = relX - pw - 14;
+  if (top + ph  > cRect.height - 10) top  = cRect.height - ph - 10;
+  if (top < 4) top = 4;
+
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+  popup.classList.add('visible');
+}
+
+function hideNodePopup() {
+  currentPopupNodeId = null;
+  document.getElementById('nodePopup').classList.remove('visible');
+}
+
+function row(key, val) {
+  return `<div class="node-popup-row">
+            <span class="node-popup-key">${escHtml(key)}</span>
+            <span class="node-popup-val">${escHtml(String(val))}</span>
+          </div>`;
+}
+
+// ── Highlight neighbours ──────────────────────────────────────────────────────
+
+function highlightNeighbours(nodeId) {
+  if (!network) return;
+  const connected = new Set(network.getConnectedNodes(nodeId));
+  connected.add(nodeId);
+
+  nodesDS.getIds().forEach(id => {
+    const n = nodesDS.get(id);
+    if (!n) return;
+    const alpha = connected.has(id) ? 1 : 0.25;
+    nodesDS.update({ id, opacity: alpha });
+  });
+
+  edgesDS.getIds().forEach(id => {
+    const e = edgesDS.get(id);
+    if (!e) return;
+    const active = connected.has(e.from) && connected.has(e.to);
+    edgesDS.update({ id, color: { ...e.color, opacity: active ? 0.85 : 0.15 } });
+  });
+}
+
+function resetHighlight() {
+  nodesDS.getIds().forEach(id => nodesDS.update({ id, opacity: 1 }));
+  edgesDS.getIds().forEach(id => {
+    const e = edgesDS.get(id);
+    if (e) edgesDS.update({ id, color: { ...e.color, opacity: 0.85 } });
+  });
+}
+
+// ── Node selection + action bar ───────────────────────────────────────────────
+
+function selectNode(nodeId) {
+  if (selectedNodeId && selectedNodeId !== nodeId) {
+    restoreNodeVisual(selectedNodeId);
+  }
+  selectedNodeId = nodeId;
+  const node = nodesDS.get(nodeId);
+  if (!node) return;
+
+  // Highlight selected node
+  nodesDS.update({ id: nodeId, borderWidth: 4,
+    color: { ...node.color, border: '#fff', highlight: { background: node.color.background || '#fff', border: '#fff' } }
+  });
+
+  // Build action bar label
+  const isFact    = node._nodeType === 'fact';
+  const data      = node._data || {};
+  const icon      = isFact ? (FACT_ICONS[data.type] || '?')
+                            : (PLATFORM_ICONS[(data.platform||'').toLowerCase()]||'🌐');
+  const label     = isFact ? factLabel(data) : (data.platform || data.type || 'Finding');
+  document.getElementById('actionBarLabel').textContent = `${icon} ${label}`;
+
+  // Set "to check" button state
+  const isToCheck = nodeFlag(nodeId) === 'to_check';
+  const btnCheck  = document.getElementById('btnActionCheck');
+  btnCheck.innerHTML = isToCheck ? '&#9989; Checked' : '&#128204; To check';
+  btnCheck.style.color = isToCheck ? 'var(--warning)' : '';
+
+  document.getElementById('actionBar').classList.add('visible');
+}
+
+function restoreNodeVisual(nodeId) {
+  if (!nodeId) return;
+  const existing = nodesDS.get(nodeId);
+  if (!existing || !existing._data) return;
+  const rebuilt = existing._nodeType === 'fact'
+    ? buildNodeForFact(existing._data)
+    : buildNodeForFinding(existing._data);
+  nodesDS.update(rebuilt);
+}
+
+function actionDeselect() {
+  if (selectedNodeId) restoreNodeVisual(selectedNodeId);
+  selectedNodeId = null;
+  document.getElementById('actionBar').classList.remove('visible');
+  hideNodePopup();
+}
+
+function actionLink() {
+  if (!selectedNodeId) return;
+  linkFromId = selectedNodeId;
+  actionDeselect();
+  // Highlight the source node in blue
+  const node = nodesDS.get(linkFromId);
+  if (node) {
+    nodesDS.update({ id: linkFromId, borderWidth: 4,
+      color: { ...node.color, border: '#58a6ff' }
+    });
+  }
+  isLinkMode = true;
+  document.getElementById('linkModeHint').classList.add('visible');
+}
+
+function exitLinkMode() {
+  isLinkMode = false;
+  linkFromId  = null;
+  document.getElementById('linkModeHint').classList.remove('visible');
+  // Also disable vis addEdgeMode if it was used
+  if (network) {
+    try { network.disableEditMode(); } catch (_) {}
+  }
+}
+
+// ── Popup inline actions ──────────────────────────────────────────────────────
+
+function startLinkFrom(nodeId) {
+  hideNodePopup();
+  linkFromId = nodeId;
+  isLinkMode = true;
+  const node = nodesDS.get(linkFromId);
+  if (node) {
+    nodesDS.update({ id: linkFromId, borderWidth: 4,
+      color: { ...node.color, border: '#58a6ff' }
+    });
+  }
+  document.getElementById('linkModeHint').classList.add('visible');
+}
+
+async function cycleStatus(nodeId) {
+  const current = nodeFlag(nodeId);
+  const next = current === null        ? 'to_check'
+             : current === 'to_check'  ? 'in_progress'
+             : null;
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/node/${nodeId}/flag`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flag: next }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+    state.node_flags = data.node_flags;
+    restoreNodeVisual(nodeId);
+    // Refresh popup in place
+    const popup = document.getElementById('nodePopup');
+    if (popup.classList.contains('visible') && currentPopupNodeId === nodeId) {
+      const center = { x: parseInt(popup.style.left), y: parseInt(popup.style.top) };
+      showNodePopup(nodeId, center);
+    }
+  } catch (e) {
+    console.error('Status error:', e);
+  }
+}
+
+function showNoteInput(nodeId) {
+  const form = document.getElementById('popupNoteForm');
+  if (form) {
+    form.style.display = '';
+    const ta = document.getElementById('popupNoteText');
+    if (ta) { ta.value = ''; ta.focus(); }
+  }
+}
+
+function hideNoteInput() {
+  const form = document.getElementById('popupNoteForm');
+  if (form) form.style.display = 'none';
+}
+
+async function saveNote(nodeId) {
+  const ta = document.getElementById('popupNoteText');
+  const text = ta ? ta.value.trim() : '';
+  if (!text) return;
+
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/fact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'note', value: text }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+
+    // data.fact is the new note fact
+    const fact = data.fact;
+    state.facts[fact.id] = fact;
+    nodesDS.add(buildNodeForFact(fact));
+
+    // Link note to nodeId if possible
+    if (nodeId) {
+      const lresp = await fetch(`/cases/${CASE_ID}/link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: nodeId, to: fact.id, type: 'note', label: 'note' }),
+      });
+      if (lresp.ok) {
+        const ld = await lresp.json();
+        state.links = ld.links;
+        edgesDS.clear();
+        (state.links || []).forEach((link, i) => edgesDS.add(buildEdge(link, i)));
+      }
+      // Add pill to sidebar
+      if (typeof renderFactPill === 'function') { renderFactPill(fact); updateFactCount(); }
+    }
+    hideNodePopup();
+  } catch (e) {
+    console.error('Note save error:', e);
+    alert('Error saving note: ' + e.message);
+  }
+}
+
+async function actionToCheck() {
+  if (!selectedNodeId) return;
+  const nodeId   = selectedNodeId;
+  const current  = nodeFlag(nodeId);
+  const newFlag  = current === 'to_check' ? null : 'to_check';
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/node/${nodeId}/flag`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flag: newFlag }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+    state.node_flags = data.node_flags;
+    restoreNodeVisual(nodeId);
+    // Re-apply selection highlight (restore clears it)
+    const node = nodesDS.get(nodeId);
+    if (node) nodesDS.update({ id: nodeId, borderWidth: 4,
+      color: { ...node.color, border: '#fff' }
+    });
+    const isNow  = nodeFlag(nodeId) === 'to_check';
+    const btn    = document.getElementById('btnActionCheck');
+    btn.innerHTML = isNow ? '&#9989; Checked' : '&#128204; To check';
+    btn.style.color = isNow ? 'var(--warning)' : '';
+  } catch (e) {
+    console.error('Flag error:', e);
+  }
+}
+
+function actionDelete() {
+  if (!selectedNodeId) return;
+  const nodeId = selectedNodeId;
+  const node   = nodesDS.get(nodeId);
+  actionDeselect();
+  if (node && node._nodeType === 'fact') {
+    confirmDeleteFact(nodeId);
+  } else if (node && node._nodeType === 'finding') {
+    toggleDismissFinding(nodeId);
+  }
+}
+
+// ── Finding dismiss ───────────────────────────────────────────────────────────
+
+async function toggleDismissFinding(fid) {
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/finding/${fid}/dismiss`, { method: 'POST' });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+    state.dismissed_findings = data.dismissed;
+    restoreNodeVisual(fid);
+    hideNodePopup();
+  } catch (e) {
+    console.error('Dismiss error:', e);
+  }
+}
+
+// ── Delete finding (permanent) ────────────────────────────────────────────────
+
+async function deleteFinding(fid) {
+  hideNodePopup();
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/finding/${fid}`, { method: 'DELETE' });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+
+    delete state.findings[fid];
+    state.links = (state.links || []).filter(l => l.from !== fid && l.to !== fid);
+    state.dismissed_findings = (state.dismissed_findings || []).filter(id => id !== fid);
+
+    if (nodesDS.get(fid)) nodesDS.remove(fid);
+    edgesDS.clear();
+    (state.links || []).forEach((link, i) => edgesDS.add(buildEdge(link, i)));
+
+    if (nodesDS.length === 0) document.getElementById('canvasEmpty').classList.remove('hidden');
+  } catch (e) {
+    console.error('Delete finding error:', e);
+    alert('Error deleting finding: ' + e.message);
+  }
+}
+
+// ── Edge popup + remove link ──────────────────────────────────────────────────
+
+function showEdgePopup(edgeId, center) {
+  const edge = edgesDS.get(edgeId);
+  if (!edge) return;
+
+  const popup = document.getElementById('nodePopup');
+  const ldata = edge._data || {};
+  const etype = ldata.type || 'link';
+
+  let html = `<button class="node-popup-close" onclick="hideNodePopup()">✕</button>`;
+  html += `<div class="node-popup-title">&#128279; Link <span class="node-popup-badge">Edge</span></div>`;
+  html += row('Type', etype);
+  if (ldata.label && ldata.label !== etype) html += row('Label', ldata.label);
+  if (typeof ldata.confidence === 'number') html += row('Confidence', Math.round(ldata.confidence * 100) + '%');
+  if (ldata.reason) html += row('Reason', ldata.reason);
+
+  html += `<div class="popup-actions">
+    <button class="popup-action" title="Straight edge"
+            onclick="setEdgeCurve('${edge.from}','${edge.to}',{type:'continuous',roundness:0})">&#8594; Straight</button>
+    <button class="popup-action" title="Curve left"
+            onclick="setEdgeCurve('${edge.from}','${edge.to}',{type:'curvedCW',roundness:0.35})">&#8634; Left</button>
+    <button class="popup-action" title="Curve right"
+            onclick="setEdgeCurve('${edge.from}','${edge.to}',{type:'curvedCCW',roundness:0.35})">&#8635; Right</button>
+    <button class="popup-action full-width danger"
+            onclick="removeLink('${edge.from}','${edge.to}')">&#128465; Remove link</button>
+  </div>`;
+
+  popup.innerHTML = html;
+
+  const canvas = document.querySelector('.canvas-wrap');
+  const cRect  = canvas.getBoundingClientRect();
+  popup.style.visibility = 'hidden';
+  popup.style.display    = 'block';
+  const pw = popup.offsetWidth;
+  const ph = popup.offsetHeight;
+  popup.style.display    = '';
+  popup.style.visibility = '';
+
+  let left = center.x + 14;
+  let top  = center.y - 14;
+  if (left + pw > cRect.width  - 10) left = center.x - pw - 14;
+  if (top  + ph > cRect.height - 10) top  = cRect.height - ph - 10;
+  if (top < 4) top = 4;
+
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+  popup.classList.add('visible');
+}
+
+async function removeLink(fromId, toId) {
+  hideNodePopup();
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/link`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: fromId, to: toId }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+    state.links = data.links;
+    edgesDS.clear();
+    (state.links || []).forEach((link, i) => edgesDS.add(buildEdge(link, i)));
+  } catch (e) {
+    console.error('Remove link error:', e);
+    alert('Error removing link: ' + e.message);
+  }
+}
+
+// ── Delete case ───────────────────────────────────────────────────────────────
+
+function confirmDeleteCase() {
+  document.getElementById('deleteCaseOverlay').classList.add('visible');
+}
+function closeDeleteCaseOverlay() {
+  document.getElementById('deleteCaseOverlay').classList.remove('visible');
+}
+async function executeDeleteCase() {
+  closeDeleteCaseOverlay();
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/delete`, { method: 'POST' });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    window.location.href = '/cases';
+  } catch (e) {
+    alert('Error deleting case: ' + e.message);
+  }
+}
+
+// ── Link-drawing mode ─────────────────────────────────────────────────────────
+
+async function saveManualLink(fromId, toId) {
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: fromId, to: toId, type: 'manual', label: 'linked' }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+    state.links = data.links;
+    edgesDS.clear();
+    (state.links || []).forEach((link, i) => edgesDS.add(buildEdge(link, i)));
+  } catch (e) {
+    console.error('Link save error:', e);
+  }
+}
+
+// ── Zoom / fit helpers ────────────────────────────────────────────────────────
+
+function networkZoom(factor) {
+  if (!network) return;
+  const scale = network.getScale() * factor;
+  network.moveTo({ scale, animation: { duration: 200, easingFunction: 'easeInOutQuad' } });
+}
+
+function networkFit() {
+  if (!network) return;
+  network.fit({ animation: { duration: 300, easingFunction: 'easeInOutQuad' } });
+}
+
+// ── Sidebar: highlight node from pill click ───────────────────────────────────
+
+function highlightNode(nodeId) {
+  if (!network || !nodesDS.get(nodeId)) return;
+  network.selectNodes([nodeId]);
+  network.focus(nodeId, { scale: 1.1, animation: { duration: 300, easingFunction: 'easeInOutQuad' } });
+
+  // Sidebar pill highlight
+  document.querySelectorAll('.fact-pill').forEach(p => p.classList.remove('highlighted'));
+  const pill = document.getElementById(`fact-${nodeId}`);
+  if (pill) pill.classList.add('highlighted');
+}
+
+// ── Fact type switching ───────────────────────────────────────────────────────
+
+function onFactTypeChange() {
+  const ftype     = document.getElementById('factType').value;
+  const valInput  = document.getElementById('factValue');
+  const nameFields= document.getElementById('nameFields');
+
+  if (ftype === 'name') {
+    valInput.style.display = 'none';
+    nameFields.classList.add('visible');
+  } else {
+    valInput.style.display = '';
+    nameFields.classList.remove('visible');
+    const placeholders = {
+      keyword: 'e.g. mchl', email: 'e.g. user@gmail.com',
+      phone: 'e.g. +33612345678', city: 'e.g. Paris',
+      birth_year: 'e.g. 1993', alias: 'e.g. t.mchl',
+    };
+    valInput.placeholder = placeholders[ftype] || 'Value...';
+  }
+}
+
+// ── Add fact ──────────────────────────────────────────────────────────────────
+
+async function addFact() {
+  const ftype = document.getElementById('factType').value;
+  let value;
+
+  if (ftype === 'name') {
+    const fn = document.getElementById('factFirstname').value.trim();
+    const ln = document.getElementById('factLastname').value.trim();
+    if (!fn && !ln) { alert('Enter at least a first or last name.'); return; }
+    value = JSON.stringify({ firstname: fn, lastname: ln });
+  } else {
+    value = document.getElementById('factValue').value.trim();
+    if (!value) { alert('Please enter a value.'); return; }
+  }
+
+  const btn = document.getElementById('btnAddFact');
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/fact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: ftype, value }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed to add fact');
+
+    state.facts[data.fact.id] = data.fact;
+
+    // Add node to graph immediately
+    nodesDS.add(buildNodeForFact(data.fact));
+    document.getElementById('canvasEmpty').classList.add('hidden');
+
+    // Add sidebar pill
+    renderFactPill(data.fact);
+    updateFactCount();
+    refreshGTP();
+
+    // Clear inputs
+    document.getElementById('factValue').value = '';
+    document.getElementById('factFirstname').value = '';
+    document.getElementById('factLastname').value  = '';
+
+    // Start SSE
+    if (data.inv_id) startSSE(data.inv_id);
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '+ Add &amp; Investigate';
+  }
+}
+
+// ── Remove fact ───────────────────────────────────────────────────────────────
+
+function confirmDeleteFact(fid) {
+  pendingDeleteFid = fid;
+  const fact = state.facts[fid];
+  let label = fid;
+  if (fact) label = factLabel(fact);
+  document.getElementById('deleteMsg').textContent =
+    `Remove "${label}" and all its connections from the investigation?`;
+  document.getElementById('deleteOverlay').classList.add('visible');
+}
+
+function closeDeleteOverlay() {
+  pendingDeleteFid = null;
+  document.getElementById('deleteOverlay').classList.remove('visible');
+}
+
+async function executeDeleteFact() {
+  const fid = pendingDeleteFid;
+  closeDeleteOverlay();
+  if (!fid) return;
+
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/fact/${fid}`, { method: 'DELETE' });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+
+    // Update state
+    delete state.facts[fid];
+    state.links = (state.links || []).filter(l => l.from !== fid && l.to !== fid);
+
+    // Remove from graph
+    if (nodesDS.get(fid)) nodesDS.remove(fid);
+    // Rebuild edges (cheapest approach)
+    edgesDS.clear();
+    (state.links || []).forEach((link, i) => edgesDS.add(buildEdge(link, i)));
+
+    // Remove sidebar pill
+    const pill = document.getElementById(`fact-${fid}`);
+    if (pill) pill.remove();
+    updateFactCount();
+
+    // Show empty state if no nodes remain
+    if (nodesDS.length === 0) {
+      document.getElementById('canvasEmpty').classList.remove('hidden');
+    }
+  } catch (e) {
+    alert('Error removing fact: ' + e.message);
+  }
+}
+
+// ── Full re-investigate ───────────────────────────────────────────────────────
+
+async function runFullInvestigation() {
+  const btn = document.getElementById('btnRunAll');
+  btn.disabled = true;
+  btn.textContent = 'Starting...';
+
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/investigate`, { method: 'POST' });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed');
+    startSSE(data.inv_id);
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '&#9654; Run full investigation';
+  }
+}
+
+// ── SSE streaming ─────────────────────────────────────────────────────────────
+
+function startSSE(invId) {
+  if (currentSSE) {
+    currentSSE.close();
+    currentSSE = null;
+  }
+
+  openTerminal();
+  document.getElementById('terminalBody').textContent = '';
+
+  setBadge('running');
+  document.getElementById('termLabel').textContent = 'Investigating…';
+  document.getElementById('termDotGreen').classList.add('blinking');
+
+  const url = `/cases/${CASE_ID}/stream/${invId}`;
+  currentSSE = new EventSource(url);
+
+  currentSSE.onmessage = (e) => {
+    try {
+      const event = JSON.parse(e.data);
+      handleSSEEvent(event);
+    } catch (_) {
+      terminalAppend(e.data);
+    }
+  };
+
+  currentSSE.onerror = () => {
+    terminalAppend('[connection closed]');
+    if (currentSSE) { currentSSE.close(); currentSSE = null; }
+    setBadge('done');
+    document.getElementById('termDotGreen').classList.remove('blinking');
+    document.getElementById('termLabel').textContent = 'Investigation log';
+  };
+}
+
+function handleSSEEvent(event) {
+  if (event.type === 'ping') return;
+
+  if (event.type === 'log' || event.type === 'error') {
+    terminalAppend(event.text || '');
+  } else if (event.type === 'done' || event.type === 'report') {
+    terminalAppend('\n[Investigation complete]');
+    setBadge('done');
+    document.getElementById('termDotGreen').classList.remove('blinking');
+    document.getElementById('termLabel').textContent = 'Investigation complete';
+    if (currentSSE) { currentSSE.close(); currentSSE = null; }
+    reloadCaseData();
+  }
+}
+
+function terminalAppend(text) {
+  const body = document.getElementById('terminalBody');
+  if (!body) return;
+  if (body.textContent && text) body.textContent += '\n';
+  body.textContent += text;
+  body.scrollTop = body.scrollHeight;
+}
+
+// ── Reload case data ──────────────────────────────────────────────────────────
+
+async function reloadCaseData() {
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/data`);
+    if (!resp.ok) return;
+    const fresh = await resp.json();
+    mergeGraphData(fresh);
+  } catch (e) {
+    console.error('Error reloading case data:', e);
+  }
+}
+
+// ── Badge ─────────────────────────────────────────────────────────────────────
+
+function setBadge(state) {
+  const badge = document.getElementById('invBadge');
+  badge.style.display = 'inline-flex';
+  if (state === 'running') {
+    badge.className = 'inv-badge badge-running';
+    badge.innerHTML = '<span class="dot"></span> Investigating…';
+  } else {
+    badge.className = 'inv-badge badge-done';
+    badge.innerHTML = '<span class="dot"></span> Done';
+  }
+}
+
+// ── Terminal toggle ───────────────────────────────────────────────────────────
+
+function toggleTerminal() {
+  terminalOpen = !terminalOpen;
+  const body    = document.getElementById('terminalBody');
+  const chevron = document.getElementById('termChevron');
+  body.classList.toggle('open', terminalOpen);
+  chevron.classList.toggle('open', terminalOpen);
+  if (terminalOpen) body.scrollTop = body.scrollHeight;
+}
+
+function openTerminal() {
+  if (!terminalOpen) toggleTerminal();
+}
+
+// ── Log toggle ────────────────────────────────────────────────────────────────
+
+function toggleLog() {
+  const entries = document.getElementById('logEntries');
+  const chevron = document.getElementById('logChevron');
+  const isOpen  = entries.classList.toggle('open');
+  chevron.innerHTML = isOpen ? '&#9660;' : '&#9654;';
+  document.getElementById('logToggle').querySelector('span + span') &&
+    (document.getElementById('logToggle').childNodes[2].textContent = isOpen ? ' Hide' : ' Show last events');
+}
+
+// ── Sidebar pill renderer ─────────────────────────────────────────────────────
+
+function renderFactPill(fact) {
+  const empty   = document.getElementById('factsEmpty');
+  if (empty) empty.style.display = 'none';
+
+  const section = document.getElementById(`section-${fact.type}`);
+  const group   = document.getElementById(`group-${fact.type}`);
+  if (!group) return;
+  if (section) section.style.display = '';
+
+  const icons = {
+    name: '&#128100;', email: '&#128231;', phone: '&#128222;',
+    keyword: '&#128273;', alias: '&#127917;', city: '&#127961;&#65039;', birth_year: '&#128197;',
+    note: '&#128221;',
+  };
+  const icon = icons[fact.type] || '&#10067;';
+  let valueText = '';
+  if (fact.type === 'name') {
+    const v = typeof fact.value === 'string' ? tryParseJSON(fact.value) : fact.value;
+    valueText = ((v.firstname || '') + ' ' + (v.lastname || '')).trim();
+  } else {
+    valueText = escHtml(String(fact.value));
+  }
+
+  const div = document.createElement('div');
+  div.className = 'fact-pill';
+  div.id = `fact-${fact.id}`;
+  div.dataset.fid = fact.id;
+  div.setAttribute('onclick', `highlightNode('${fact.id}')`);
+  div.setAttribute('ondblclick', `confirmDeleteFact('${fact.id}')`);
+  div.innerHTML = `
+    <span class="fact-pill-icon">${icon}</span>
+    <div class="fact-pill-body">
+      <div class="fact-pill-value">${valueText}</div>
+    </div>
+    <button class="btn-danger-sm" title="Remove fact"
+            onclick="event.stopPropagation(); confirmDeleteFact('${fact.id}')">&#10005;</button>
+  `;
+  group.appendChild(div);
+}
+
+function updateFactCount() {
+  document.getElementById('factCount').textContent = Object.keys(state.facts || {}).length;
+}
+
+// ── Graph table panels ────────────────────────────────────────────────────────
+
+let _dragPanel = null, _dragOffX = 0, _dragOffY = 0;
+
+function startDragPanel(e, panelId) {
+  if (e.target.classList.contains('gtp-close')) return;
+  const el = document.getElementById(panelId);
+  _dragPanel = el;
+  const wr = document.querySelector('.canvas-wrap').getBoundingClientRect();
+  _dragOffX = e.clientX - wr.left - el.offsetLeft;
+  _dragOffY = e.clientY - wr.top  - el.offsetTop;
+  e.preventDefault();
+}
+
+document.addEventListener('mousemove', e => {
+  if (!_dragPanel) return;
+  const wrap = document.querySelector('.canvas-wrap');
+  const wr   = wrap.getBoundingClientRect();
+  let x = e.clientX - wr.left - _dragOffX;
+  let y = e.clientY - wr.top  - _dragOffY;
+  x = Math.max(0, Math.min(x, wr.width  - _dragPanel.offsetWidth));
+  y = Math.max(0, Math.min(y, wr.height - _dragPanel.offsetHeight));
+  _dragPanel.style.left  = x + 'px';
+  _dragPanel.style.top   = y + 'px';
+  _dragPanel.style.right = 'auto';
+});
+document.addEventListener('mouseup', () => { _dragPanel = null; });
+
+function toggleGTP(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('hidden');
+  if (!el.classList.contains('hidden')) refreshGTP();
+}
+function hideGTP(id) { document.getElementById(id).classList.add('hidden'); }
+
+function refreshGTP() {
+  // ── Keywords & Aliases ──
+  const kwBody = document.getElementById('gtpKeywordsBody');
+  const kws = Object.values(state.facts || {}).filter(f => f.type === 'keyword' || f.type === 'alias');
+  kwBody.innerHTML = kws.length
+    ? kws.map(f => `<div class="gtp-row">
+        <span class="gtp-key">${f.type === 'alias' ? '&#127917;' : '&#128273;'}</span>
+        <span class="gtp-val">${escHtml(String(f.value))}</span>
+      </div>`).join('')
+    : '<div class="gtp-empty">No keywords or aliases.</div>';
+
+  // ── Pseudos & Usernames ──
+  const psBody = document.getElementById('gtpPseudosBody');
+  const psList = [];
+  Object.values(state.facts || {}).filter(f => f.type === 'alias').forEach(f =>
+    psList.push({ src: 'alias', val: String(f.value) })
+  );
+  Object.values(state.findings || {}).filter(f => f.username).forEach(f =>
+    psList.push({ src: f.platform || f.type || '?', val: '@' + f.username + (f.display_name ? ' — ' + f.display_name : '') })
+  );
+  psBody.innerHTML = psList.length
+    ? psList.map(p => `<div class="gtp-row">
+        <span class="gtp-key">${escHtml(p.src)}</span>
+        <span class="gtp-val">${escHtml(p.val)}</span>
+      </div>`).join('')
+    : '<div class="gtp-empty">No pseudos or usernames found.</div>';
+
+  // ── Key dates ──
+  const dtBody = document.getElementById('gtpDatesBody');
+  const dtList = [];
+  Object.values(state.facts || {}).filter(f => f.type === 'birth_year').forEach(f =>
+    dtList.push({ src: 'Birth year', val: String(f.value) })
+  );
+  Object.values(state.findings || {}).filter(f => f.first_seen).forEach(f =>
+    dtList.push({ src: (f.platform || f.type || '?'), val: f.first_seen })
+  );
+  dtBody.innerHTML = dtList.length
+    ? dtList.map(d => `<div class="gtp-row">
+        <span class="gtp-key">${escHtml(d.src)}</span>
+        <span class="gtp-val">${escHtml(d.val)}</span>
+      </div>`).join('')
+    : '<div class="gtp-empty">No dates found.</div>';
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function tryParseJSON(s) {
+  try { return JSON.parse(s); } catch (_) { return {}; }
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+
+// Keyboard: Escape cancels link mode, deselects, closes popup, closes overlays
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (isLinkMode) { exitLinkMode(); if (linkFromId) { restoreNodeVisual(linkFromId); linkFromId = null; } }
+    if (selectedNodeId) actionDeselect();
+    hideNodePopup();
+    closeDeleteOverlay();
+    closeDeleteCaseOverlay();
+  }
+});
+
+// Initialise fact type UI
+onFactTypeChange();
+
+// Boot network after vis-network script loaded (it's synchronous CDN, safe here)
+initNetwork();
+</script>
+</body>
+</html>

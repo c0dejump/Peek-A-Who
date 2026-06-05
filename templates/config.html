@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAW — Configuration</title>
+  <link rel="icon" type="image/png" href="/static/logo_PAW.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d1117; --surface: #161b22; --surface2: #1c2128;
+      --border:  #30363d; --accent:  #58a6ff; --accent2: #3fb950;
+      --muted:   #8b949e; --text:    #c9d1d9; --danger:  #f85149;
+      --warning: #d29922;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; padding: 0 1rem 4rem;
+    }
+
+    /* ── Nav ── */
+    nav {
+      width: 100%; max-width: 860px;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 1rem 0; margin-bottom: .5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    nav .logo { display: flex; align-items: center; gap: .5rem; text-decoration: none; }
+    nav .logo img { width: 65px; }
+    nav .logo span { font-weight: 700; color: #fff; font-size: .95rem; }
+    nav .logo span em { color: var(--accent); font-style: normal; }
+    nav a.nav-link {
+      color: var(--muted); text-decoration: none; font-size: .85rem;
+      padding: .25rem .1rem; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    nav a.nav-link:hover { color: var(--text); }
+    nav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    /* ── Page header ── */
+    .page-header { width: 100%; max-width: 860px; margin: 1.25rem 0; }
+    .page-header h2 { font-size: 1.2rem; font-weight: 700; color: #fff; }
+    .page-header p  { color: var(--muted); font-size: .85rem; margin-top: .2rem; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.5rem;
+      width: 100%; max-width: 860px; margin-bottom: 1rem;
+    }
+    .section-label {
+      font-size: .68rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--muted);
+      display: flex; align-items: center; gap: .5rem; margin-bottom: 1.2rem;
+    }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── Provider grid ── */
+    .provider-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: .6rem; margin-bottom: 1.5rem;
+    }
+    @media(max-width: 620px) { .provider-grid { grid-template-columns: repeat(3, 1fr); } }
+
+    .provider-card {
+      position: relative; cursor: pointer;
+      background: var(--bg); border: 2px solid var(--border);
+      border-radius: 9px; padding: .85rem .5rem .7rem;
+      text-align: center; transition: border-color .15s, background .15s;
+      user-select: none;
+    }
+    .provider-card:hover { border-color: var(--muted); }
+    .provider-card.selected { border-color: var(--accent); background: rgba(88,166,255,.07); }
+    .provider-card input[type=radio] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .provider-icon { font-size: 1.4rem; margin-bottom: .3rem; display: block; }
+    .provider-name { font-size: .78rem; font-weight: 600; color: var(--text); display: block; }
+    .provider-badge {
+      font-size: .6rem; margin-top: .2rem; display: inline-block;
+      padding: .05rem .35rem; border-radius: 3px; font-weight: 700;
+      letter-spacing: .05em;
+    }
+    .badge-free  { background: rgba(63,185,80,.15); color: var(--accent2); }
+    .badge-local { background: rgba(88,166,255,.15); color: var(--accent); }
+    .badge-paid  { background: rgba(210,153,34,.15); color: var(--warning); }
+
+    /* ── Dynamic fields ── */
+    .provider-fields { display: none; }
+    .provider-fields.visible { display: block; }
+
+    /* ── Field ── */
+    .field-group {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    @media(max-width: 500px) { .field-group { grid-template-columns: 1fr; } }
+    .field { display: flex; flex-direction: column; gap: .3rem; }
+    .field label { font-size: .78rem; color: var(--muted); font-weight: 500; }
+    .field .hint { font-size: .7rem; color: #484f58; }
+
+    input[type=text], input[type=password], input[type=url], select {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text); font-size: .88rem;
+      padding: .5rem .7rem; outline: none; width: 100%;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(88,166,255,.12);
+    }
+    input::placeholder { color: #484f58; }
+
+    .input-with-btn { display: flex; gap: .4rem; }
+    .input-with-btn input { flex: 1; }
+
+    .btn-sm {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text); cursor: pointer;
+      font-size: .78rem; padding: .5rem .8rem; white-space: nowrap;
+      transition: border-color .15s;
+    }
+    .btn-sm:hover { border-color: var(--muted); }
+
+    .key-wrap { position: relative; }
+    .key-wrap input { padding-right: 2.5rem; }
+    .eye-btn {
+      position: absolute; right: .6rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: .85rem; line-height: 1; padding: 0;
+    }
+    .eye-btn:hover { color: var(--text); }
+
+    /* ── Ollama status ── */
+    .ollama-status {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .78rem; margin-top: .6rem; color: var(--muted);
+    }
+
+    /* ── Install warning ── */
+    .install-warn {
+      background: rgba(210,153,34,.1);
+      border: 1px solid rgba(210,153,34,.3);
+      border-radius: 6px; color: var(--warning);
+      font-size: .78rem; padding: .5rem .75rem; margin-top: .5rem;
+      display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+    }
+    .install-warn code {
+      font-family: 'Cascadia Code', 'Fira Mono', monospace;
+      background: rgba(210,153,34,.15); padding: .1rem .4rem;
+      border-radius: 4px; font-size: .8rem; cursor: pointer;
+      user-select: all;
+    }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .2rem .6rem; border-radius: 20px; font-size: .72rem; font-weight: 600;
+    }
+    .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .pill-ok   { background: rgba(63,185,80,.12); color: var(--accent2); }
+    .pill-ok   .dot { background: var(--accent2); }
+    .pill-err  { background: rgba(248,81,73,.12); color: var(--danger); }
+    .pill-err  .dot { background: var(--danger); }
+
+    /* ── MCP table ── */
+    .mcp-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    .mcp-table th {
+      text-align: left; padding: .5rem .75rem;
+      font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+    }
+    .mcp-table td { padding: .65rem .75rem; border-bottom: 1px solid #21262d; vertical-align: middle; }
+    .mcp-table tr:last-child td { border-bottom: none; }
+    .badge-active {
+      display: inline-flex; align-items: center; gap: .3rem;
+      background: rgba(63,185,80,.12); color: var(--accent2);
+      border-radius: 4px; font-size: .7rem; font-weight: 700;
+      padding: .1rem .45rem;
+    }
+    .badge-active::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); }
+    .badge-builtin {
+      background: rgba(88,166,255,.1); color: var(--accent);
+      border-radius: 4px; font-size: .7rem; padding: .1rem .4rem; font-weight: 600;
+    }
+    .tool-list { color: var(--muted); font-size: .75rem; }
+
+    /* ── Keys grid ── */
+    .keys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media(max-width: 500px) { .keys-grid { grid-template-columns: 1fr; } }
+
+    .divider { height: 1px; background: var(--border); margin: 1.2rem 0; }
+
+    /* ── Save bar ── */
+    .save-bar {
+      width: 100%; max-width: 860px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap;
+    }
+    .save-hint { font-size: .78rem; color: var(--muted); }
+    .save-hint code {
+      font-family: monospace; background: var(--surface2);
+      padding: .1rem .4rem; border-radius: 4px; color: var(--text);
+    }
+    .btn-save {
+      background: var(--accent); border: none; border-radius: 8px;
+      color: #0d1117; cursor: pointer; font-size: .88rem; font-weight: 700;
+      padding: .6rem 1.8rem; transition: opacity .15s;
+    }
+    .btn-save:hover { opacity: .88; }
+
+    .flash {
+      width: 100%; max-width: 860px; margin-bottom: .75rem;
+      padding: .65rem 1rem; border-radius: 8px; font-size: .83rem;
+    }
+    .flash.success { background: rgba(63,185,80,.1); border: 1px solid rgba(63,185,80,.25); color: var(--accent2); }
+    .flash.error   { background: rgba(248,81,73,.1);  border: 1px solid rgba(248,81,73,.25);  color: var(--danger); }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav>
+  <a href="/" class="logo">
+    <img src="/static/logo_PAW.png" alt="PAW" />
+    <span>Peek-<em>A</em>-Who</span>
+  </a>
+  <a href="/" class="nav-link">New investigation</a>
+  <a href="/investigation" class="nav-link">Terminal</a>
+  <a href="/cases" class="nav-link">Cases</a>
+  <a href="/history" class="nav-link">History</a>
+  <a href="/config" class="nav-link active">Configuration</a>
+</nav>
+
+{% if flash %}
+<div class="flash {{ flash.type }}">{{ flash.msg }}</div>
+{% endif %}
+
+<div class="page-header">
+  <h2>&#9881; Configuration</h2>
+  <p>Choose your LLM provider, set API keys, and manage MCP servers. Settings are saved to <code>.env</code>.</p>
+</div>
+
+<form method="POST" action="/config">
+
+  <!-- ── LLM Provider ── -->
+  <div class="card">
+    <div class="section-label">&#129504; LLM Provider</div>
+
+    <div class="provider-grid">
+
+      <label class="provider-card {% if cfg.provider == 'ollama' %}selected{% endif %}" onclick="selectProvider('ollama')">
+        <input type="radio" name="provider" value="ollama" {% if cfg.provider == 'ollama' %}checked{% endif %} />
+        <span class="provider-icon">&#127968;</span>
+        <span class="provider-name">Ollama</span>
+        <span class="provider-badge badge-local">Local</span>
+      </label>
+
+      <label class="provider-card {% if cfg.provider == 'groq' %}selected{% endif %}" onclick="selectProvider('groq')">
+        <input type="radio" name="provider" value="groq" {% if cfg.provider == 'groq' %}checked{% endif %} />
+        <span class="provider-icon">&#9889;</span>
+        <span class="provider-name">Groq</span>
+        <span class="provider-badge badge-free">Free</span>
+      </label>
+
+      <label class="provider-card {% if cfg.provider == 'gemini' %}selected{% endif %}" onclick="selectProvider('gemini')">
+        <input type="radio" name="provider" value="gemini" {% if cfg.provider == 'gemini' %}checked{% endif %} />
+        <span class="provider-icon">&#10024;</span>
+        <span class="provider-name">Gemini</span>
+        <span class="provider-badge badge-free">Free</span>
+      </label>
+
+      <label class="provider-card {% if cfg.provider == 'anthropic' %}selected{% endif %}" onclick="selectProvider('anthropic')">
+        <input type="radio" name="provider" value="anthropic" {% if cfg.provider == 'anthropic' %}checked{% endif %} />
+        <span class="provider-icon">&#129302;</span>
+        <span class="provider-name">Anthropic</span>
+        <span class="provider-badge badge-paid">Paid</span>
+      </label>
+
+      <label class="provider-card {% if cfg.provider == 'openai' %}selected{% endif %}" onclick="selectProvider('openai')">
+        <input type="radio" name="provider" value="openai" {% if cfg.provider == 'openai' %}checked{% endif %} />
+        <span class="provider-icon">&#127744;</span>
+        <span class="provider-name">OpenAI</span>
+        <span class="provider-badge badge-paid">Paid</span>
+      </label>
+
+    </div>
+
+    <!-- Ollama -->
+    <div class="provider-fields {% if cfg.provider == 'ollama' %}visible{% endif %}" id="fields-ollama">
+      <div class="field-group">
+        <div class="field">
+          <label>Base URL</label>
+          <div class="input-with-btn">
+            <input type="url" name="ollama_url" id="ollama-url" value="{{ cfg.ollama_url }}" placeholder="http://localhost:11434" />
+            <button type="button" class="btn-sm" onclick="detectOllama()">Detect</button>
+          </div>
+          <div class="ollama-status" id="ollama-status"></div>
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <select name="model" id="ollama-model" onchange="checkOllamaInstall()">
+            {% if ollama_installed %}
+            <optgroup label="Installed">
+              {% for m in ollama_installed %}
+              <option value="{{ m }}" {% if cfg.provider == 'ollama' and cfg.model == m %}selected{% endif %}>{{ m }}</option>
+              {% endfor %}
+            </optgroup>
+            {% endif %}
+            {% if ollama_suggested %}
+            <optgroup label="Not installed">
+              {% for m in ollama_suggested %}
+              <option value="{{ m }}" data-not-installed="1"
+                {% if cfg.provider == 'ollama' and cfg.model == m %}selected{% endif %}>{{ m }}</option>
+              {% endfor %}
+            </optgroup>
+            {% endif %}
+            {% if not ollama_installed and not ollama_suggested %}
+            {% for m in models.ollama %}
+            <option value="{{ m }}" data-not-installed="1"
+              {% if cfg.provider == 'ollama' and cfg.model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+            {% endif %}
+          </select>
+          <div id="ollama-install-warn" class="install-warn" style="display:none;">
+            &#9888; Not installed — run:
+            <code id="ollama-install-cmd" title="Click to copy">ollama pull model</code>
+          </div>
+          <span class="hint">Run <code>ollama list</code> to see installed models</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Groq -->
+    <div class="provider-fields {% if cfg.provider == 'groq' %}visible{% endif %}" id="fields-groq">
+      <div class="field-group">
+        <div class="field">
+          <label>API Key</label>
+          <div class="key-wrap">
+            <input type="password" name="api_key" id="groq-key" placeholder="gsk_..." value="{{ cfg.groq_key }}" />
+            <button type="button" class="eye-btn" onclick="toggleKey('groq-key')">&#128065;</button>
+          </div>
+          <span class="hint">Get a free key at <strong>console.groq.com</strong></span>
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <select name="model" id="groq-model">
+            {% for m in models.groq %}
+            <option value="{{ m }}" {% if cfg.provider == 'groq' and cfg.model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gemini -->
+    <div class="provider-fields {% if cfg.provider == 'gemini' %}visible{% endif %}" id="fields-gemini">
+      <div class="field-group">
+        <div class="field">
+          <label>API Key</label>
+          <div class="key-wrap">
+            <input type="password" name="api_key" id="gemini-key" placeholder="AIza..." value="{{ cfg.gemini_key }}" />
+            <button type="button" class="eye-btn" onclick="toggleKey('gemini-key')">&#128065;</button>
+          </div>
+          <span class="hint">Free key at <strong>aistudio.google.com/app/apikey</strong></span>
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <select name="model" id="gemini-model">
+            {% for m in models.gemini %}
+            <option value="{{ m }}" {% if cfg.provider == 'gemini' and cfg.model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Anthropic -->
+    <div class="provider-fields {% if cfg.provider == 'anthropic' %}visible{% endif %}" id="fields-anthropic">
+      <div class="field-group">
+        <div class="field">
+          <label>API Key</label>
+          <div class="key-wrap">
+            <input type="password" name="api_key" id="anthropic-key" placeholder="sk-ant-..." value="{{ cfg.anthropic_key }}" />
+            <button type="button" class="eye-btn" onclick="toggleKey('anthropic-key')">&#128065;</button>
+          </div>
+          <span class="hint">Get a key at <strong>console.anthropic.com</strong></span>
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <select name="model" id="anthropic-model">
+            {% for m in models.anthropic %}
+            <option value="{{ m }}" {% if cfg.provider == 'anthropic' and cfg.model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- OpenAI -->
+    <div class="provider-fields {% if cfg.provider == 'openai' %}visible{% endif %}" id="fields-openai">
+      <div class="field-group">
+        <div class="field">
+          <label>API Key</label>
+          <div class="key-wrap">
+            <input type="password" name="api_key" id="openai-key" placeholder="sk-..." value="{{ cfg.openai_key }}" />
+            <button type="button" class="eye-btn" onclick="toggleKey('openai-key')">&#128065;</button>
+          </div>
+          <span class="hint">Get a key at <strong>platform.openai.com</strong></span>
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <select name="model" id="openai-model">
+            {% for m in models.openai %}
+            <option value="{{ m }}" {% if cfg.provider == 'openai' and cfg.model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── MCP Servers ── -->
+  <div class="card">
+    <div class="section-label">&#128268; MCP Servers</div>
+    <table class="mcp-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Transport</th>
+          <th>Tools</th>
+          <th>Status</th>
+          <th>Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>paw-email-osint</strong></td>
+          <td>stdio</td>
+          <td class="tool-list">generate_permutations, validate_batch, validate_email, check_hibp</td>
+          <td><span class="badge-active">Active</span></td>
+          <td><span class="badge-builtin">Built-in</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:.75rem; font-size:.75rem; color:var(--muted);">Custom MCP server support coming soon.</p>
+  </div>
+
+  <!-- ── Optional API keys ── -->
+  <div class="card">
+    <div class="section-label">&#128273; Optional Tool Keys</div>
+    <div class="keys-grid">
+
+      <div class="field">
+        <label>HIBP API Key</label>
+        <div class="key-wrap">
+          <input type="password" name="HIBP_API_KEY" placeholder="Leave empty for free public endpoint"
+                 value="{{ cfg.other_keys.HIBP_API_KEY }}" />
+          <button type="button" class="eye-btn" onclick="toggleKey(this.previousElementSibling)">&#128065;</button>
+        </div>
+        <span class="hint">$3.50/mo — <strong>haveibeenpwned.com/API/Key</strong></span>
+      </div>
+
+      <div class="field">
+        <label>Pappers.fr API Key</label>
+        <div class="key-wrap">
+          <input type="password" name="PAPPERS_API_KEY" placeholder="Free tier available"
+                 value="{{ cfg.other_keys.PAPPERS_API_KEY }}" />
+          <button type="button" class="eye-btn" onclick="toggleKey(this.previousElementSibling)">&#128065;</button>
+        </div>
+        <span class="hint">French company registry — <strong>pappers.fr/api</strong></span>
+      </div>
+
+      <div class="field">
+        <label>Truecaller Token</label>
+        <div class="key-wrap">
+          <input type="password" name="TRUECALLER_TOKEN" placeholder="Session token"
+                 value="{{ cfg.other_keys.TRUECALLER_TOKEN }}" />
+          <button type="button" class="eye-btn" onclick="toggleKey(this.previousElementSibling)">&#128065;</button>
+        </div>
+        <span class="hint">Extract from <strong>truecaller.com</strong> session</span>
+      </div>
+
+      <div class="field">
+        <label>Telegram Phone</label>
+        <input type="text" name="TELEGRAM_PHONE" placeholder="+33600000000"
+               value="{{ cfg.other_keys.TELEGRAM_PHONE }}" />
+        <span class="hint">Required for Telegram lookups</span>
+      </div>
+
+      <div class="field">
+        <label>Telegram API ID</label>
+        <input type="text" name="TELEGRAM_API_ID" placeholder="12345678"
+               value="{{ cfg.other_keys.TELEGRAM_API_ID }}" />
+        <span class="hint">From <strong>my.telegram.org</strong></span>
+      </div>
+
+      <div class="field">
+        <label>Telegram API Hash</label>
+        <div class="key-wrap">
+          <input type="password" name="TELEGRAM_API_HASH" placeholder="abc123..."
+                 value="{{ cfg.other_keys.TELEGRAM_API_HASH }}" />
+          <button type="button" class="eye-btn" onclick="toggleKey(this.previousElementSibling)">&#128065;</button>
+        </div>
+        <span class="hint">From <strong>my.telegram.org</strong></span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="save-bar">
+    <span class="save-hint">Saved to <code>.env</code> — takes effect immediately</span>
+    <button type="submit" class="btn-save">&#10003; Save configuration</button>
+  </div>
+
+</form>
+
+<script>
+  const MODELS = {{ models_json | safe }};
+
+  function selectProvider(name) {
+    document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.provider-fields').forEach(f => f.classList.remove('visible'));
+    const card = document.querySelector(`.provider-card input[value="${name}"]`).parentElement;
+    card.classList.add('selected');
+    const fields = document.getElementById('fields-' + name);
+    if (fields) fields.classList.add('visible');
+  }
+
+  function toggleKey(inputOrId) {
+    const el = typeof inputOrId === 'string' ? document.getElementById(inputOrId) : inputOrId;
+    el.type = el.type === 'password' ? 'text' : 'password';
+  }
+
+  function checkOllamaInstall() {
+    const sel = document.getElementById('ollama-model');
+    const opt = sel.options[sel.selectedIndex];
+    const warn = document.getElementById('ollama-install-warn');
+    const cmd  = document.getElementById('ollama-install-cmd');
+    if (opt && opt.dataset.notInstalled === '1') {
+      cmd.textContent = 'ollama pull ' + opt.value;
+      warn.style.display = 'flex';
+    } else {
+      warn.style.display = 'none';
+    }
+  }
+
+  // Copy install command on click
+  document.addEventListener('click', function(e) {
+    if (e.target.id === 'ollama-install-cmd') {
+      navigator.clipboard.writeText(e.target.textContent).catch(() => {});
+      const orig = e.target.textContent;
+      e.target.textContent = 'Copied!';
+      setTimeout(() => { e.target.textContent = orig; }, 1200);
+    }
+  });
+
+  async function detectOllama() {
+    const url = document.getElementById('ollama-url').value || 'http://localhost:11434';
+    const status = document.getElementById('ollama-status');
+    status.innerHTML = '<span style="color:var(--muted)">Checking...</span>';
+    try {
+      const resp = await fetch('/api/ollama-models?url=' + encodeURIComponent(url));
+      const data = await resp.json();
+      const sel = document.getElementById('ollama-model');
+      let html = '';
+      if (data.running) {
+        if (data.models.length) {
+          html += '<optgroup label="Installed">' +
+            data.models.map(m => `<option value="${m}">${m}</option>`).join('') +
+            '</optgroup>';
+        }
+        if (data.suggested && data.suggested.length) {
+          html += '<optgroup label="Not installed">' +
+            data.suggested.map(m => `<option value="${m}" data-not-installed="1">${m}</option>`).join('') +
+            '</optgroup>';
+        }
+        status.innerHTML = `<span class="status-pill pill-ok"><span class="dot"></span>Connected — ${data.models.length} model(s) installed</span>`;
+      } else {
+        const suggested = data.suggested || MODELS.ollama || [];
+        html = '<optgroup label="Not installed">' +
+          suggested.map(m => `<option value="${m}" data-not-installed="1">${m}</option>`).join('') +
+          '</optgroup>';
+        status.innerHTML = `<span class="status-pill pill-err"><span class="dot"></span>Ollama not reachable</span>`;
+      }
+      sel.innerHTML = html;
+      checkOllamaInstall();
+    } catch(e) {
+      status.innerHTML = `<span class="status-pill pill-err"><span class="dot"></span>Error: ${e.message}</span>`;
+    }
+  }
+
+  // Check on page load in case the current model isn't installed
+  window.addEventListener('DOMContentLoaded', checkOllamaInstall);
+
+  // Sync all provider model selects so only the active one submits
+  document.querySelector('form').addEventListener('submit', function() {
+    const provider = document.querySelector('input[name=provider]:checked').value;
+    const sel = document.getElementById(provider + '-model');
+    if (sel) {
+      // rename all model selects to avoid collision, then rename active to "model"
+      document.querySelectorAll('select[id$="-model"]').forEach(s => s.removeAttribute('name'));
+      if (sel) sel.name = 'model';
+    }
+  });
+</script>
+
+</body>
+</html>

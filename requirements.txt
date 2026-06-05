@@ -1,31 +1,22 @@
-linkedin-api~=2.0.0a
-google
-requests
-bs4
-certifi>=2019.6.16
-colorama>=0.4.1
-PySocks>=1.7.0
-stem>=1.8.0 
-torrequest>=0.1.0
-validate_email_address
-queuelib
-py3DNS
-phonenumbers
-progressbar
-mechanize
-tqdm
-opencage
-fake_useragent
-geopy
-progress
-mac-vendor-lookup
-argparse
-requests
-tabulate
-bs4
-colorama
-terminaltables
-PrettyTable
-socks
-socket
-tqdm
+# Core web framework
+flask>=3.0
+python-dotenv>=1.0
+
+# HTTP & HTML parsing
+requests>=2.31
+beautifulsoup4>=4.12
+
+# Phone number parsing
+phonenumbers>=8.13
+
+# MCP (Model Context Protocol) — LLM tool orchestration
+mcp>=1.5
+
+# LLM integration (supports OpenAI, Anthropic, Ollama, Groq, Gemini, etc.)
+litellm>=1.40
+
+# ── Optional external CLI tools (install separately) ──────────────────────────
+# maigret (500+ site cross-platform username search):   pip install maigret
+# ignorant (phone social registration check):           pip install ignorant
+# ghunt (Google account OSINT):                         pip install ghunt
+# phoneinfoga (phone OSINT binary): https://github.com/sundowndev/phoneinfoga/releases
