@@ -534,12 +534,22 @@
       background: #fef9c3; border: 1px solid #e9c46a; border-radius: 3px;
       box-shadow: 3px 4px 12px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.25);
       display: flex; flex-direction: column;
-      cursor: grab; pointer-events: all; user-select: none;
+      pointer-events: all; user-select: none;
     }
-    .note-card:active { cursor: grabbing; }
+    .note-card-handle {
+      height: 20px; min-height: 20px;
+      background: #e9c46a; border-radius: 2px 2px 0 0;
+      cursor: grab; display: flex; align-items: center;
+      padding: 0 4px; gap: 4px; flex-shrink: 0;
+    }
+    .note-card-handle:active { cursor: grabbing; }
+    .note-card-handle-dots {
+      flex: 1; font-size: 9px; letter-spacing: 2px;
+      color: #78350f; opacity: .55; user-select: none; pointer-events: none;
+    }
     .note-card textarea {
       flex: 1; background: transparent; border: none;
-      padding: 24px 10px 10px; font-size: 13px;
+      padding: 8px 10px; font-size: 13px;
       font-family: 'Segoe UI', system-ui, sans-serif;
       color: #1c1917; resize: none; outline: none;
       cursor: text; line-height: 1.5; min-height: 110px;
@@ -547,14 +557,23 @@
     }
     .note-card textarea::placeholder { color: #a16207; opacity: .7; }
     .note-card-close {
-      position: absolute; top: 5px; right: 5px; display: none;
-      background: rgba(120,53,15,.12); border: none; border-radius: 50%;
-      width: 18px; height: 18px; font-size: 11px; line-height: 18px;
+      background: rgba(120,53,15,.15); border: none; border-radius: 50%;
+      width: 16px; height: 16px; font-size: 10px; line-height: 16px;
       text-align: center; cursor: pointer; color: #78350f; padding: 0;
-      transition: background .12s, color .12s;
+      flex-shrink: 0; transition: background .12s, color .12s; display: none;
     }
     .note-card:hover .note-card-close { display: block; }
-    .note-card-close:hover { background: rgba(220,38,38,.2); color: #dc2626; }
+    .note-card-close:hover { background: rgba(220,38,38,.25); color: #dc2626; }
+    .note-card-resize {
+      position: absolute; bottom: 0; right: 0;
+      width: 16px; height: 16px; cursor: nwse-resize; pointer-events: all;
+      opacity: 0; transition: opacity .15s;
+      background-image: linear-gradient(135deg,
+        transparent 33%, #a16207 33%, #a16207 44%, transparent 44%,
+        transparent 55%, #a16207 55%, #a16207 66%, transparent 66%,
+        transparent 77%, #a16207 77%, #a16207 88%, transparent 88%);
+    }
+    .note-card:hover .note-card-resize { opacity: .55; }
 
     /* Legacy (kept for compat) */
     .popup-note-form { margin-top: .4rem; display: flex; flex-direction: column; gap: .3rem; }
@@ -1002,6 +1021,11 @@ function _saveLayout() {
   nodesDS.getIds().forEach(id => {
     const p = network.getPosition(id);
     if (p) positions[id] = { x: Math.round(p.x), y: Math.round(p.y) };
+    const noteCard = document.getElementById(`notecard-${id}`);
+    if (noteCard && positions[id]) {
+      positions[id].w = noteCard.offsetWidth;
+      positions[id].h = noteCard.offsetHeight;
+    }
   });
   const vp = network.getViewPosition();
   const sc = network.getScale();
@@ -1056,7 +1080,7 @@ function initNetwork() {
       tooltipDelay: 9999,
       dragNodes: true,
       zoomView: true,
-      dragView: true,
+      dragView: false,
     },
     nodes: {
       font: { color: '#c9d1d9', size: 13, face: "'Segoe UI', system-ui, sans-serif" },
@@ -1418,6 +1442,8 @@ function mergeGraphData(fresh) {
 
 let _dragNoteCard = null;
 let _dragNoteOffX = 0, _dragNoteOffY = 0;
+let _resizeNoteCard = null;
+let _resizeStartX = 0, _resizeStartY = 0, _resizeStartW = 0, _resizeStartH = 0;
 
 function renderNoteCard(fact) {
   const container = document.getElementById('notes-canvas');
@@ -1428,6 +1454,14 @@ function renderNoteCard(fact) {
   card.id          = `notecard-${fact.id}`;
   card.dataset.fid = fact.id;
 
+  // ── Handle (drag bar) ─────────────────────────────────────────
+  const handle = document.createElement('div');
+  handle.className = 'note-card-handle';
+
+  const dots = document.createElement('span');
+  dots.className = 'note-card-handle-dots';
+  dots.textContent = '⠿ ⠿ ⠿';
+
   const closeBtn = document.createElement('button');
   closeBtn.className = 'note-card-close';
   closeBtn.innerHTML = '&#10005;';
@@ -1437,11 +1471,14 @@ function renderNoteCard(fact) {
     confirmDeleteFact(fact.id);
   });
 
+  handle.appendChild(dots);
+  handle.appendChild(closeBtn);
+
+  // ── Textarea ──────────────────────────────────────────────────
   const ta = document.createElement('textarea');
   ta.value = String(fact.value || '');
   ta.placeholder = 'Write here…';
 
-  // Auto-save on blur (debounced)
   let _saveTimer = null;
   const doSave = () => {
     const newText = ta.value;
@@ -1455,25 +1492,42 @@ function renderNoteCard(fact) {
   ta.addEventListener('blur', () => { clearTimeout(_saveTimer); doSave(); });
   ta.addEventListener('input', () => { clearTimeout(_saveTimer); _saveTimer = setTimeout(doSave, 1500); });
 
-  // Prevent note drag while typing in textarea
-  ta.addEventListener('mousedown', (e) => e.stopPropagation());
+  // ── Resize handle (bottom-right grip) ────────────────────────
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'note-card-resize';
+  resizeHandle.addEventListener('mousedown', (e) => {
+    _resizeNoteCard = card;
+    _resizeStartX   = e.clientX;
+    _resizeStartY   = e.clientY;
+    _resizeStartW   = card.offsetWidth;
+    _resizeStartH   = card.offsetHeight;
+    e.preventDefault();
+    e.stopPropagation();
+  });
 
-  card.appendChild(closeBtn);
+  card.appendChild(handle);
   card.appendChild(ta);
+  card.appendChild(resizeHandle);
   container.appendChild(card);
 
-  // Drag: grab the card frame (not textarea/close)
-  card.addEventListener('mousedown', (e) => {
-    if (e.target === ta || e.target === closeBtn) return;
+  // Drag: only the handle bar is the grab target
+  handle.addEventListener('mousedown', (e) => {
+    if (e.target === closeBtn) return;
     _dragNoteCard = card;
     const wr = document.querySelector('.canvas-wrap').getBoundingClientRect();
     _dragNoteOffX = e.clientX - wr.left - (parseInt(card.style.left) || 0);
     _dragNoteOffY = e.clientY - wr.top  - (parseInt(card.style.top)  || 0);
     e.preventDefault();
+    e.stopPropagation();
   });
 
-  // Position the card (after a tick so network has coords)
-  setTimeout(() => _positionNoteCard(card, fact.id), 60);
+  // Position the card and restore saved size (after a tick so network has coords)
+  setTimeout(() => {
+    _positionNoteCard(card, fact.id);
+    const saved = (state.graph_positions || {})[fact.id];
+    if (saved && saved.w) card.style.width  = saved.w + 'px';
+    if (saved && saved.h) card.style.height = saved.h + 'px';
+  }, 60);
 }
 
 function _positionNoteCard(card, fid) {
@@ -1487,7 +1541,7 @@ function _positionNoteCard(card, fid) {
 }
 
 function updateNoteCardPositions() {
-  if (!network) return;
+  if (!network || _dragNoteCard) return; // skip while user is dragging a card
   document.querySelectorAll('.note-card').forEach(card => {
     const fid = card.dataset.fid;
     if (!fid || !nodesDS.get(fid)) return;
@@ -2619,10 +2673,21 @@ document.addEventListener('mousemove', e => {
     _dragNoteCard.style.left = x + 'px';
     _dragNoteCard.style.top  = y + 'px';
   }
+
+  if (_resizeNoteCard) {
+    const newW = Math.max(140, _resizeStartW + (e.clientX - _resizeStartX));
+    const newH = Math.max(100, _resizeStartH + (e.clientY - _resizeStartY));
+    _resizeNoteCard.style.width  = newW + 'px';
+    _resizeNoteCard.style.height = newH + 'px';
+  }
 });
 
 document.addEventListener('mouseup', () => {
   _dragPanel = null;
+  if (_resizeNoteCard) {
+    _scheduleSave();
+    _resizeNoteCard = null;
+  }
   if (_dragNoteCard) {
     // Sync note anchor position back to vis-network
     const card = _dragNoteCard;
