@@ -25,7 +25,7 @@ PAW uses a **Clean Hybrid Architecture**:
 | 0.5 | Academic records | theses.fr, HAL, linternaute bac/brevet |
 | 0.7 | Business registries | SIRENE (data.gouv.fr), Pappers |
 | 0.8 | Annuaires links | Pages Blanches, Pages Jaunes (URL only — Cloudflare-protected) |
-| 0.9 | Phone OSINT | phonenumbers, ignorant, PhoneInfoga |
+| 0.9 | Phone OSINT | phonenumbers, ignorant, PhoneInfoga, ARCEP enrichment, Tellows |
 | 0.93 | **Username pre-validation** | ALL candidates → maigret + sherlock on 36 targeted sites, 20 parallel workers; ≥1 hit = validated; Reddit/GitHub enrichment inline |
 | 0.95 | Instagram | Validated candidates only |
 | 0.95b | ig_lookup | Obfuscated email + phone per Instagram profile found |
@@ -249,7 +249,58 @@ Username found (Phase 1)
 
 ---
 
-## 10. French-Specific Sources
+## 10. Phone OSINT
+
+### Carrier detection chain (French numbers)
+
+The `phonenumbers` library has incomplete carrier coverage for France (many Free Mobile 07xx ranges, MVNOs, and recently ported numbers return ""). PAW runs a fallback chain:
+
+1. `phonenumbers.carrier.name_for_number()` — fast, offline, often empty for FR
+2. `numerobis.fr` API — aggregates ARCEP attribution data; returns operator, SIRET, date, territory
+3. `numerobis.fr` page scrape — HTML fallback if API doesn't respond
+4. `annuairetel.com` page scrape — secondary source
+
+SIRET is resolved from carrier name via a hardcoded table (top-10 FR operators) after all sources are tried.
+
+### What PAW fetches automatically (free, no API key)
+
+| Source | Fields returned |
+|---|---|
+| `phonenumbers` | E.164, national, international, type, carrier (partial), region, timezone |
+| ARCEP via numerobis.fr | Territory (Métropole / DOM-TOM + region), operator SIRET, attribution date |
+| Tellows | Spam score 1–10, caller type (Telemarketer / Arnaque / Neutre…), report count |
+| `ignorant` CLI | Social platform registration (WhatsApp, Snap, Instagram, Telegram…) |
+| Numverify (optional) | Carrier, line type, country — requires `NUMVERIFY_API_KEY` |
+| PhoneInfoga (optional) | Google footprint URLs — requires `phoneinfoga` CLI |
+
+### Other phone OSINT sources (manual)
+
+| Source | What | Cost |
+|---|---|---|
+| HLR Lookup (hlr-lookups.com) | Live SIM status, current carrier (incl. ported), roaming country | ~€0.01/query |
+| Number portability DB | Has number been ported? To which operator? | Via ARCEP open data (offline bulk) or paid HLR |
+| Signal / Viber registration | Is number registered? | No public API |
+| WhatsApp profile picture | If registered — `wa.me/` link auto-generated | Requires WhatsApp client |
+| Breach databases | Phone in leaked credentials (Snusbase, IntelX, Dehashed) | Paid |
+| Bloctel | French DNC registry check | Free at bloctel.gouv.fr |
+
+### Territory prefixes (France)
+
+| Prefix | Territory |
+|---|---|
+| 01–05, 06xx, 07xx (standard) | Métropole |
+| 0262, 0692, 0693 | La Réunion |
+| 0590, 0690, 0691 | Guadeloupe |
+| 0596, 0696, 0697 | Martinique |
+| 0594, 0694 | Guyane |
+| 0269, 0639 | Mayotte |
+| 0508 | Saint-Pierre-et-Miquelon |
+| 0681 | Wallis-et-Futuna |
+| 0687, 0689 | Polynésie française |
+
+---
+
+## 11. French-Specific Sources
 
 | Source | What |
 |---|---|
@@ -269,7 +320,7 @@ Username found (Phase 1)
 
 ---
 
-## 11. Academic Records Matching
+## 12. Academic Records Matching
 
 **Strict rule:** both firstname AND lastname required, whole-word, accent-insensitive.
 - "Michel Eloise" ≠ "Tristan Michel" (michel is lastname here)
@@ -278,7 +329,7 @@ Username found (Phase 1)
 
 ---
 
-## 12. Facial Recognition (built-in)
+## 13. Facial Recognition (built-in)
 
 When a reference photo is uploaded at the start of an investigation, PAW encodes the face
 and automatically compares it against profile pictures found during validation.
@@ -304,7 +355,7 @@ and automatically compares it against profile pictures found during validation.
 
 ---
 
-## 13. Reverse Image Search (external)
+## 14. Reverse Image Search (external)
 
 - **Yandex Images** — strongest facial recognition for European faces
 - **Google Lens** — objects, scenes, landmarks, public figures
@@ -315,7 +366,7 @@ Feed from: GHunt `photo_url`, Instagram profile photo, LinkedIn photo, Wayback s
 
 ---
 
-## 14. Legal & Ethical Framework
+## 15. Legal & Ethical Framework
 
 - Only publicly accessible information — no authentication or credential stuffing
 - GDPR applies to personal data about EU residents

@@ -473,6 +473,312 @@ async def _search_diplomas_direct(
     return await loop.run_in_executor(None, _fetch)
 
 
+_FR_DOM_TOM_PREFIXES: dict[str, str] = {
+    "0590": "Guadeloupe",       "0690": "Guadeloupe",  "0691": "Guadeloupe",
+    "0596": "Martinique",       "0696": "Martinique",  "0697": "Martinique",
+    "0594": "Guyane",           "0694": "Guyane",
+    "0262": "La Réunion",       "0692": "La Réunion",  "0693": "La Réunion",
+    "0269": "Mayotte",          "0639": "Mayotte",
+    "0508": "Saint-Pierre-et-Miquelon",
+    "0681": "Wallis-et-Futuna",
+    "0687": "Polynésie française", "0689": "Polynésie française",
+}
+
+_FR_CARRIER_SIRET: dict[str, str] = {
+    "free mobile":      "499 247 138 00013",
+    "orange":           "380 129 866 00011",
+    "sfr":              "343 059 564 00053",
+    "bouygues telecom": "397 480 930 00038",
+    "bouygues":         "397 480 930 00038",
+    "coriolis":         "422 028 442 00029",
+    "prixtel":          "480 716 633 00019",
+    "syma mobile":      "820 823 670 00012",
+    "lebara":           "498 461 534 00014",
+    "réglo mobile":     "832 036 551 00024",
+}
+
+def _fr_territory(national_clean: str) -> str:
+    """Derive ARCEP territory from a cleaned French national number (e.g. '0743555604')."""
+    p4 = national_clean[:4]
+    if p4 in _FR_DOM_TOM_PREFIXES:
+        return f"DOM-TOM ({_FR_DOM_TOM_PREFIXES[p4]})"
+    if len(national_clean) >= 2 and national_clean[0] == "0" and national_clean[1] in "1234567":
+        return "Métropole"
+    return ""
+
+
+def _fetch_tellows(e164: str) -> dict | None:
+    """
+    Fetch Tellows spam data. Tries their test API first, falls back to page scrape.
+    Returns dict with score (1-10), caller_type, comments, searches, url — or None.
+    """
+    try:
+        import requests as _rq
+        # Tellows test API (documented free tier — rate-limited)
+        api = _rq.get(
+            "https://www.tellows.de/basic/num/" + e164.replace("+", "%2B"),
+            params={"json": "1", "partner": "test", "apikey": "test123"},
+            timeout=5,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        if api.status_code == 200:
+            entry = (api.json().get("tellows") or [{}])[0]
+            if entry.get("score") and int(entry["score"]) > 0:
+                return {
+                    "score":       int(entry["score"]),
+                    "caller_type": entry.get("callertype", ""),
+                    "comments":    int(entry.get("comments", 0)),
+                    "searches":    int(entry.get("searches", 0)),
+                    "url":         f"https://www.tellows.fr/num/{e164}",
+                }
+    except Exception:
+        pass
+
+    # Fallback: scrape the French Tellows page
+    try:
+        import requests as _rq
+        resp = _rq.get(
+            f"https://www.tellows.fr/num/{e164}",
+            timeout=6,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+        )
+        if resp.status_code != 200:
+            return None
+        html = resp.text
+
+        score = None
+        for pat in [
+            r'"score"\s*[=:]\s*["\']?(\d+)',
+            r'data-score["\s:=]+(\d+)',
+            r'class="[^"]*score[^"]*"[^>]*>\s*(\d+)\s*<',
+            r'>(\d)\s*/\s*10<',
+        ]:
+            m = re.search(pat, html, re.IGNORECASE)
+            if m:
+                v = int(m.group(1))
+                if 1 <= v <= 10:
+                    score = v
+                    break
+
+        caller_type = ""
+        for ct in ["Telemarketer", "Spam", "Arnaque", "Neutre", "Sûr", "Support", "Inconnu", "Neutral", "Safe"]:
+            if ct.lower() in html.lower():
+                caller_type = ct
+                break
+
+        comments = 0
+        mc = re.search(r'(\d+)\s*[Cc]ommentaire', html)
+        if mc:
+            comments = int(mc.group(1))
+
+        if score is not None or comments > 0:
+            return {
+                "score":       score,
+                "caller_type": caller_type,
+                "comments":    comments,
+                "searches":    0,
+                "url":         f"https://www.tellows.fr/num/{e164}",
+            }
+    except Exception:
+        pass
+    return None
+
+
+def _fetch_caller_name(e164: str, e164_no_plus: str, national_clean: str) -> str:
+    """
+    Try to identify the owner name of a phone number from caller-ID sources.
+    Tries (in order): Truecaller SSR page → callerinfo.fr → annuairetel.com.
+    Returns best name found, or "" if nothing usable.
+    """
+    _hdrs = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+        ),
+        "Accept-Language": "fr-FR,fr;q=0.9",
+    }
+    _bad  = {"truecaller", "unknown", "private", "search", "numéro", "number",
+             "inconnu", "caller", "phone", "mobile", "fixe"}
+
+    def _clean(name: str) -> str:
+        name = name.strip().strip('"\'').strip()
+        # reject if too short, too long, or matches noise words
+        if len(name) < 3 or len(name) > 60:
+            return ""
+        if any(b in name.lower() for b in _bad):
+            return ""
+        # reject if it looks like a number or URL
+        if re.search(r'\d{3}|\bwww\b|http', name, re.I):
+            return ""
+        return name
+
+    import requests as _rq
+
+    # 1. Truecaller (often does SSR with name in <title> / JSON-LD for SEO)
+    try:
+        r = _rq.get(
+            f"https://www.truecaller.com/search/fr/{e164_no_plus}",
+            timeout=6, headers=_hdrs,
+        )
+        if r.status_code == 200:
+            for pat in [
+                r"<title>Truecaller:\s*([^<\-|]{3,60}?)(?:\s*[-|<]|\s*$)",
+                r'"name"\s*:\s*"([A-Za-zÀ-ÿ\s\-\.]{3,60})"',
+                r'<meta[^>]+name="description"[^>]+content="([A-Za-zÀ-ÿ][^"]{4,80}?)(?:\s+(?:from|de|is|est)\b)',
+            ]:
+                m = re.search(pat, r.text, re.IGNORECASE)
+                if m:
+                    n = _clean(m.group(1))
+                    if n:
+                        return n
+    except Exception:
+        pass
+
+    # 2. callerinfo.fr
+    try:
+        r = _rq.get(
+            f"https://callerinfo.fr/{national_clean}",
+            timeout=5, headers=_hdrs,
+        )
+        if r.status_code == 200:
+            for pat in [
+                r"class=\"[^\"]*(?:caller|owner|name|nom)[^\"]*\"[^>]*>([A-Za-zÀ-ÿ][^<]{2,60})<",
+                r"[Pp]ropri[eé]taire[^:<]*[:<]\s*([A-Za-zÀ-ÿ][^\n<]{3,60})",
+                r'"(?:name|caller|owner)"\s*:\s*"([^"]{3,60})"',
+            ]:
+                m = re.search(pat, r.text, re.IGNORECASE)
+                if m:
+                    n = _clean(m.group(1))
+                    if n:
+                        return n
+    except Exception:
+        pass
+
+    # 3. annuairetel.com
+    try:
+        r = _rq.get(
+            f"https://www.annuairetel.com/numero/{national_clean}",
+            timeout=4, headers=_hdrs,
+        )
+        if r.status_code == 200:
+            for pat in [
+                r"class=\"[^\"]*(?:name|nom|owner|caller)[^\"]*\"[^>]*>([A-Za-zÀ-ÿ][^<]{2,60})<",
+                r"[Pp]ropri[eé]taire[^:<]*[:<]\s*([A-Za-zÀ-ÿ][^\n<]{3,60})",
+            ]:
+                m = re.search(pat, r.text, re.IGNORECASE)
+                if m:
+                    n = _clean(m.group(1))
+                    if n:
+                        return n
+    except Exception:
+        pass
+
+    return ""
+
+
+def _check_dork_hit(query: str) -> tuple[bool, str]:
+    """
+    Check DDG HTML for real results.
+    Returns (hit: bool, ddg_url: str) — the URL points to the same DDG engine we checked,
+    so the link shown to the user is guaranteed to be consistent with the check.
+    """
+    from urllib.parse import quote_plus
+    ddg_url = "https://duckduckgo.com/?q=" + quote_plus(query) + "&kl=fr-fr"
+    try:
+        import requests as _rq
+        r = _rq.get(
+            "https://html.duckduckgo.com/html/",
+            params={"q": query, "kl": "fr-fr"},
+            timeout=6,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept-Language": "fr-FR,fr;q=0.9",
+            },
+        )
+        if r.status_code != 200:
+            return False, ddg_url
+        html = r.text
+        # Explicit no-results indicators from DDG
+        if any(s in html for s in [
+            "No results.",
+            "Aucun résultat",
+            "no results",
+            "did not match",
+        ]):
+            return False, ddg_url
+        # At least one real result div must be present
+        has_results = bool(re.search(r'class="result(?:__|s\b| links)', html, re.I))
+        return has_results, ddg_url
+    except Exception:
+        return False, ddg_url
+
+
+def _build_phone_footprint(
+    national_clean: str,
+    e164: str,
+    firstname: str = "",
+) -> dict[str, str]:
+    """
+    For each phone-number dork variant, check DDG for real results.
+    Returns {label: google_search_url} for hits only.
+    Runs all checks in parallel (max 8 workers, 25s total timeout).
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    digits  = re.sub(r"\D", "", national_clean)
+    spaced  = " ".join(digits[i:i+2] for i in range(0, len(digits), 2))
+    dashed  = "-".join(digits[i:i+2] for i in range(0, len(digits), 2))
+    dotted  = ".".join(digits[i:i+2] for i in range(0, len(digits), 2))
+
+    targets: list[tuple[str, str]] = [
+        # (label, dork_query)
+        # — Classified ads —
+        ("Leboncoin",           f'"{national_clean}" site:leboncoin.fr'),
+        ("Leboncoin (espacé)",  f'"{spaced}" site:leboncoin.fr'),
+        ("AVendreALouer",       f'"{national_clean}" site:avendrealouer.fr'),
+        ("PAP.fr",              f'"{national_clean}" site:pap.fr'),
+        ("SeLoger",             f'"{national_clean}" site:seloger.com'),
+        ("Logic-Immo",          f'"{national_clean}" site:logic-immo.com'),
+        # — Social —
+        ("Facebook",            f'"{national_clean}" site:facebook.com'),
+        ("Facebook (espacé)",   f'"{spaced}" site:facebook.com'),
+        ("Viadeo",              f'"{national_clean}" site:viadeo.com'),
+        ("Copains d'avant",     f'"{national_clean}" site:copainsdavant.fr'),
+        # — General web —
+        ("Web (national)",      f'"{national_clean}"'),
+        ("Web (espacé)",        f'"{spaced}"'),
+        ("Web (tirets)",        f'"{dashed}"'),
+        ("Web (points)",        f'"{dotted}"'),
+        ("Web (E.164)",         f'"{e164}"'),
+    ]
+
+    if firstname:
+        fn = firstname.strip()
+        targets += [
+            (f"{fn} + national", f'"{fn}" "{national_clean}"'),
+            (f"{fn} + E.164",   f'"{fn}" "{e164}"'),
+            (f"{fn} + espacé",  f'"{fn}" "{spaced}"'),
+        ]
+
+    hits: dict[str, str] = {}
+
+    def _worker(label: str, query: str):
+        hit, url = _check_dork_hit(query)
+        return (label, url) if hit else None
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {pool.submit(_worker, lbl, q): lbl for lbl, q in targets}
+        for fut in as_completed(futures, timeout=25):
+            try:
+                res = fut.result()
+                if res:
+                    hits[res[0]] = res[1]
+            except Exception:
+                pass
+
+    return hits
+
+
 async def _search_phone_direct(
     phone: str,
     firstname: str = "",
@@ -495,6 +801,10 @@ async def _search_phone_direct(
             "carrier": "",
             "region": "",
             "timezone": "",
+            "arcep":          None,   # ARCEP enrichment (France only)
+            "tellows":        None,   # Tellows spam score
+            "caller_name":    "",    # owner name from caller-ID sources
+            "footprint":      {},    # dorks that returned hits (label → google url)
             "reverse_links":  {},  # reverse lookup + generic search
             "identity_links": {},  # targeted social/identity dorks
             "app_links":      {},  # messaging app deeplinks
@@ -555,14 +865,114 @@ async def _search_phone_direct(
         e164_q         = results["e164"].replace("+", "%2B")
         nat_q          = results["national"].replace(" ", "+")
 
+        # ── ARCEP enrichment (France only) ───────────────────
+        # phonenumbers carrier db has very incomplete coverage for France.
+        # We run a multi-source fallback chain to fill in the carrier before
+        # computing the SIRET (which depends on the carrier name).
+        if results["valid"] and results["country_code"] == "33":
+            _territory        = _fr_territory(national_clean)
+            _attribution_date = ""
+
+            # ── Source 1: numerobis.fr (aggregates ARCEP data) ──
+            try:
+                import requests as _req_arcep
+                _ar = _req_arcep.get(
+                    f"https://www.numerobis.fr/api/number/{national_clean}",
+                    timeout=4,
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                if _ar.status_code == 200:
+                    _ard = _ar.json()
+                    # carrier
+                    _op = (
+                        _ard.get("operator") or _ard.get("operateur") or
+                        _ard.get("carrier")  or _ard.get("nom_operateur") or ""
+                    ).strip()
+                    if _op and not results["carrier"]:
+                        results["carrier"] = _op
+                    # attribution date
+                    _attribution_date = (
+                        _ard.get("date_attribution") or
+                        _ard.get("attribution_date") or ""
+                    )
+            except Exception:
+                pass
+
+            # ── Source 2: scrape numerobis.fr web page ──────────
+            if not results["carrier"]:
+                try:
+                    import requests as _req2
+                    _page = _req2.get(
+                        f"https://www.numerobis.fr/{national_clean}",
+                        timeout=4,
+                        headers={"User-Agent": "Mozilla/5.0"},
+                    )
+                    if _page.status_code == 200:
+                        for _pat in [
+                            r"[Oo]p[ée]rateur[^:<]*[:<][^>]*>\s*([A-Za-z][^<\n]{2,40})",
+                            r'"operator"\s*:\s*"([^"]{2,40})"',
+                            r'"operateur"\s*:\s*"([^"]{2,40})"',
+                        ]:
+                            _m = re.search(_pat, _page.text)
+                            if _m:
+                                _cn = _m.group(1).strip()
+                                if _cn and len(_cn) > 2:
+                                    results["carrier"] = _cn
+                                    break
+                except Exception:
+                    pass
+
+            # ── Source 3: scrape annuairetel.com ────────────────
+            if not results["carrier"]:
+                try:
+                    import requests as _req3
+                    _at = _req3.get(
+                        f"https://www.annuairetel.com/numero/{national_clean}",
+                        timeout=4,
+                        headers={"User-Agent": "Mozilla/5.0"},
+                    )
+                    if _at.status_code == 200:
+                        for _pat in [
+                            r"[Oo]p[ée]rateur[^:<]*[:<][^>]*>\s*([A-Za-z][^<\n]{2,40})",
+                            r'"carrier"\s*:\s*"([^"]{2,40})"',
+                            r'class="[^"]*operator[^"]*"[^>]*>\s*([A-Za-z][^<]{2,30})',
+                        ]:
+                            _m = re.search(_pat, _at.text)
+                            if _m:
+                                _cn = _m.group(1).strip()
+                                if _cn and len(_cn) > 2:
+                                    results["carrier"] = _cn
+                                    break
+                except Exception:
+                    pass
+
+            # ── SIRET lookup (now that carrier is finalised) ─────
+            _siret = _FR_CARRIER_SIRET.get(results["carrier"].lower().strip(), "")
+
+            results["arcep"] = {
+                "territory":        _territory,
+                "siret":            _siret,
+                "attribution_date": _attribution_date,
+            }
+
+        # ── Build URL helpers ─────────────────────────────────
+        _fn_q = firstname.strip().replace(" ", "+") if firstname else ""
+        _pb_who = f"?quoiqui={_fn_q}&numtel={national_clean}" if _fn_q else f"?quoiqui=&numtel={national_clean}"
+
         # ── Reverse lookup + general search ──────────────────
         results["reverse_links"] = {
             "pages_blanches": (
-                "https://www.pagesjaunes.fr/pagesblanches/chercherlespersonnes"
-                f"?quoiqui=&numtel={national_clean}"
+                "https://www.pagesjaunes.fr/pagesblanches/chercherlespersonnes" + _pb_who
             ),
-            "118712":     f"https://annuaire.118712.fr/inversee/{national_clean}",
-            "google_e164":    f"https://www.google.com/search?q=%22{e164_q}%22",
+            "118712":          f"https://annuaire.118712.fr/inversee/{national_clean}",
+            "118000":          f"https://www.118000.fr/search?phone={national_clean}",
+            "annuairetel":     f"https://www.annuairetel.com/numero/{national_clean}",
+            "phonebook":       f"https://www.phonebook.fr/numero/{national_clean}",
+            "qui_appelle":     f"https://www.qui-appelle.fr/{national_clean}",
+            "lesarnaques":     f"https://www.lesarnaques.com/telephone/{national_clean}",
+            "spamcalls":       f"https://www.spamcalls.net/fr/search?number={national_clean}",
+            "callerinfo":      f"https://callerinfo.fr/{national_clean}",
+            "google_e164":     f"https://www.google.com/search?q=%22{e164_q}%22",
             "google_national": f"https://www.google.com/search?q=%22{nat_q}%22",
         }
 
@@ -573,15 +983,43 @@ async def _search_phone_direct(
             "twitter":   f"https://www.google.com/search?q=%22{nat_q}%22+site%3Atwitter.com",
             "viadeo":    f"https://www.google.com/search?q=%22{nat_q}%22+site%3Aviadeo.com",
             "leboncoin": f"https://www.google.com/search?q=%22{nat_q}%22+site%3Aleboncoin.fr",
-            "skypli":    f"https://www.skypli.com/search/{national_clean}",
         }
+        # Add firstname-personalized dorks when we have a name to work with
+        if _fn_q:
+            results["identity_links"]["google_name_phone"] = (
+                f"https://www.google.com/search?q=%22{_fn_q}%22+%22{nat_q}%22"
+            )
+            results["identity_links"]["google_name_e164"] = (
+                f"https://www.google.com/search?q=%22{_fn_q}%22+%22{e164_q}%22"
+            )
+            results["identity_links"]["facebook_phone"] = (
+                f"https://www.facebook.com/search/top/?q={e164_q}"
+            )
 
         # ── Messaging / caller-ID apps ────────────────────────
         results["app_links"] = {
-            "whatsapp":  f"https://wa.me/{e164_no_plus}",
-            "telegram":  f"https://t.me/+{e164_no_plus}",
+            "whatsapp":   f"https://wa.me/{e164_no_plus}",
+            "telegram":   f"https://t.me/+{e164_no_plus}",
             "truecaller": f"https://www.truecaller.com/search/fr/{e164_no_plus}",
+            "syncme":     f"https://sync.me/search/?number={e164_no_plus}",
+            "viber":      f"viber://chat?number={e164_no_plus}",
         }
+
+        # ── Caller name detection (Truecaller → callerinfo → annuairetel) ─
+        if results["valid"]:
+            results["caller_name"] = _fetch_caller_name(
+                results["e164"], e164_no_plus, national_clean
+            )
+
+        # ── Public footprint — verified dorks ──────────────────
+        if results["valid"]:
+            results["footprint"] = _build_phone_footprint(
+                national_clean, results["e164"], firstname
+            )
+
+        # ── Tellows spam check (free API + page scrape fallback) ──
+        if results["valid"]:
+            results["tellows"] = _fetch_tellows(results["e164"])
 
         import subprocess
 
@@ -2463,11 +2901,13 @@ async def _run_with_llm(session, tools, firstname, lastname, birth_year, keyword
                 + len(report.get("business", {}).get("pappers", []))
             ),
             "phone": {
-                "valid":   report["phone"].get("valid"),
-                "type":    report["phone"].get("type"),
-                "carrier": report["phone"].get("carrier"),
-                "region":  report["phone"].get("region"),
-                "social":  [p["site"] for p in report["phone"].get("ignorant_platforms", []) if p["status"] == "found"],
+                "valid":     report["phone"].get("valid"),
+                "type":      report["phone"].get("type"),
+                "carrier":   report["phone"].get("carrier"),
+                "region":    report["phone"].get("region"),
+                "territory": (report["phone"].get("arcep") or {}).get("territory", ""),
+                "siret":     (report["phone"].get("arcep") or {}).get("siret", ""),
+                "social":    [p["site"] for p in report["phone"].get("ignorant_platforms", []) if p["status"] == "found"],
             } if report.get("phone") else None,
             "instagram": [
                 {"username": p["username"], "display_name": p.get("display_name",""),

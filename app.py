@@ -26,9 +26,10 @@ _INSTANT_PLATFORMS = (
     "tiktok|instagram|bereal|snapchat|steam|vinted|strava|telegram"
     "|reddit|github|twitter|linkedin|facebook|youtube|twitch|discord|pinterest"
 )
-# Pass 1 — platform → anywhere (≤60 chars) → @/quote → username
+# Pass 1 — platform → ≤30 chars → explicit @/"` quote → username
+# Apostrophes excluded: French contractions (d'Angers, c'est, y'a…) cause false positives.
 _INSTANT_RE_QUOTED = _re_global.compile(
-    r"\b(" + _INSTANT_PLATFORMS + r")\b.{0,60}?[@'\"`]([\w.\-_]{3,40})",
+    r"\b(" + _INSTANT_PLATFORMS + r")\b.{0,30}?[@\"`]([\w.\-_]{3,40})",
     _re_global.I | _re_global.S,
 )
 # Pass 2 — platform + optional connector + bare username word
@@ -44,7 +45,8 @@ _INSTANT_RECORD_RE = _re_global.compile(
 # Words to reject as usernames (common connectors, English/French nouns)
 _NOISE_WORDS = frozenset(
     "the his her its our add and for but not que les des une son est cas pas sur "
-    "lui elle avec dans account profile page user handle channel group name".split()
+    "lui elle avec dans account profile page user handle channel group name "
+    "tu as il elle on nous vous ils elles avez avons ont".split()
 )
 
 
@@ -54,6 +56,11 @@ def _instant_record_to_case(question: str, inv_id: str, case_id: str = "") -> di
     Returns execute result dict on match, else None.
     case_id is the case DID; inv_id kept for signature compat but not used for writing.
     """
+    # Questions are never recording commands — let Watson handle them
+    stripped = question.strip()
+    if stripped.endswith("?"):
+        return None
+
     if not _INSTANT_RECORD_RE.search(question):
         return None
     # Try quoted / @-prefixed username first (most explicit)

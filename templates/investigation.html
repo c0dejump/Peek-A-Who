@@ -2021,6 +2021,17 @@ ${body}
           ${typeBadge} ${validBadge}
         </div>`;
 
+        // ── Caller name (Truecaller / callerinfo / annuairetel) ──
+        if (ph.caller_name) {
+          phHtml += `<div style="display:flex;align-items:center;gap:.7rem;padding:.6rem .85rem;background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.35);border-radius:8px;margin-bottom:.9rem">
+            <span style="font-size:1.1rem">🧑</span>
+            <div>
+              <div style="font-size:.68rem;color:var(--accent2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.1rem">Identified owner (caller ID)</div>
+              <div style="font-size:1rem;font-weight:700;color:#fff">${esc(ph.caller_name)}</div>
+            </div>
+          </div>`;
+        }
+
         // ── Info grid ──
         const infoRows = [
           ['E.164',      ph.e164],
@@ -2035,6 +2046,54 @@ ${body}
             phHtml += `<span style="color:var(--muted)">${esc(l)}</span><span style="color:var(--text);font-family:monospace">${esc(v)}</span>`;
           });
           phHtml += `</div>`;
+        }
+
+        // ── ARCEP enrichment (France only) ──
+        const arcep = ph.arcep || {};
+        if (arcep.territory || arcep.siret || arcep.attribution_date) {
+          phHtml += `<div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem">ARCEP — Régulateur des télécoms</div>
+          <div style="display:grid;grid-template-columns:140px 1fr;gap:.2rem .75rem;font-size:.78rem;margin-bottom:.9rem;padding:.6rem .75rem;background:rgba(96,165,250,.04);border:1px solid rgba(96,165,250,.2);border-radius:7px">
+            ${arcep.territory        ? `<span style="color:var(--muted)">Territory</span><span style="color:var(--text)">${esc(arcep.territory)}</span>` : ''}
+            ${arcep.siret            ? `<span style="color:var(--muted)">Operator SIRET</span><span style="color:var(--text);font-family:monospace">${esc(arcep.siret)}</span>` : ''}
+            ${arcep.attribution_date ? `<span style="color:var(--muted)">Attribution date</span><span style="color:var(--text)">${esc(arcep.attribution_date)}</span>` : ''}
+          </div>`;
+        }
+
+        // ── Tellows spam score ──
+        const tw = ph.tellows || {};
+        if (tw.score !== undefined && tw.score !== null) {
+          const scoreColor = tw.score <= 3 ? '#4ade80' : tw.score <= 6 ? 'var(--warning)' : 'var(--danger)';
+          const scoreLabel = tw.score <= 3 ? 'Safe' : tw.score <= 6 ? 'Neutral' : 'Spam / Scam';
+          phHtml += `<div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem">Tellows — Spam score</div>
+          <div style="display:flex;align-items:center;gap:.9rem;padding:.55rem .75rem;background:rgba(0,0,0,.1);border:1px solid ${scoreColor}44;border-radius:7px;margin-bottom:.9rem">
+            <div style="width:2.4rem;height:2.4rem;border-radius:50%;background:${scoreColor}22;border:2px solid ${scoreColor};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <span style="font-size:1rem;font-weight:800;color:${scoreColor};font-family:monospace">${tw.score}</span>
+            </div>
+            <div>
+              <div style="font-size:.82rem;font-weight:600;color:${scoreColor}">${scoreLabel}</div>
+              ${tw.caller_type ? `<div style="font-size:.72rem;color:var(--muted);margin-top:.1rem">${esc(tw.caller_type)}</div>` : ''}
+              <div style="font-size:.7rem;color:var(--muted);margin-top:.1rem">${tw.comments || 0} report(s)${tw.searches ? ` &middot; ${tw.searches} lookups` : ''}</div>
+            </div>
+            <a href="${esc(tw.url)}" target="_blank" style="margin-left:auto;font-size:.71rem;color:var(--muted);text-decoration:none;white-space:nowrap">tellows ↗</a>
+          </div>`;
+        }
+
+        // ── Public footprint — verified dorks ──
+        const fp = ph.footprint || {};
+        const fpEntries = Object.entries(fp);
+        phHtml += `<div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem">Public footprint — verified dorks</div>`;
+        if (fpEntries.length) {
+          phHtml += `<div style="padding:.6rem .75rem;background:rgba(248,81,73,.05);border:1px solid rgba(248,81,73,.25);border-radius:7px;margin-bottom:.9rem">
+            <div style="font-size:.72rem;color:var(--danger);font-weight:600;margin-bottom:.5rem">⚠ Number found publicly on ${fpEntries.length} source(s)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:.35rem">`;
+          fpEntries.forEach(([label, url]) => {
+            phHtml += `<a href="${esc(url)}" target="_blank"
+              style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);border-radius:6px;color:var(--danger);font-size:.74rem;padding:.28rem .6rem;text-decoration:none"
+              >📌 ${esc(label)} ↗</a>`;
+          });
+          phHtml += `</div></div>`;
+        } else {
+          phHtml += `<div style="font-size:.74rem;color:var(--muted);padding:.45rem .75rem;background:rgba(63,185,80,.04);border:1px solid rgba(63,185,80,.18);border-radius:7px;margin-bottom:.9rem">✓ No public mentions found across checked sources</div>`;
         }
 
         // ── Numverify enrichment ──
@@ -2082,28 +2141,44 @@ ${body}
         }
 
         const rl = ph.reverse_links || {};
-        phHtml += linkGroup('Reverse lookup', [
-          ['Pages Blanches', rl.pages_blanches],
-          ['118712',         rl.google_e164 ? rl['118712'] : ''],
-          ['Google (E.164)',  rl.google_e164],
+        phHtml += linkGroup('Reverse lookup & caller ID', [
+          ['Pages Blanches',    rl.pages_blanches],
+          ['118 712',           rl['118712']],
+          ['118 000',           rl['118000']],
+          ['AnnuaireTel',       rl.annuairetel],
+          ['Phonebook.fr',      rl.phonebook],
+          ['Qui appelle ?',     rl.qui_appelle],
+          ['Les Arnaques',      rl.lesarnaques],
+          ['SpamCalls',         rl.spamcalls],
+          ['CallerInfo',        rl.callerinfo],
+          ['Google (E.164)',    rl.google_e164],
           ['Google (national)', rl.google_national],
         ].filter(([,v]) => v), 'var(--accent)');
 
         const il = ph.identity_links || {};
+        // Personalized dorks (firstname + phone) shown first when available
+        if (il.google_name_phone || il.google_name_e164 || il.facebook_phone) {
+          phHtml += linkGroup('Name + phone dorks (personalized)', [
+            ['Google (name + national)', il.google_name_phone],
+            ['Google (name + E.164)',    il.google_name_e164],
+            ['Facebook search',          il.facebook_phone],
+          ].filter(([,v]) => v), '#a78bfa');
+        }
         phHtml += linkGroup('Identity dorks — social & marketplace', [
           ['Facebook',  il.facebook],
           ['LinkedIn',  il.linkedin],
           ['Twitter/X', il.twitter],
           ['Viadeo',    il.viadeo],
           ['Leboncoin', il.leboncoin],
-          ['Skypli (Skype)', il.skypli],
         ].filter(([,v]) => v), '#d2a679');
 
         const al = ph.app_links || {};
-        phHtml += linkGroup('Messaging apps', [
+        phHtml += linkGroup('Messaging & caller-ID apps', [
           ['WhatsApp',   al.whatsapp],
           ['Telegram',   al.telegram],
           ['Truecaller', al.truecaller],
+          ['Sync.me',    al.syncme],
+          ['Viber',      al.viber],
         ].filter(([,v]) => v), 'var(--accent2)');
 
         // ── ignorant social platform checks ──

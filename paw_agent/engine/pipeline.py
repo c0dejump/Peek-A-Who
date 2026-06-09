@@ -323,12 +323,26 @@ async def run_investigation(
     _ig_candidates: list[str] = []
     _validated_usernames: list[str] = []  # confirmed on at least 1 platform
 
-    if "social_media" in active_modules and (firstname or lastname):
+    # Social media search requires enough context to produce non-trivial candidates.
+    # firstname alone generates hyper-generic usernames (e.g. "thomas") that flood
+    # every platform and produce useless noise.
+    _social_has_context = bool(
+        pseudo                          # pseudo is always specific enough
+        or (firstname and lastname)     # firstname + lastname → real combos
+        or (firstname and keywords)     # firstname + keyword
+        or (firstname and cities)       # firstname + city
+        or (firstname and birth_year)   # firstname + year
+        or (lastname and not firstname) # lastname alone → acceptable
+    )
+
+    if "social_media" in active_modules and _social_has_context:
         dept_codes = [k for k in city_extras if re.match(r"^\d{2}$", k)]
         _ig_candidates = _generate_ig_usernames(
             firstname, lastname, birth_year,
             keywords=keywords, pseudo=pseudo, dept_codes=dept_codes,
         )
+    elif "social_media" in active_modules and not _social_has_context:
+        emit("  ⏭  [Step 0.93–0.97] Social media skipped — need last name, pseudo, keyword or city alongside first name")
 
     # ── Step 0.93: Username pre-validation (maigret + sherlock, 36 sites) ──
     _prevalidation: dict = {}
@@ -423,7 +437,7 @@ async def run_investigation(
         emit("")
 
     # ── Step 0.95: Instagram ─────────────────────────────────────
-    if "social_media" in active_modules and (firstname or lastname):
+    if "social_media" in active_modules and _social_has_context:
         emit(f"  💭 [Step 0.95] Instagram username search — {len(_ig_candidates)} candidates…")
         emit(f"  📱  First: {', '.join(_ig_candidates[:5])}")
         try:
@@ -473,7 +487,7 @@ async def run_investigation(
         emit("")
 
     # ── Step 0.95c: TikTok ──────────────────────────────────────
-    if "social_media" in active_modules and (firstname or lastname):
+    if "social_media" in active_modules and _social_has_context:
         emit(f"  💭 [Step 0.95c] TikTok username search — {len(_ig_candidates)} candidates…")
         try:
             tt = await _tiktok_run(
@@ -497,7 +511,7 @@ async def run_investigation(
         emit("")
 
     # ── Step 0.95d: LinkedIn (URL candidates — not verifiable) ───
-    if "social_media" in active_modules and (firstname or lastname):
+    if "social_media" in active_modules and _social_has_context:
         emit(f"  💭 [Step 0.95d] LinkedIn profile candidates…")
         try:
             li = await _linkedin_run(
