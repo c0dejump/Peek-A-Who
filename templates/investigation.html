@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PAW — Investigation</title>
+  <title>Peek-A-Who</title>
   <link rel="icon" type="image/png" href="/static/logo_PAW.png" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -62,7 +62,20 @@
     .badge-running .dot { background: var(--accent2); animation: blink 1.2s infinite; }
     .badge-done    { background: rgba(88,166,255,.12); color: var(--accent); }
     .badge-done    .dot { background: var(--accent); }
+    .tok-counter {
+      display: none; align-items: center; gap: .3rem;
+      font-size: .72rem; color: var(--muted);
+      background: rgba(139,148,158,.08); border: 1px solid rgba(139,148,158,.18);
+      border-radius: 20px; padding: .2rem .65rem;
+      cursor: default;
+    }
+    .tok-counter.visible { display: inline-flex; }
+    .tok-counter .tok-icon { font-size: .8rem; }
+    .tok-counter .tok-num  { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+    .tok-counter .tok-sep  { color: rgba(139,148,158,.5); margin: 0 .15rem; }
+    .tok-counter .tok-sub  { font-size: .65rem; color: var(--muted); }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    @keyframes validFlash { 0%{opacity:0;transform:scale(.8)} 30%{opacity:1;transform:scale(1.05)} 70%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(1)} }
 
     /* ── Target strip ── */
     .target-strip {
@@ -350,123 +363,335 @@
     .dl-menu button:hover { background: rgba(88,166,255,.08); color: var(--accent); }
     .dl-menu .dl-sep { height: 1px; background: var(--border); margin: .2rem 0; }
 
-    /* ── Confirmation checkpoint ── */
-    #confirm-panel {
-      display: none;
-      width: 100%; max-width: 980px;
-      margin-top: 1rem;
+    /* ── Hypothesis cards ── */
+    .hyp-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: .75rem 1rem; margin-bottom: .6rem;
     }
-    .confirm-card {
-      background: var(--surface);
-      border: 1px solid var(--warning);
-      border-radius: 10px;
+    .hyp-card .hyp-header {
+      display: flex; align-items: center; gap: .6rem; margin-bottom: .45rem;
+    }
+    .hyp-card .hyp-badge {
+      font-size: .62rem; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; padding: .12rem .5rem; border-radius: 20px;
+      flex-shrink: 0;
+    }
+    .hyp-confirmed { background: rgba(63,185,80,.15); color: #3fb950; border: 1px solid rgba(63,185,80,.3); }
+    .hyp-probable  { background: rgba(210,153,34,.15); color: #d29922; border: 1px solid rgba(210,153,34,.3); }
+    .hyp-low       { background: rgba(139,148,158,.12); color: var(--muted); border: 1px solid rgba(139,148,158,.2); }
+    .hyp-card .hyp-claim { font-size: .82rem; font-weight: 600; color: var(--text); flex: 1; }
+    .hyp-card .hyp-cf { font-size: .72rem; color: var(--muted); flex-shrink: 0; }
+    .hyp-bar { height: 3px; border-radius: 2px; background: var(--border); margin-bottom: .5rem; }
+    .hyp-bar-fill { height: 100%; border-radius: 2px; transition: width .4s ease; }
+    .hyp-confirmed .hyp-bar-fill { background: #3fb950; }
+    .hyp-probable  .hyp-bar-fill { background: #d29922; }
+    .hyp-low       .hyp-bar-fill { background: var(--muted); }
+    .hyp-evidence { font-size: .73rem; color: var(--muted); line-height: 1.5; }
+    .hyp-evidence span.ev-ok  { color: var(--accent2); }
+    .hyp-evidence span.ev-no  { color: var(--danger); }
+
+    /* ── Pivot suggestions ── */
+    .pivot-item {
+      display: flex; gap: .65rem; align-items: flex-start;
+      padding: .5rem 0; border-bottom: 1px solid rgba(48,54,61,.4);
+    }
+    .pivot-item:last-child { border-bottom: none; }
+    .pivot-pri {
+      font-size: .6rem; font-weight: 700; padding: .12rem .45rem;
+      border-radius: 20px; text-transform: uppercase; flex-shrink: 0; margin-top: .05rem;
+    }
+    .pri-high   { background: rgba(248,81,73,.15); color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+    .pri-medium { background: rgba(210,153,34,.12); color: #d29922; border: 1px solid rgba(210,153,34,.3); }
+    .pri-low    { background: rgba(63,185,80,.1); color: #3fb950; border: 1px solid rgba(63,185,80,.2); }
+    .pivot-body { flex: 1; }
+    .pivot-action { font-size: .8rem; font-weight: 600; color: var(--text); margin-bottom: .2rem; }
+    .pivot-why    { font-size: .72rem; color: var(--muted); line-height: 1.4; }
+    .pivot-ask-btn {
+      font-size: .68rem; padding: .1rem .4rem; margin-left: .4rem;
+      background: rgba(88,166,255,.08); border: 1px solid rgba(88,166,255,.25);
+      border-radius: 4px; color: var(--accent); cursor: pointer;
+      transition: background .12s;
+    }
+    .pivot-ask-btn:hover { background: rgba(88,166,255,.18); }
+
+    /* ── Watson sidebar ── */
+    body { padding-right: 350px; }
+    #watson {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 340px; z-index: 900;
+      background: var(--surface); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+      transition: width .2s ease;
+    }
+    #watson.collapsed { width: 38px; }
+    #watson.collapsed .w-collapse-ico { transform: rotate(180deg); }
+    #watson.collapsed .w-body { display: none; }
+    #watson.collapsed #w-tab { display: flex; }
+
+    /* collapsed tab */
+    #w-tab {
+      display: none; flex-direction: column; align-items: center;
+      padding-top: .8rem; gap: .5rem; flex: 1;
+      writing-mode: vertical-rl; text-orientation: mixed;
+      cursor: pointer; color: var(--accent); font-size: .7rem; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase;
+    }
+
+    .w-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* header */
+    #w-header {
+      padding: .7rem .9rem .6rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      display: flex; align-items: center; gap: .55rem; flex-shrink: 0;
+    }
+    .w-logo { font-size: 1rem; }
+    .w-name { font-size: .88rem; font-weight: 800; color: #fff; letter-spacing: .02em; }
+    .w-sub  { font-size: .62rem; color: var(--muted); margin-top: .05rem; }
+    .w-status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); flex-shrink: 0; margin-left: auto;
+    }
+    .w-status-dot.ready   { background: var(--accent2); }
+    .w-status-dot.busy    { background: var(--warning); animation: pulse 1s infinite; }
+    .w-status-dot.offline { background: var(--danger); }
+
+    /* Offline banner inside Watson */
+    #w-offline-bar {
+      display: none; flex-direction: column; gap: .4rem;
+      padding: .65rem .8rem; margin: .4rem .6rem;
+      background: rgba(248,81,73,.08); border: 1px solid rgba(248,81,73,.3);
+      border-radius: 8px; font-size: .78rem; color: var(--danger);
+    }
+    #w-offline-bar.show { display: flex; }
+    #w-offline-bar .w-offline-title { font-weight: 700; }
+    #w-offline-bar .w-offline-hint  { color: var(--muted); font-size: .72rem; }
+    .w-offline-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .w-offline-btn {
+      font-size: .72rem; font-weight: 700; padding: .25rem .65rem;
+      border-radius: 6px; cursor: pointer; border: 1px solid;
+      transition: opacity .15s;
+    }
+    .w-offline-btn:hover { opacity: .8; }
+    .w-offline-btn.restart {
+      background: rgba(248,81,73,.14); border-color: rgba(248,81,73,.5); color: var(--danger);
+    }
+    .w-offline-btn.retry {
+      background: rgba(139,148,158,.1); border-color: var(--border); color: var(--muted);
+    }
+    #w-collapse {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: .8rem; padding: .1rem .2rem; line-height: 1;
+      transition: color .12s;
+    }
+    #w-collapse:hover { color: var(--text); }
+    .w-collapse-ico { display: inline-block; transition: transform .2s; }
+
+    /* quick actions */
+    #w-actions {
+      padding: .55rem .75rem; border-bottom: 1px solid var(--border);
+      display: none; flex-direction: column; gap: .35rem; flex-shrink: 0;
+    }
+    #w-actions .wa-label {
+      font-size: .58rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: .1rem;
+    }
+    .wa-row { display: flex; flex-wrap: wrap; gap: .3rem; }
+    .wa-btn {
+      font-size: .68rem; padding: .22rem .55rem;
+      border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text);
+      cursor: pointer; transition: border-color .12s, background .12s, color .12s;
+      white-space: nowrap;
+    }
+    .wa-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,.06); }
+    .wa-btn.action-add   { border-color: rgba(63,185,80,.35); color: #3fb950; }
+    .wa-btn.action-add:hover { background: rgba(63,185,80,.08); border-color: #3fb950; }
+    .wa-btn.action-enrich { border-color: rgba(88,166,255,.35); color: var(--accent); }
+    .wa-btn.action-enrich:hover { background: rgba(88,166,255,.08); }
+    .wa-btn.action-search { border-color: rgba(210,153,34,.35); color: var(--warning); }
+    .wa-btn.action-search:hover { background: rgba(210,153,34,.08); }
+
+    /* messages */
+    #w-msgs {
+      flex: 1; overflow-y: auto; padding: .75rem .8rem;
+      display: flex; flex-direction: column; gap: .6rem;
+      scroll-behavior: smooth;
+    }
+    .w-msg { display: flex; flex-direction: column; }
+    .w-msg.user     { align-items: flex-end; }
+    .w-msg.watson   { align-items: flex-start; }
+    .w-msg.system   { align-items: center; }
+    .w-bubble {
+      max-width: 96%; padding: .45rem .7rem;
+      border-radius: 10px; font-size: .76rem; line-height: 1.55;
+      word-break: break-word;
+    }
+    .w-msg.user   .w-bubble { background: var(--accent); color: #0d1117; border-radius: 10px 10px 2px 10px; }
+    .w-msg.watson .w-bubble { background: var(--surface2); color: var(--text); border-radius: 2px 10px 10px 10px; }
+    .w-msg.system .w-bubble {
+      background: transparent; color: var(--muted); font-size: .68rem;
+      font-style: italic; padding: .1rem 0; text-align: center;
+    }
+    .w-sources {
+      font-size: .62rem; color: var(--muted); margin-top: .12rem; max-width: 96%;
+    }
+    .w-cf {
+      display: inline-block; font-size: .55rem; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; padding: .04rem .3rem; border-radius: 20px; margin-left: .3rem;
+    }
+    .cf-confirmed { background: rgba(63,185,80,.15); color: #3fb950; }
+    .cf-probable  { background: rgba(210,153,34,.12); color: var(--warning); }
+    .cf-low,.cf-unknown { background: rgba(139,148,158,.1); color: var(--muted); }
+    .w-followup { display: flex; flex-wrap: wrap; gap: .25rem; max-width: 96%; margin-top: .2rem; }
+    .w-followup button {
+      font-size: .62rem; padding: .12rem .4rem;
+      background: rgba(88,166,255,.06); border: 1px solid rgba(88,166,255,.2);
+      border-radius: 20px; color: var(--accent); cursor: pointer;
+    }
+    .w-followup button:hover { background: rgba(88,166,255,.15); }
+
+    /* suggestions strip */
+    #w-suggestions {
+      border-top: 1px solid var(--border);
+      padding: .45rem .7rem .55rem; flex-shrink: 0; display: none;
+    }
+    #w-suggestions .ws-label {
+      font-size: .58rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: .25rem;
+    }
+    #w-suggestions button {
+      display: block; width: 100%; text-align: left;
+      font-size: .7rem; padding: .25rem .45rem; margin-bottom: .2rem;
+      background: none; border: 1px solid rgba(48,54,61,.7); border-radius: 6px;
+      color: var(--text); cursor: pointer; transition: background .1s;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #w-suggestions button:hover { background: rgba(88,166,255,.06); border-color: rgba(88,166,255,.3); color: var(--accent); }
+
+    /* input */
+    #w-input-row {
+      display: flex; gap: .4rem; padding: .55rem .7rem;
+      border-top: 1px solid var(--border); background: var(--surface2); flex-shrink: 0;
+    }
+    #w-input {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: .76rem;
+      padding: .38rem .6rem; resize: none; outline: none;
+      min-height: 34px; max-height: 90px; font-family: inherit; line-height: 1.4;
+    }
+    #w-input:focus { border-color: var(--accent); }
+    #w-send {
+      background: var(--accent); border: none; border-radius: 8px;
+      color: #0d1117; font-weight: 800; font-size: .82rem;
+      padding: .35rem .8rem; cursor: pointer; align-self: flex-end;
+      transition: opacity .15s;
+    }
+    #w-send:disabled { opacity: .4; cursor: default; }
+
+    /* Tool usage indicators */
+    .w-thinking-dots span {
+      animation: w-blink 1.2s infinite; display: inline-block;
+    }
+    .w-thinking-dots span:nth-child(2) { animation-delay: .2s; }
+    .w-thinking-dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes w-blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+
+    .w-tool-spin { display: inline-block; animation: w-spin .8s linear infinite; }
+    @keyframes w-spin { to { transform: rotate(360deg); } }
+
+    .w-tools-used {
+      display: flex; flex-wrap: wrap; gap: .3rem;
+      margin-bottom: .4rem;
+    }
+    .w-tool-tag {
+      font-size: .65rem; padding: .1rem .35rem;
+      border-radius: 3px; font-weight: 600;
+      background: rgba(63,185,80,.12); color: var(--accent2);
+      border: 1px solid rgba(63,185,80,.25);
+    }
+
+    @media (max-width: 900px) {
+      body { padding-right: 0; }
+      #watson { width: 100%; top: auto; height: 300px; border-top: 1px solid var(--border); border-left: none; }
+      #watson.collapsed { height: 38px; width: 100%; }
+    }
+
+    /* ── Progress strip ─────────────────────────────────── */
+    .progress-strip {
+      background: rgba(13,17,23,.96);
+      border-bottom: 1px solid var(--border);
+      padding: .5rem 1.2rem .45rem;
+      display: flex;
+      flex-direction: column;
+      gap: .3rem;
+    }
+    .progress-strip.hidden { display: none; }
+    .prog-meta {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+    .prog-phase-label {
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .prog-bar-track {
+      flex: 1;
+      height: 3px;
+      background: rgba(255,255,255,.08);
+      border-radius: 2px;
       overflow: hidden;
     }
-    .confirm-header {
-      background: rgba(210,153,34,.08);
-      border-bottom: 1px solid var(--warning);
-      padding: .75rem 1.25rem;
-      display: flex; align-items: center; gap: .75rem;
+    .prog-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+      transition: width .5s ease;
+      width: 0%;
     }
-    .confirm-header h2 {
-      font-size: .9rem; font-weight: 700; color: #fff; flex: 1;
+    .prog-count {
+      font-size: .68rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
-    .confirm-body { padding: 1.25rem; }
-    .confirm-summary {
-      font-size: .85rem; line-height: 1.7; color: var(--text);
-      margin-bottom: 1rem;
-      padding: .75rem 1rem;
-      background: rgba(88,166,255,.05);
-      border: 1px solid rgba(88,166,255,.15);
-      border-radius: 7px;
+    .prog-steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .22rem;
     }
-    .confirm-evidence { font-size: .8rem; margin-bottom: 1.1rem; }
-    .confirm-evidence .ce-row { display: flex; gap: .5rem; margin-bottom: .3rem; }
-    .confirm-evidence .ce-lbl { color: var(--muted); min-width: 100px; }
-    .confirm-evidence .ce-val { color: var(--text); }
-    .confirm-actions {
-      display: flex; gap: .75rem; justify-content: flex-end; flex-wrap: wrap;
+    .prog-step {
+      font-size: .63rem;
+      padding: .08rem .32rem;
+      border-radius: 3px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+      transition: color .25s, border-color .25s, background .25s;
     }
-    .btn-confirm-stop {
-      background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.3);
-      border-radius: 8px; color: var(--danger); cursor: pointer;
-      font-size: .85rem; font-weight: 600; padding: .6rem 1.4rem;
-      transition: opacity .15s;
+    .prog-step.p-pending {
+      color: rgba(139,148,158,.45);
+      border-color: rgba(255,255,255,.06);
     }
-    .btn-confirm-stop:hover { opacity: .8; }
-    .btn-confirm-go {
-      background: var(--accent); border: none;
-      border-radius: 8px; color: #0d1117; cursor: pointer;
-      font-size: .9rem; font-weight: 700; padding: .65rem 1.6rem;
-      transition: opacity .15s;
+    .prog-step.p-running {
+      color: #e3b341;
+      border-color: rgba(227,179,65,.4);
+      background: rgba(227,179,65,.08);
+      animation: p-pulse 1.3s ease-in-out infinite;
     }
-    .btn-confirm-go:hover { opacity: .88; }
-
-    /* ── Timeline + Maigret ── */
-    .timeline-line { display: flex; gap: .75rem; margin-bottom: .5rem; align-items: flex-start; font-size: .8rem; }
-    .timeline-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: .3rem; }
-    .timeline-text { color: var(--text); line-height: 1.55; }
-    .loc-tag {
-      display: inline-block;
-      background: rgba(63,185,80,.1); border: 1px solid rgba(63,185,80,.25);
-      border-radius: 4px; color: var(--accent2); font-size: .72rem; padding: .1rem .4rem;
-      margin: .1rem .15rem;
+    .prog-step.p-running::before { content: '▶ '; font-size: .55rem; }
+    .prog-step.p-done {
+      color: var(--accent2);
+      border-color: rgba(63,185,80,.3);
+      background: rgba(63,185,80,.06);
     }
-    .platform-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: .5rem;
-      margin-top: .5rem;
+    .prog-step.p-done::before { content: '✓ '; }
+    @keyframes p-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .5; }
     }
-    .platform-card {
-      display: flex; align-items: center; gap: .5rem;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 6px; padding: .5rem .75rem; font-size: .78rem;
-    }
-    .platform-card a { color: var(--accent); text-decoration: none; font-weight: 600; }
-    .platform-card a:hover { text-decoration: underline; }
-    .pcat-loc  { border-left: 3px solid var(--accent2); }
-    .pcat-mkt  { border-left: 3px solid var(--warning); }
-    .pcat-game { border-left: 3px solid #a371f7; }
-    .pcat-soc  { border-left: 3px solid var(--accent); }
-
-    /* ── Social platforms grid ── */
-    .splat-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: .65rem;
-      margin-top: .5rem;
-    }
-    .splat-card {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: .65rem .9rem;
-      font-size: .8rem;
-    }
-    .splat-card.splat-found   { border-color: var(--accent2); background: rgba(63,185,80,.05); }
-    .splat-card.splat-weak    { border-color: rgba(210,153,34,.45); background: rgba(210,153,34,.03); }
-    .splat-card.splat-manual  { border-color: var(--warning);  background: rgba(210,153,34,.05); }
-    .splat-card.splat-none    { opacity: .5; }
-    .splat-header {
-      display: flex; align-items: center; gap: .45rem;
-      font-weight: 700; font-size: .78rem; margin-bottom: .35rem;
-    }
-    .splat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .splat-dot.dot-found  { background: var(--accent2); }
-    .splat-dot.dot-weak   { background: var(--warning); }
-    .splat-dot.dot-manual { background: var(--warning); }
-    .splat-dot.dot-none   { background: var(--border); }
-    .splat-profile { margin-top: .2rem; }
-    .splat-profile a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: .82rem; }
-    .splat-profile a:hover { text-decoration: underline; }
-    .splat-rel { font-size: .7rem; color: var(--muted); margin-left: .3rem; }
-    .splat-dn  { font-size: .75rem; color: var(--text); }
-    .confirm-timeline {
-      font-size: .8rem; line-height: 1.7;
-      padding: .65rem .9rem;
-      background: rgba(63,185,80,.04); border: 1px solid rgba(63,185,80,.15);
-      border-radius: 7px; margin-bottom: .75rem;
-    }
-    .confirm-locations { margin-bottom: .75rem; }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 </head>
@@ -483,6 +708,11 @@
   <a href="/history" class="nav-link">History</a>
   <a href="/config" class="nav-link">Configuration</a>
   <div class="nav-right">
+    <span class="tok-counter" id="tok-counter" title="LLM token usage for this investigation">
+      <span class="tok-icon">🪙</span>
+      <span class="tok-num" id="tok-total">0</span>
+      <span class="tok-sub" id="tok-detail"></span>
+    </span>
     <span class="inv-badge {% if inv_done %}badge-done{% else %}badge-running{% endif %}" id="nav-badge">
       <span class="dot"></span>
       <span id="nav-badge-text">{% if inv_done %}Done{% else %}Running{% endif %}</span>
@@ -521,6 +751,25 @@
     style="margin-left:.5rem;border-color:var(--accent);color:var(--accent);" title="Create a new case from this investigation">
     &#128269; Save as Case
   </button>
+  <a id="btn-report" href="/investigation/report"
+    style="display:none;margin-left:.5rem;
+           font-size:.72rem;padding:.28rem .7rem;
+           border:1px solid rgba(63,185,80,.4);border-radius:6px;
+           background:rgba(63,185,80,.08);color:#3fb950;
+           text-decoration:none;transition:background .12s;"
+    title="View Phase 3 intelligence report">
+    &#128202; Intelligence Report
+  </a>
+</div>
+
+<!-- ── Progress strip ── -->
+<div class="progress-strip{% if inv_done %} hidden{% endif %}" id="progress-strip">
+  <div class="prog-meta">
+    <span class="prog-phase-label" id="prog-phase-label">Phase 1 — Passive Intel</span>
+    <div class="prog-bar-track"><div class="prog-bar-fill" id="prog-bar-fill"></div></div>
+    <span class="prog-count" id="prog-count">— / —</span>
+  </div>
+  <div class="prog-steps" id="prog-steps"></div>
 </div>
 
 <!-- ── Terminal ── -->
@@ -538,36 +787,6 @@
     </span>
   </div>
   <div id="terminal"><span id="cursor" class="cursor"></span></div>
-</div>
-
-<!-- ── Confirmation checkpoint panel ── -->
-<div id="confirm-panel">
-  <div class="confirm-card">
-    <div class="confirm-header">
-      <span style="font-size:1.1rem">&#9208;</span>
-      <h2>&#128064; Confirmation required — Is this the right person?</h2>
-      <span class="status-pill pill-running">
-        <span class="sdot"></span>
-        <span>Awaiting confirmation</span>
-      </span>
-    </div>
-    <div class="confirm-body">
-      <div class="confirm-summary" id="confirm-summary">Passive intelligence has been gathered. Please review the evidence and confirm whether this is the correct target.</div>
-      <div id="confirm-timeline-wrap" style="display:none">
-        <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem">Last known activities</div>
-        <div class="confirm-timeline" id="confirm-timeline"></div>
-      </div>
-      <div id="confirm-locations-wrap" class="confirm-locations" style="display:none">
-        <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem">Key locations</div>
-        <div id="confirm-locations"></div>
-      </div>
-      <div class="confirm-evidence" id="confirm-evidence"></div>
-      <div class="confirm-actions">
-        <button class="btn-confirm-stop" onclick="confirmAction('stop')">&#10007; Wrong target — Stop</button>
-        <button class="btn-confirm-go" onclick="confirmAction('continue')">&#10003; This is the right person — Continue</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- ── Report panel (shown after investigation) ── -->
@@ -632,21 +851,16 @@
         <div id="timeline-content"></div>
       </div>
 
-      <!-- Social platforms -->
-      <div class="report-section full" id="sect-platforms" style="display:none">
-        <div class="rs-title">&#128241; Social Media — Multi-platform</div>
-        <div id="platforms-content"></div>
-      </div>
-
-      <!-- Instagram -->
+      <!-- Social Media (unified) -->
       <div class="report-section full" id="sect-social" style="display:none">
-        <div class="rs-title">&#128247; Instagram</div>
-        <div id="social-list"></div>
+        <div class="rs-title">&#128241; Social Media</div>
+        <div id="platforms-content"></div>
+        <div id="social-list" style="margin-top:.75rem"></div>
       </div>
 
       <!-- Annuaires -->
       <div class="report-section full" id="sect-annuaires" style="display:none">
-        <div class="rs-title">&#128222; Annuaires (Pages Blanches / Pages Jaunes)</div>
+        <div class="rs-title">&#128222; Phone Directories (Pages Blanches / Pages Jaunes)</div>
         <div id="annuaires-list"></div>
       </div>
 
@@ -662,12 +876,6 @@
         <div id="ghunt-list"></div>
       </div>
 
-      <!-- Pseudos & Usernames table -->
-      <div class="report-section full" id="sect-pseudos" style="display:none">
-        <div class="rs-title">&#127917; Pseudos &amp; Usernames</div>
-        <div id="pseudos-content"></div>
-      </div>
-
       <!-- Key dates table -->
       <div class="report-section full" id="sect-dates" style="display:none">
         <div class="rs-title">&#128197; Key dates</div>
@@ -680,10 +888,22 @@
         <div id="keywords-content"></div>
       </div>
 
-      <!-- LLM summary -->
+      <!-- LLM summary (executive) -->
       <div class="report-section full" id="sect-summary" style="display:none">
-        <div class="rs-title">&#129302; AI analysis</div>
+        <div class="rs-title">&#129302; AI analysis — executive summary</div>
         <div class="llm-summary" id="llm-summary"></div>
+      </div>
+
+      <!-- Hypotheses -->
+      <div class="report-section full" id="sect-hypotheses" style="display:none">
+        <div class="rs-title">🧠 Hypotheses</div>
+        <div id="hyp-list"></div>
+      </div>
+
+      <!-- Pivot suggestions -->
+      <div class="report-section full" id="sect-pivots" style="display:none">
+        <div class="rs-title">🔭 Next investigation steps</div>
+        <div id="pivot-list"></div>
       </div>
 
     </div>
@@ -691,8 +911,69 @@
 </div>
 
 <footer>
-  PAW — Peek-A-Who &nbsp;|&nbsp; <a href="https://github.com/c0dejump" target="_blank">@c0dejump</a> &nbsp;|&nbsp; OSINT Tool
+  Peek-A-Who &nbsp;|&nbsp; <a href="https://github.com/c0dejump" target="_blank">@c0dejump</a> &nbsp;|&nbsp; OSINT Tool
 </footer>
+
+<!-- ── Watson — AI investigation partner ── -->
+<div id="watson">
+  <!-- collapsed tab (visible only when collapsed) -->
+  <div id="w-tab" onclick="watsonToggle()">🔬 WATSON</div>
+
+  <div class="w-body">
+    <div id="w-header">
+      <span class="w-logo">🔬</span>
+      <div>
+        <div class="w-name">Watson</div>
+        <div class="w-sub" id="w-sub">AI investigation partner</div>
+      </div>
+      <span class="w-status-dot" id="w-dot"></span>
+      <button id="w-collapse" onclick="watsonToggle()" title="Collapse">
+        <span class="w-collapse-ico">›</span>
+      </button>
+    </div>
+
+    <!-- contextual quick actions — shown when report is loaded -->
+    <div id="w-actions">
+      <div class="wa-label">Quick actions</div>
+      <div class="wa-row" id="w-action-row"></div>
+    </div>
+
+    <!-- offline banner -->
+    <div id="w-offline-bar">
+      <div class="w-offline-title">⚠ Ollama is offline</div>
+      <div class="w-offline-hint">
+        Watson needs Ollama to answer. Start it with <code>ollama serve</code>,
+        or click Restart below.
+      </div>
+      <div class="w-offline-actions">
+        <button class="w-offline-btn restart" onclick="watsonRestartOllama()">⟳ Restart Ollama</button>
+        <button class="w-offline-btn retry"   onclick="watsonRetryConnection()">↺ Check again</button>
+      </div>
+    </div>
+
+    <!-- conversation -->
+    <div id="w-msgs">
+      <div class="w-msg watson" id="w-welcome">
+        <div class="w-bubble">
+          I'm Watson, your investigation partner.<br>
+          I'll analyse findings as they come in and suggest next steps.<br>
+          <span style="color:var(--muted);font-size:.68rem">You can ask me anything, or use quick actions above once the report is ready.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- suggested questions (populated from pivots) -->
+    <div id="w-suggestions">
+      <div class="ws-label">Suggested</div>
+    </div>
+
+    <div id="w-input-row">
+      <textarea id="w-input" placeholder="Ask Watson…" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();watsonSend();}"></textarea>
+      <button id="w-send" onclick="watsonSend()">↑</button>
+    </div>
+  </div>
+</div>
 
 <script>
   const term    = document.getElementById('terminal');
@@ -706,6 +987,12 @@
   const CREATE_CASE = {{ create_case | tojson }};
   let autoCreated   = false;
   let es = null;
+
+  // Show report button immediately if investigation already done
+  if (INV_DONE) {
+    const _btnRpt = document.getElementById('btn-report');
+    if (_btnRpt) _btnRpt.style.display = 'inline-flex';
+  }
 
   function classify(text) {
     if (!text.trim()) return 'line-empty';
@@ -740,6 +1027,110 @@
     statTxt.textContent = label;
   }
 
+  // ── Investigation progress ─────────────────────────────────────────────────
+  const _ACTIVE_MODS = {{ target.modules | tojson | default('["demographics","diplomas","email","phone","social_media"]') }};
+  const _ALL_STEPS = [
+    { id: 'step0',    label: 'Demographics',   module: 'demographics', phase: 1 },
+    { id: 'step0_5',  label: 'Diplomas',       module: 'diplomas',     phase: 1 },
+    { id: 'step0_7',  label: 'Business',       module: null,           phase: 1 },
+    { id: 'step0_8',  label: 'Directories',    module: null,           phase: 1 },
+    { id: 'step0_9',  label: 'Phone',          module: 'phone',        phase: 1 },
+    { id: 'step0_93', label: 'Usernames',      module: 'social_media', phase: 1 },
+    { id: 'step0_95', label: 'Instagram',      module: 'social_media', phase: 1 },
+    { id: 'step0_95c',label: 'TikTok',         module: 'social_media', phase: 1 },
+    { id: 'step0_95d',label: 'LinkedIn',       module: 'social_media', phase: 1 },
+    { id: 'step0_96', label: 'Platforms',      module: 'social_media', phase: 1 },
+    { id: 'step0_99', label: 'Checkpoint',     module: null,           phase: 1 },
+    { id: 'step1',    label: 'Email gen.',     module: 'email',        phase: 2 },
+    { id: 'step2',    label: 'SMTP check',     module: 'email',        phase: 2 },
+    { id: 'step2b',   label: 'GHunt',          module: 'email',        phase: 2 },
+    { id: 'step3',    label: 'HIBP',           module: 'email',        phase: 2 },
+    { id: 'step4',    label: 'Report',         module: 'email',        phase: 2 },
+  ];
+  const _VISIBLE = _ALL_STEPS.filter(s => s.module === null || _ACTIVE_MODS.includes(s.module));
+  const _stepState = {};
+  _VISIBLE.forEach(s => { _stepState[s.id] = 'pending'; });
+  let _curPhase = 1;
+  let _lastRunning = null;
+
+  function _progRenderPhase(phase) {
+    const container = document.getElementById('prog-steps');
+    container.innerHTML = '';
+    _VISIBLE.filter(s => s.phase === phase).forEach(s => {
+      const el = document.createElement('span');
+      el.className = 'prog-step p-' + _stepState[s.id];
+      el.id = 'ps-' + s.id;
+      el.title = s.label;
+      el.textContent = s.label;
+      container.appendChild(el);
+    });
+  }
+
+  function _progRefreshMeta(phase) {
+    const phaseSteps = _VISIBLE.filter(s => s.phase === phase);
+    const done  = phaseSteps.filter(s => _stepState[s.id] === 'done').length;
+    const total = phaseSteps.length;
+    const pct   = total ? Math.round((done / total) * 100) : 0;
+    document.getElementById('prog-bar-fill').style.width = pct + '%';
+    document.getElementById('prog-count').textContent = done + ' / ' + total;
+    document.getElementById('prog-phase-label').textContent =
+      phase === 1 ? 'Phase 1 — Passive Intel' : 'Phase 2 — Active OSINT';
+  }
+
+  function _handleProgress(ev) {
+    const { step, status, phase } = ev;
+    if (!_stepState.hasOwnProperty(step)) return;
+
+    // Switching phases: render new phase pills
+    if (phase && phase !== _curPhase) {
+      // Mark remaining phase-1 steps done
+      _VISIBLE.filter(s => s.phase === _curPhase).forEach(s => {
+        if (_stepState[s.id] !== 'done') _stepState[s.id] = 'done';
+      });
+      _curPhase = phase;
+      _progRenderPhase(_curPhase);
+    }
+
+    // Mark previous running step as done
+    if (status === 'running' && _lastRunning && _lastRunning !== step) {
+      _stepState[_lastRunning] = 'done';
+      const prev = document.getElementById('ps-' + _lastRunning);
+      if (prev) {
+        prev.className = 'prog-step p-done';
+        const def = _ALL_STEPS.find(s => s.id === _lastRunning);
+        if (def) prev.textContent = def.label;
+      }
+    }
+
+    _stepState[step] = status;
+    if (status === 'running') _lastRunning = step;
+
+    const el = document.getElementById('ps-' + step);
+    if (el) {
+      el.className = 'prog-step p-' + status;
+      const def = _ALL_STEPS.find(s => s.id === step);
+      if (def) el.textContent = def.label;
+    }
+    _progRefreshMeta(_curPhase);
+  }
+
+  function _progFinish() {
+    // Mark all remaining steps as done and hide the strip
+    _VISIBLE.forEach(s => { _stepState[s.id] = 'done'; });
+    _progRenderPhase(_curPhase);
+    _progRefreshMeta(_curPhase);
+    setTimeout(() => {
+      const strip = document.getElementById('progress-strip');
+      if (strip) strip.classList.add('hidden');
+    }, 1800);
+  }
+
+  // Initialise strip on page load
+  (function _progInit() {
+    _progRenderPhase(1);
+    _progRefreshMeta(1);
+  })();
+
   function setNavDone(done) {
     navBadge.className = 'inv-badge ' + (done ? 'badge-done' : 'badge-running');
     navBadge.querySelector('.dot').style.animation = done ? 'none' : '';
@@ -750,6 +1141,14 @@
     if (es) es.close();
     setStatus('running', 'Running…');
     cursor.classList.remove('hidden');
+    // Reset progress strip for new run
+    _VISIBLE.forEach(s => { _stepState[s.id] = 'pending'; });
+    _lastRunning = null;
+    _curPhase = 1;
+    _progRenderPhase(1);
+    _progRefreshMeta(1);
+    const strip = document.getElementById('progress-strip');
+    if (strip) strip.classList.remove('hidden');
 
     es = new EventSource('/run');
 
@@ -757,22 +1156,34 @@
       const event = JSON.parse(e.data);
       if (event.type === 'log') {
         appendLine(event.text);
+      } else if (event.type === 'progress') {
+        _handleProgress(event);
       } else if (event.type === 'report') {
         renderReport(event.data);
-      } else if (event.type === 'confirmation') {
-        renderConfirmation(event.data);
       } else if (event.type === 'error') {
         appendLine('ERROR: ' + event.text);
+        _progFinish();
         es.close();
         cursor.classList.add('hidden');
         setStatus('error', 'Error');
         btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
         setNavDone(true);
+      } else if (event.type === 'token_usage') {
+        const ctr = document.getElementById('tok-counter');
+        const fmt = n => n.toLocaleString();
+        document.getElementById('tok-total').textContent = fmt(event.total) + ' tok';
+        document.getElementById('tok-detail').textContent =
+          `↑${fmt(event.prompt)} ↓${fmt(event.completion)}`;
+        ctr.classList.add('visible');
+        ctr.title = `Prompt: ${fmt(event.prompt)} tokens\nCompletion: ${fmt(event.completion)} tokens\nTotal: ${fmt(event.total)} tokens`;
       } else if (event.type === 'done') {
+        _progFinish();
         es.close();
         cursor.classList.add('hidden');
         setStatus('done', 'Done');
         btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
+        const btnRpt = document.getElementById('btn-report');
+        if (btnRpt) btnRpt.style.display = 'inline-flex';
         setNavDone(true);
         if (CREATE_CASE && !INV_DONE) { autoCreateCase(); }
       }
@@ -819,8 +1230,9 @@
       btn.textContent = '✓ Case created';
       btn.style.borderColor = 'var(--accent2)';
       btn.style.color       = 'var(--accent2)';
-      // Show banner with link to the case
+      // Give Watson access to the new case_id for "add to case" commands
       if (data.case_id) {
+        window._watsonCaseId = data.case_id;
         showCaseBanner(data.case_id);
       }
     } catch(err) {
@@ -830,6 +1242,7 @@
   }
 
   function showCaseBanner(caseId) {
+    currentCaseId = caseId;
     let banner = document.getElementById('case-banner');
     if (!banner) {
       banner = document.createElement('div');
@@ -867,16 +1280,13 @@
     document.getElementById('sect-phone').style.display = 'none';
     document.getElementById('sect-maigret').style.display = 'none';
     document.getElementById('sect-timeline').style.display = 'none';
-    document.getElementById('sect-platforms').style.display = 'none';
-    document.getElementById('sect-social').style.display = 'none';
+        document.getElementById('sect-social').style.display = 'none';
     document.getElementById('sect-annuaires').style.display = 'none';
     document.getElementById('sect-breaches').style.display = 'none';
     document.getElementById('sect-ghunt').style.display = 'none';
     document.getElementById('sect-summary').style.display = 'none';
-    document.getElementById('sect-pseudos').style.display = 'none';
     document.getElementById('sect-dates').style.display = 'none';
     document.getElementById('sect-keywords').style.display = 'none';
-    document.getElementById('confirm-panel').style.display = 'none';
 
     try {
       const resp = await fetch('/investigation/rerun', { method: 'POST' });
@@ -892,100 +1302,166 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  let lastReport = null;
+  let lastReport     = null;
+  let currentCaseId  = null;   // set when a case is created or confirmed
 
-  // ── Confirmation checkpoint ────────────────────────────────
-  function renderConfirmation(data) {
-    const panel = document.getElementById('confirm-panel');
+  // ── Profile validation ─────────────────────────────────────
+  const PLAT_COLORS = {
+    instagram:'#e1306c', tiktok:'#fe2c55', linkedin:'#0a66c2',
+    twitter:'#1da1f2',   x:'#1da1f2',      snapchat:'#fffc00',
+    telegram:'#229ed9',  facebook:'#1877f2',bereal:'#000',
+    pinterest:'#e60023', youtube:'#ff0000', reddit:'#ff4500',
+  };
+  const PLAT_ICONS = {
+    instagram:'📸', tiktok:'📱', linkedin:'💼', twitter:'🐦', x:'🐦',
+    snapchat:'👻',  telegram:'✈️', facebook:'📘', bereal:'📷',
+    pinterest:'📌', youtube:'▶️', reddit:'🟠',
+  };
+  // Single-quoted JS string safe for use inside onclick="..." HTML attributes
+  const _q = s => "'" + String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + "'";
 
-    // Identity summary
-    const summaryEl = document.getElementById('confirm-summary');
-    summaryEl.textContent = data.candidate_summary ||
-      'Passive intelligence has been gathered. Please review and confirm whether this is the correct target.';
+  async function validateProfile(btn, platform, username, url, displayName, relevance) {
+    btn.disabled    = true;
+    btn.textContent = '⏳';
 
-    // Timeline
-    const tlText = data.timeline_text || '';
-    if (tlText) {
-      document.getElementById('confirm-timeline-wrap').style.display = 'block';
-      const lines = tlText.split('\n').filter(l => l.trim());
-      document.getElementById('confirm-timeline').innerHTML = lines.map(l => {
-        const clean = esc(l.replace(/^[•\-\*]\s*/, ''));
-        return `<div class="timeline-line"><span class="timeline-dot"></span><span class="timeline-text">${clean}</span></div>`;
-      }).join('');
+    const body = { platform, username, url, display_name: displayName, relevance };
+    if (currentCaseId) {
+      body.case_id = currentCaseId;
+      try {
+        const caseResp = await fetch(`/cases/${currentCaseId}/data`);
+        if (caseResp.ok) {
+          const caseData = await caseResp.json();
+          const nameFact = Object.values(caseData.facts || {}).find(f => f.type === 'name');
+          if (nameFact) body.link_to = nameFact.id;
+        }
+      } catch(_) {}
     }
 
-    // Locations
-    const locText = data.locations_text || '';
-    if (locText) {
-      document.getElementById('confirm-locations-wrap').style.display = 'block';
-      const locs = locText.split(',').map(l => l.trim()).filter(Boolean);
-      document.getElementById('confirm-locations').innerHTML =
-        locs.map(l => `<span class="loc-tag">&#128205; ${esc(l)}</span>`).join('');
-    }
-
-    // Evidence grid
-    const ev = data.evidence || {};
-    let evHtml = '';
-    const demo = ev.demographics || {};
-    if (demo.bearers_since_1890)
-      evHtml += `<div class="ce-row"><span class="ce-lbl">Demographics</span><span class="ce-val">${esc(String(demo.bearers_since_1890))} bearers since 1890${demo.national_rank ? ', rank #'+esc(String(demo.national_rank)) : ''}</span></div>`;
-    if (ev.diplomas_count > 0)
-      evHtml += `<div class="ce-row"><span class="ce-lbl">Academic</span><span class="ce-val">${ev.diplomas_count} academic record(s)</span></div>`;
-    if (ev.business_count > 0)
-      evHtml += `<div class="ce-row"><span class="ce-lbl">Business</span><span class="ce-val">${ev.business_count} business registration(s)</span></div>`;
-
-    const ph = ev.phone || {};
-    if (ph.valid) {
-      let phStr = `${esc(ph.type||'?')}${ph.carrier ? ' — '+esc(ph.carrier) : ''}${ph.region ? ' ('+esc(ph.region)+')' : ''}`;
-      if (ph.social && ph.social.length) phStr += ` — seen on: ${ph.social.map(s=>esc(s)).join(', ')}`;
-      evHtml += `<div class="ce-row"><span class="ce-lbl">Phone</span><span class="ce-val">${phStr}</span></div>`;
-    }
-
-    if (ev.instagram && ev.instagram.length) {
-      const top = ev.instagram[0];
-      let s = `${ev.instagram.length} profile(s) — @${esc(top.username)}`;
-      if (top.display_name) s += ` "${esc(top.display_name)}"`;
-      s += ` [${top.relevance}/10]`;
-      evHtml += `<div class="ce-row"><span class="ce-lbl">Instagram</span><span class="ce-val">${s}</span></div>`;
-    }
-
-    const mg = ev.maigret || {};
-    if (mg.total_found > 0) {
-      const locSites = (mg.location_relevant || []).map(p => esc(p.site)).join(', ');
-      evHtml += `<div class="ce-row"><span class="ce-lbl">Cross-platform</span><span class="ce-val">${mg.total_found} profile(s) found${locSites ? ' — location/sport: '+locSites : ''}</span></div>`;
-    }
-
-    const act = ev.activity_signals || {};
-    if (act.reddit)
-      evHtml += `<div class="ce-row"><span class="ce-lbl">Reddit</span><span class="ce-val">Last active ${esc(act.reddit.last_active||'?')}${act.reddit.subreddits&&act.reddit.subreddits.length ? ' — r/'+act.reddit.subreddits.slice(0,4).map(s=>esc(s)).join(', r/') : ''}</span></div>`;
-    if (act.github && act.github.location)
-      evHtml += `<div class="ce-row"><span class="ce-lbl">GitHub</span><span class="ce-val">Location: ${esc(act.github.location)}</span></div>`;
-
-    document.getElementById('confirm-evidence').innerHTML =
-      evHtml || '<span style="color:var(--muted)">Limited passive intel gathered.</span>';
-
-    panel.style.display = 'block';
-    setStatus('running', 'Awaiting confirmation…');
-    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  async function confirmAction(action) {
-    document.getElementById('confirm-panel').style.display = 'none';
     try {
-      await fetch('/investigation/confirm', {
-        method: 'POST',
+      const resp = await fetch('/api/validate_profile', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body:    JSON.stringify(body),
       });
-    } catch(err) {
-      setStatus('error', 'Confirm request failed');
-    }
-    if (action === 'stop') {
-      setStatus('done', 'Stopped');
-      btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
-      setNavDone(true);
-    } else {
-      setStatus('running', 'Running…');
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || 'error');
+
+      const e    = data.enriched || {};
+      const card = btn.closest('.breach-item') || btn.closest('.splat-profile') || btn.closest('[data-profile-card]');
+      const pl   = platform.toLowerCase();
+      const color = PLAT_COLORS[pl] || '#3fb950';
+      const fmtN  = n => n == null ? null : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : String(n);
+      const caseHref = (data.finding_id && currentCaseId) ? '/cases/' + currentCaseId : null;
+      const GREEN = '#3fb950';
+
+      // ── Button → green validated stamp ─────────────────────
+      btn.textContent   = '✓ Validated';
+      btn.style.cssText = 'font-size:.68rem;font-weight:700;padding:.15rem .6rem;border-radius:4px;cursor:default;' +
+                          'background:' + GREEN + ';color:#0d1117;border:none;';
+      btn.dataset.validated = '1';
+      if (caseHref) {
+        const caseLink = document.createElement('a');
+        caseLink.href  = caseHref;
+        caseLink.target = '_blank';
+        caseLink.textContent = '→ Case';
+        caseLink.style.cssText = 'font-size:.65rem;color:' + GREEN + ';margin-left:.5rem;text-decoration:none;font-weight:600';
+        btn.parentNode.appendChild(caseLink);
+      }
+
+      if (card) {
+        // ── Card: green border + tint ───────────────────────────
+        card.style.borderLeft      = '3px solid ' + GREEN;
+        card.style.backgroundColor = 'rgba(63,185,80,.06)';
+        card.style.transition      = 'border .25s, background .25s';
+        card.dataset.validated     = '1';
+        card.dataset.platform      = pl;
+
+        // ── Collapse same-platform sibling cards only ───────────
+        const _platOfCard = el => {
+          if (el.dataset.platform) return el.dataset.platform;
+          const b = [...el.querySelectorAll('button')].find(b =>
+            (b.getAttribute('onclick') || '').includes('validateProfile')
+          );
+          if (!b) return null;
+          const m = (b.getAttribute('onclick') || '').match(/validateProfile\s*\(\s*this\s*,\s*['"]([^'"]+)['"]/);
+          return m ? m[1].toLowerCase() : null;
+        };
+
+        const parent = card.parentElement;
+        if (parent) {
+          const siblings = [...parent.querySelectorAll('.breach-item')].filter(
+            s => s !== card && !s.dataset.validated && _platOfCard(s) === pl
+          );
+          if (siblings.length) {
+            let colWrap = parent.querySelector(`.collapsed-others[data-plat="${pl}"]`);
+            if (!colWrap) {
+              colWrap = document.createElement('details');
+              colWrap.className        = 'collapsed-others';
+              colWrap.dataset.plat     = pl;
+              colWrap.style.cssText    = 'margin-top:.4rem';
+              const colSum = document.createElement('summary');
+              colSum.style.cssText = 'font-size:.68rem;color:var(--muted);cursor:pointer;list-style:none;padding:.25rem 0';
+              colSum.textContent   = `▸ ${siblings.length} other ${pl} result(s) — click to expand`;
+              colWrap.addEventListener('toggle', () => {
+                colSum.textContent = colWrap.open
+                  ? `▾ ${colWrap.querySelectorAll('.breach-item').length} other ${pl} result(s) — click to collapse`
+                  : `▸ ${colWrap.querySelectorAll('.breach-item').length} other ${pl} result(s) — click to expand`;
+              });
+              colWrap.appendChild(colSum);
+              siblings.forEach(s => colWrap.appendChild(s));
+              parent.appendChild(colWrap);
+            }
+          }
+        }
+
+        // ── Build enrichment block ──────────────────────────────
+        const stats = [];
+        if (e.followers != null) stats.push('<strong>' + fmtN(e.followers) + '</strong> followers');
+        if (e.following != null) stats.push('<strong>' + fmtN(e.following) + '</strong> following');
+        if (e.posts     != null) stats.push('<strong>' + fmtN(e.posts)     + '</strong> posts');
+        if (e.videos    != null) stats.push('<strong>' + fmtN(e.videos)    + '</strong> videos');
+        if (e.hearts    != null) stats.push('<strong>' + fmtN(e.hearts)    + '</strong> ♥');
+
+        let enrichHtml = '';
+        if (e.display_name && e.display_name !== username) {
+          enrichHtml += '<div style="font-size:.78rem;color:var(--text);font-weight:600;margin:.25rem 0 .1rem">' + esc(e.display_name) + '</div>';
+        }
+        if (e.is_verified) {
+          enrichHtml += '<span style="font-size:.65rem;color:#4fc3f7;font-weight:700">✓ Verified account &nbsp;</span>';
+        }
+        if (e.is_private) {
+          enrichHtml += '<span style="font-size:.65rem;color:var(--warning)">🔒 Private &nbsp;</span>';
+        }
+        if (e.bio) {
+          enrichHtml += '<div style="font-size:.72rem;color:var(--muted);line-height:1.45;margin:.25rem 0;' +
+                        'border-left:2px solid ' + color + '55;padding-left:.4rem">' + esc(e.bio) + '</div>';
+        }
+        if (stats.length) {
+          enrichHtml += '<div style="font-size:.7rem;color:var(--muted);margin-top:.25rem;display:flex;flex-wrap:wrap;gap:.2rem .6rem">' +
+                        stats.join(' <span style="color:var(--border)">·</span> ') + '</div>';
+        }
+        if (e.external_url) {
+          enrichHtml += '<div style="font-size:.68rem;margin-top:.2rem"><a href="' + esc(e.external_url) + '" target="_blank" ' +
+                        'style="color:var(--accent)">🔗 ' + esc(e.external_url) + '</a></div>';
+        }
+        if (e.note) {
+          enrichHtml += '<div style="font-size:.65rem;color:var(--warning);margin-top:.2rem">' + esc(e.note) + '</div>';
+        }
+        if (e.source && e.source !== 'detection_only') {
+          enrichHtml += '<div style="font-size:.6rem;color:var(--muted);margin-top:.3rem;opacity:.6">source: ' + esc(e.source) + '</div>';
+        }
+
+        const enrichDiv = card.querySelector('.enrich-data');
+        if (enrichDiv) enrichDiv.innerHTML = enrichHtml;
+        else { const d = document.createElement('div'); d.innerHTML = enrichHtml; card.appendChild(d); }
+      }
+
+    } catch (err) {
+      console.error('[validateProfile]', err);
+      btn.disabled    = false;
+      btn.textContent = '✗ ' + (err.message || 'Error');
+      btn.style.cssText = 'font-size:.65rem;color:var(--warning);border:1px solid var(--warning);border-radius:4px;padding:.1rem .4rem;cursor:pointer';
+      setTimeout(() => { btn.textContent = 'Validate'; btn.style.cssText = ''; btn.disabled = false; }, 5000);
     }
   }
 
@@ -1094,8 +1570,8 @@
     const pubs    = dip.publications || [];
     if (bacs.length || brevets.length || theses.length || pubs.length) {
       h(2, 'Academic Records');
-      bacs.forEach(b    => lines.push(`- [BAC] ${b.name} — ${b.diploma||'?'} (${b.year}, âge ${b.age_at_bac}) ${b.relevance||''}`));
-      brevets.forEach(b => lines.push(`- [BREVET] ${b.name} (${b.year}, âge ${b.age_at_brevet}) ${b.relevance||''}`));
+      bacs.forEach(b    => lines.push(`- [BAC] ${b.name} — ${b.diploma||'?'} (${b.year}, age ${b.age_at_bac}) ${b.relevance||''}`));
+      brevets.forEach(b => lines.push(`- [BREVET] ${b.name} (${b.year}, age ${b.age_at_brevet}) ${b.relevance||''}`));
       theses.forEach(th => lines.push(`- [THESIS] ${th.title}${th.year?' ('+th.year+')':''} — ${th.institution||''} ${th.url?'<'+th.url+'>':''}`));
       pubs.forEach(p    => lines.push(`- [PUB] ${p.title}${p.year?' ('+p.year+')':''} ${p.url?'<'+p.url+'>':''}`));
     }
@@ -1107,7 +1583,7 @@
     if (sirene.length || pappers.length) {
       h(2, 'Business Registries');
       sirene.forEach(s => {
-        const active = s.status && s.status.toLowerCase().startsWith('a') ? 'Actif' : 'Fermé';
+        const active = s.status && s.status.toLowerCase().startsWith('a') ? 'Active' : 'Closed';
         lines.push(`- [SIRENE] SIREN ${s.siren} — ${s.name||'?'} (${active})${s.city ? ', ' + s.city : ''}`);
       });
       pappers.forEach(p => (p.companies||[]).forEach(c =>
@@ -1214,7 +1690,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<title>PAW Report</title>
+<title>Peek-A-Who</title>
 <style>
 body{font-family:system-ui,sans-serif;max-width:860px;margin:2rem auto;padding:0 1.5rem;background:#0d1117;color:#c9d1d9;line-height:1.7}
 h1,h2,h3{color:#fff}
@@ -1352,6 +1828,7 @@ ${body}
 
   function renderReport(r) {
     lastReport = r;
+    if (r.case_id) currentCaseId = r.case_id;
     const panel = document.getElementById('report-panel');
     panel.style.display = 'block';
 
@@ -1439,7 +1916,7 @@ ${body}
       let dipHtml = '';
 
       bacs.forEach(b => {
-        const yr  = ` <span style="color:var(--muted)">(${esc(b.year)}, âge ${esc(String(b.age_at_bac))})</span>`;
+        const yr  = ` <span style="color:var(--muted)">(${esc(b.year)}, age ${esc(String(b.age_at_bac))})</span>`;
         const rel = b.relevance ? ` <span style="font-size:.68rem;color:var(--muted)">${esc(b.relevance)}</span>` : '';
         const url = b.url ? ` <a href="${esc(b.url)}" target="_blank" style="color:var(--accent);font-size:.72rem">↗ linternaute</a>` : '';
         const dipLabel = b.diploma ? `<span style="color:var(--muted);font-size:.72rem"> — ${esc(b.diploma)}</span>` : '';
@@ -1451,7 +1928,7 @@ ${body}
       });
 
       brevets.forEach(b => {
-        const yr  = ` <span style="color:var(--muted)">(${esc(b.year)}, âge ${esc(String(b.age_at_brevet))})</span>`;
+        const yr  = ` <span style="color:var(--muted)">(${esc(b.year)}, age ${esc(String(b.age_at_brevet))})</span>`;
         const rel = b.relevance ? ` <span style="font-size:.68rem;color:var(--muted)">${esc(b.relevance)}</span>` : '';
         const url = b.url ? ` <a href="${esc(b.url)}" target="_blank" style="color:var(--accent);font-size:.72rem">↗ linternaute</a>` : '';
         dipHtml += `<div class="breach-item">
@@ -1499,9 +1976,9 @@ ${body}
 
       sirene.forEach(s => {
         const active  = (s.status || '').toLowerCase().startsWith('a');
-        const badge   = active ? `<span style="color:var(--accent2)">● Actif</span>` : `<span style="color:var(--danger)">● Fermé</span>`;
+        const badge   = active ? `<span style="color:var(--accent2)">● Active</span>` : `<span style="color:var(--danger)">● Closed</span>`;
         const city    = s.city ? ` — ${esc(s.city)}${s.dept ? ' ('+esc(s.dept)+')' : ''}` : '';
-        const created = s.created ? ` créé ${esc(s.created)}` : '';
+        const created = s.created ? ` created ${esc(s.created)}` : '';
         const act     = s.activity ? `<span style="color:var(--muted);font-size:.72rem"> — NAF ${esc(s.activity)}</span>` : '';
         bizHtml += `<div class="breach-item">
           <div style="font-size:.72rem;color:var(--muted);font-weight:600;margin-bottom:.2rem">SIRENE — ${badge}</div>
@@ -1665,7 +2142,7 @@ ${body}
 
     // ── Digital footprint (maigret) ─────────────────────────
     const mg = (r.social_media || {}).maigret || {};
-    if (mg.total_found > 0) {
+    if (mg.total_found > 0 || (mg.validated_profiles || []).length > 0) {
       document.getElementById('sect-maigret').style.display = 'block';
       const cats = [
         { key: 'location_relevant', label: '📍 Location &amp; Sport', cls: 'pcat-loc' },
@@ -1673,7 +2150,26 @@ ${body}
         { key: 'gaming',            label: '🎮 Gaming',               cls: 'pcat-game' },
         { key: 'social',            label: '💬 Social',               cls: 'pcat-soc' },
       ];
-      let mgHtml = `<div style="font-size:.75rem;color:var(--muted);margin-bottom:.85rem">${mg.total_found} profile(s) found across <strong style="color:var(--text)">${(mg.checked_usernames||[]).join(', ') || '?'}</strong></div>`;
+      const validProfiles = mg.validated_profiles || [];
+      let mgHtml = `<div style="font-size:.75rem;color:var(--muted);margin-bottom:.85rem">${mg.total_found || 0} profile(s) found across <strong style="color:var(--text)">${validProfiles.length} validated username(s)</strong></div>`;
+
+      // ── Validated usernames with clickable links ──
+      if (validProfiles.length > 0) {
+        mgHtml += `<div style="margin-bottom:1.1rem">
+          <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.55rem">✅ Validated Usernames (${validProfiles.length})</div>
+          <div style="display:flex;flex-direction:column;gap:.45rem">`;
+        validProfiles.forEach(p => {
+          const sitePills = p.sites.map(s => s.url
+            ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .55rem;border-radius:12px;font-size:.68rem;font-weight:500;background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.18);color:var(--accent);text-decoration:none" title="${esc(s.url)}">${esc(s.site)}</a>`
+            : `<span style="padding:.15rem .55rem;border-radius:12px;font-size:.68rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:var(--muted)">${esc(s.site)}</span>`
+          ).join('');
+          mgHtml += `<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.45rem .65rem;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:8px">
+            <span style="font-size:.8rem;font-weight:600;color:var(--text);min-width:130px;flex-shrink:0">@${esc(p.username)}</span>
+            <div style="display:flex;flex-wrap:wrap;gap:.3rem">${sitePills}</div>
+          </div>`;
+        });
+        mgHtml += `</div></div>`;
+      }
 
       // Activity signals banner
       const act = mg.activity_signals || {};
@@ -1762,23 +2258,34 @@ ${body}
       facebook: { label: 'Facebook',   icon: '👤', color: '#1877f2' },
     };
     const platKeys = Object.keys(_PLAT_META);
-    if (platKeys.some(k => platforms[k])) {
-      document.getElementById('sect-platforms').style.display = 'block';
+    // Skip platforms covered by deeper Phase-2 search to avoid duplication
+    const _ttHasDeep = (social.tiktok?.checked > 0) || (social.tiktok?.found||[]).length > 0;
+    const _liHasDeep = (social.linkedin?.candidates||[]).length > 0;
+    const platKeysFiltered = platKeys.filter(pk =>
+      !(pk === 'tiktok' && _ttHasDeep) && !(pk === 'linkedin' && _liHasDeep)
+    );
+    if (platKeysFiltered.some(k => platforms[k])) {
+      document.getElementById('sect-social').style.display = 'block';
       let pHtml = '<div class="splat-grid">';
-      for (const pk of platKeys) {
+      for (const pk of platKeysFiltered) {
         const pd = platforms[pk] || {};
         const meta = _PLAT_META[pk];
         const found = pd.found || [];
+        const cands = pd.candidates || [];
+        const isUnverifiable = pd.unverifiable === true;
         const highConf = found.filter(p => (p.relevance || 0) >= 5);
-        const isManual = !found.length && pd.search_url;
+        const isManual = !found.length && !isUnverifiable && pd.search_url;
         const hasStrong = highConf.length > 0;
-        const cls    = hasStrong ? 'splat-found' : found.length ? 'splat-weak' : isManual ? 'splat-manual' : 'splat-none';
-        const dotCls = hasStrong ? 'dot-found'   : found.length ? 'dot-weak'   : isManual ? 'dot-manual'   : 'dot-none';
-        const countLabel = hasStrong
-          ? `${highConf.length} found`
-          : found.length
-            ? `${found.length} possible`
-            : '';
+        const cls    = isUnverifiable ? 'splat-manual'
+          : hasStrong ? 'splat-found' : found.length ? 'splat-weak'
+          : isManual ? 'splat-manual' : 'splat-none';
+        const dotCls = isUnverifiable ? 'dot-manual'
+          : hasStrong ? 'dot-found' : found.length ? 'dot-weak'
+          : isManual ? 'dot-manual' : 'dot-none';
+        const countLabel = isUnverifiable
+          ? `${cands.length} URLs`
+          : hasStrong ? `${highConf.length} found`
+          : found.length ? `${found.length} possible` : '';
         pHtml += `<div class="splat-card ${cls}">
           <div class="splat-header">
             <span class="splat-dot ${dotCls}"></span>
@@ -1786,17 +2293,30 @@ ${body}
             <span style="color:var(--text)">${meta.label}</span>
             ${countLabel ? `<span style="font-size:.68rem;color:${hasStrong ? 'var(--accent2)' : 'var(--warning)'};margin-left:auto">${countLabel}</span>` : ''}
           </div>`;
-        if (found.length) {
-          const highConf = found.filter(p => (p.relevance || 0) >= 5);
+        if (isUnverifiable && cands.length) {
+          // BeReal-style: show candidates with validate buttons
+          pHtml += `<div style="font-size:.68rem;color:var(--warning);margin-bottom:.3rem">Unverifiable — confirm manually</div>`;
+          cands.slice(0, 3).forEach(c => {
+            const brVid = `validateProfile(this,'bereal',${_q(c.slug||c.url)},${_q(c.url||'')},'',0)`;
+            pHtml += `<div style="display:flex;align-items:center;gap:.3rem;margin:.2rem 0">
+              <a href="${esc(c.url)}" target="_blank" style="font-size:.72rem;color:var(--accent);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.url)}</a>
+              <button onclick="${brVid}" style="flex-shrink:0;font-size:.62rem;padding:.1rem .35rem;border:1px solid rgba(255,255,255,.2);border-radius:3px;background:none;color:var(--text);cursor:pointer">✓</button>
+            </div>`;
+          });
+        } else if (found.length) {
           const lowConf  = found.filter(p => (p.relevance || 0) <  5);
           const showList = highConf.length ? highConf.slice(0, 3) : found.slice(0, 3);
           showList.forEach(p => {
             const rel = p.relevance || 0;
             const relColor = rel >= 7 ? 'var(--accent2)' : rel >= 4 ? 'var(--warning)' : 'var(--muted)';
-            pHtml += `<div class="splat-profile">
-              <a href="${esc(p.url)}" target="_blank">@${esc(p.username)}</a>
-              ${p.display_name ? `<span class="splat-dn"> — ${esc(p.display_name)}</span>` : ''}
-              <span class="splat-rel" style="color:${relColor}">[${rel}/10]</span>
+            const platVid = `validateProfile(this,${_q(pk)},${_q(p.username)},${_q(p.url||'')},${_q(p.display_name||'')},${rel})`;
+            pHtml += `<div class="splat-profile" style="display:flex;align-items:center;gap:.3rem">
+              <div style="flex:1;min-width:0">
+                <a href="${esc(p.url)}" target="_blank">@${esc(p.username)}</a>
+                ${p.display_name ? `<span class="splat-dn"> — ${esc(p.display_name)}</span>` : ''}
+                <span class="splat-rel" style="color:${relColor}">[${rel}/10]</span>
+              </div>
+              <button onclick="${platVid}" style="flex-shrink:0;font-size:.62rem;padding:.1rem .35rem;border:1px solid rgba(255,255,255,.2);border-radius:3px;background:none;color:var(--text);cursor:pointer">✓</button>
             </div>`;
           });
           if (lowConf.length && highConf.length === 0) {
@@ -1804,9 +2324,11 @@ ${body}
           } else if (lowConf.length) {
             pHtml += `<details style="margin-top:.3rem"><summary style="font-size:.68rem;color:var(--muted);cursor:pointer">+ ${lowConf.length} low-confidence match(es)</summary>`;
             lowConf.slice(0,3).forEach(p => {
-              pHtml += `<div class="splat-profile" style="opacity:.65">
-                <a href="${esc(p.url)}" target="_blank">@${esc(p.username)}</a>
-                <span class="splat-rel" style="color:var(--muted)">[${p.relevance||0}/10]</span>
+              const platVid2 = `validateProfile(this,${_q(pk)},${_q(p.username)},${_q(p.url||'')},${_q(p.display_name||'')},${p.relevance||0})`;
+              pHtml += `<div class="splat-profile" style="opacity:.65;display:flex;align-items:center;gap:.3rem">
+                <div style="flex:1"><a href="${esc(p.url)}" target="_blank">@${esc(p.username)}</a>
+                <span class="splat-rel" style="color:var(--muted)">[${p.relevance||0}/10]</span></div>
+                <button onclick="${platVid2}" style="flex-shrink:0;font-size:.62rem;padding:.1rem .35rem;border:1px solid rgba(255,255,255,.2);border-radius:3px;background:none;color:var(--text);cursor:pointer">✓</button>
               </div>`;
             });
             pHtml += `</details>`;
@@ -1838,24 +2360,32 @@ ${body}
           const stars = '★'.repeat(Math.max(1, Math.round(rel / 2)));
           const dn = p.display_name ? `<span style="color:var(--text)"> — "${esc(p.display_name)}"</span>` : '';
           const age = p.first_seen ? `<div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">First archived: ${esc(p.first_seen)} (Wayback Machine)</div>` : '';
+          const igVid = `validateProfile(this,'instagram',${_q(p.username)},${_q(p.url||'')},${_q(p.display_name||'')},${rel})`;
           igHtml += `<div class="breach-item">
             <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem">
               <span style="font-size:.72rem;color:#e1306c;font-weight:600">INSTAGRAM</span>
               <span style="font-size:.72rem;color:${relColor}">${stars} ${rel}/10</span>
+              <button onclick="${igVid}" style="margin-left:auto;font-size:.68rem;padding:.15rem .5rem;border:1px solid rgba(225,48,108,.4);border-radius:4px;background:none;color:#e1306c;cursor:pointer">Validate</button>
             </div>
             <div style="font-size:.82rem">
               <a href="${esc(p.url)}" target="_blank" style="color:#e1306c;font-weight:600;text-decoration:none">@${esc(p.username)}</a>${dn}
             </div>
             ${age}
+            <div class="enrich-data"></div>
           </div>`;
         });
         if (igLow.length && igHigh.length) {
           igHtml += `<details style="margin-top:.5rem"><summary style="font-size:.72rem;color:var(--muted);cursor:pointer">+ ${igLow.length} low-confidence match(es) — worth checking</summary>`;
           igLow.forEach(p => {
             const rel = p.relevance || 0;
-            igHtml += `<div class="breach-item" style="opacity:.6">
-              <span style="font-size:.72rem;color:var(--muted)">INSTAGRAM [${rel}/10]</span><br>
+            const igLowVid = `validateProfile(this,'instagram',${_q(p.username)},${_q(p.url||'')},${_q(p.display_name||'')},${rel})`;
+            igHtml += `<div class="breach-item" style="opacity:.75">
+              <div style="display:flex;align-items:center;gap:.5rem">
+                <span style="font-size:.72rem;color:var(--muted)">INSTAGRAM [${rel}/10]</span>
+                <button onclick="${igLowVid}" style="margin-left:auto;font-size:.68rem;padding:.15rem .5rem;border:1px solid rgba(139,148,158,.3);border-radius:4px;background:none;color:var(--muted);cursor:pointer">Validate</button>
+              </div>
               <a href="${esc(p.url)}" target="_blank" style="color:#e1306c;font-weight:600;text-decoration:none;font-size:.82rem">@${esc(p.username)}</a>
+              <div class="enrich-data"></div>
             </div>`;
           });
           igHtml += `</details>`;
@@ -1866,6 +2396,116 @@ ${body}
       document.getElementById('social-list').innerHTML = igHtml;
     }
 
+    // ── TikTok ────────────────────────────────────────────────
+    const tt = social.tiktok || {};
+    const ttFound = tt.found || [];
+    if (tt.checked > 0 || ttFound.length) {
+      document.getElementById('sect-social').style.display = 'block';
+      let ttHtml = `<div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem;margin-top:1.2rem"><strong style="color:#ff0050">TikTok</strong> — Checked <strong style="color:var(--text)">${esc(String(tt.checked||0))}</strong> / ${esc(String(tt.generated||0))} candidates — ${ttFound.length} profile(s) found</div>`;
+      if (ttFound.length) {
+        ttFound.forEach(p => {
+          const rel = p.relevance || 0;
+          const relColor = rel >= 7 ? 'var(--accent2)' : rel >= 4 ? 'var(--warning)' : 'var(--muted)';
+          const stars = '★'.repeat(Math.max(1, Math.round(rel / 2)));
+          const dn = p.display_name ? `<span style="color:var(--text)"> — "${esc(p.display_name)}"</span>` : '';
+          const ttVid = `validateProfile(this,'tiktok',${_q(p.username)},${_q(p.url||'')},${_q(p.display_name||'')},${rel})`;
+          ttHtml += `<div class="breach-item">
+            <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem">
+              <span style="font-size:.72rem;color:#ff0050;font-weight:600">TIKTOK</span>
+              <span style="font-size:.72rem;color:${relColor}">${stars} ${rel}/10</span>
+              <button onclick="${ttVid}" style="margin-left:auto;font-size:.68rem;padding:.15rem .5rem;border:1px solid rgba(255,0,80,.4);border-radius:4px;background:none;color:#ff0050;cursor:pointer">Validate</button>
+            </div>
+            <div style="font-size:.82rem">
+              <a href="${esc(p.url)}" target="_blank" style="color:#ff0050;font-weight:600;text-decoration:none">@${esc(p.username)}</a>${dn}
+            </div>
+            <div class="enrich-data"></div>
+          </div>`;
+        });
+      } else {
+        ttHtml += `<div class="empty-state" style="font-size:.78rem;color:var(--muted)">No TikTok profiles found.</div>`;
+      }
+      document.getElementById('social-list').innerHTML += ttHtml;
+    }
+
+    // ── LinkedIn ──────────────────────────────────────────────
+    const li       = social.linkedin || {};
+    const liSerp   = li.serp_found  || [];
+    const liCands  = li.candidates  || [];
+    if (liSerp.length || liCands.length) {
+      document.getElementById('sect-social').style.display = 'block';
+      const liGoogleUrl = li.google_dork_url || '';
+      const liDdgUrl    = li.ddg_url || '';
+      let liHtml = `<div style="margin-top:1.2rem">
+        <div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem;display:flex;align-items:center;flex-wrap:wrap;gap:.5rem">
+          <strong style="color:#0a66c2">💼 LinkedIn</strong>
+          ${liSerp.length
+            ? `<span style="color:var(--accent2)">✓ ${liSerp.length} profile(s) found via search engine</span>`
+            : `<span style="color:var(--warning)">${liCands.length} URL candidate(s) — verify manually</span>`}
+          ${liGoogleUrl ? `<a href="${esc(liGoogleUrl)}" target="_blank"
+              style="font-size:.68rem;padding:.1rem .45rem;border:1px solid rgba(66,133,244,.35);border-radius:4px;
+                     color:#4285f4;text-decoration:none;background:rgba(66,133,244,.07)">
+              🔍 Google dork ↗</a>` : ''}
+          ${liDdgUrl ? `<a href="${esc(liDdgUrl)}" target="_blank"
+              style="font-size:.68rem;padding:.1rem .45rem;border:1px solid rgba(222,88,54,.35);border-radius:4px;
+                     color:#de5836;text-decoration:none;background:rgba(222,88,54,.07)">
+              🦆 DuckDuckGo ↗</a>` : ''}
+        </div>`;
+
+      // SERP-confirmed profiles (rich snippet data)
+      liSerp.forEach(p => {
+        const liSerpVid = `validateProfile(this,'linkedin',${_q(p.slug||p.url)},${_q(p.url||'')},${_q(p.title||'')},8)`;
+        const meta = [];
+        if (p.company)     meta.push(`<span style="color:var(--text)">🏢 ${esc(p.company)}</span>`);
+        if (p.location)    meta.push(`<span style="color:var(--muted)">📍 ${esc(p.location)}</span>`);
+        if (p.education)   meta.push(`<span style="color:var(--muted)">🎓 ${esc(p.education)}</span>`);
+        if (p.connections) meta.push(`<span style="color:var(--muted)">👥 ${esc(p.connections)} connections</span>`);
+        liHtml += `<div class="breach-item" style="border-left:3px solid #0a66c2">
+          <div style="display:flex;align-items:flex-start;gap:.5rem">
+            <div style="flex:1;min-width:0">
+              <div style="margin-bottom:.2rem">
+                <a href="${esc(p.url)}" target="_blank"
+                   style="color:#0a66c2;font-weight:700;text-decoration:none;font-size:.85rem">${esc(p.title)}</a>
+              </div>
+              ${p.headline ? `<div style="font-size:.78rem;color:var(--text);margin-bottom:.3rem">${esc(p.headline)}</div>` : ''}
+              ${meta.length ? `<div style="display:flex;flex-wrap:wrap;gap:.4rem .8rem;font-size:.73rem;margin-bottom:.25rem">${meta.join('')}</div>` : ''}
+              <div style="font-size:.68rem;color:var(--muted);font-style:italic;line-height:1.4">${esc(p.snippet.slice(0,180))}${p.snippet.length>180?'…':''}</div>
+            </div>
+            <button onclick="${liSerpVid}"
+              style="flex-shrink:0;font-size:.68rem;padding:.15rem .5rem;border:1px solid rgba(10,102,194,.4);border-radius:4px;background:none;color:#0a66c2;cursor:pointer">
+              Validate
+            </button>
+          </div>
+          <div class="enrich-data"></div>
+        </div>`;
+      });
+
+      // Unverified URL candidates (collapsed if SERP found something)
+      if (liCands.length) {
+        const togId = 'li-cands-' + Math.random().toString(36).slice(2);
+        liHtml += `<details style="margin-top:.5rem" ${liSerp.length ? '' : 'open'}>
+          <summary style="font-size:.72rem;color:var(--muted);cursor:pointer;margin-bottom:.4rem">
+            + ${liCands.length} generated URL candidate(s) (unverified)
+          </summary>`;
+        liCands.forEach(c => {
+          const liVid = `validateProfile(this,'linkedin',${_q(c.slug||c.url)},${_q(c.url||'')},'',0)`;
+          liHtml += `<div class="breach-item" style="padding:.35rem .6rem">
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <a href="${esc(c.url)}" target="_blank"
+                 style="color:#0a66c2;font-size:.75rem;text-decoration:none;flex:1;opacity:.8">🔗 ${esc(c.url)}</a>
+              <button onclick="${liVid}"
+                style="flex-shrink:0;font-size:.62rem;padding:.1rem .4rem;border:1px solid rgba(10,102,194,.3);border-radius:4px;background:none;color:#0a66c2;cursor:pointer">
+                Validate
+              </button>
+            </div>
+          </div>`;
+        });
+        liHtml += `</details>`;
+      }
+
+      liHtml += `</div>`;
+      document.getElementById('social-list').innerHTML += liHtml;
+    }
+
     // ── Annuaires ─────────────────────────────────────────────
     const ann = r.annuaires || {};
     if (ann.pages_blanches || ann.pages_jaunes) {
@@ -1874,14 +2514,14 @@ ${body}
       let annHtml = note;
       if (ann.pages_blanches) {
         annHtml += `<div class="breach-item">
-          <div style="font-size:.72rem;color:var(--accent);font-weight:600;margin-bottom:.25rem">Pages Blanches — personnes</div>
-          <div style="font-size:.8rem"><a href="${esc(ann.pages_blanches)}" target="_blank" style="color:var(--accent);word-break:break-all">Ouvrir la recherche ↗</a></div>
+          <div style="font-size:.72rem;color:var(--accent);font-weight:600;margin-bottom:.25rem">Pages Blanches — individuals</div>
+          <div style="font-size:.8rem"><a href="${esc(ann.pages_blanches)}" target="_blank" style="color:var(--accent);word-break:break-all">Open search ↗</a></div>
         </div>`;
       }
       if (ann.pages_jaunes) {
         annHtml += `<div class="breach-item">
-          <div style="font-size:.72rem;color:var(--warning);font-weight:600;margin-bottom:.25rem">Pages Jaunes — professionnels</div>
-          <div style="font-size:.8rem"><a href="${esc(ann.pages_jaunes)}" target="_blank" style="color:var(--warning);word-break:break-all">Ouvrir la recherche ↗</a></div>
+          <div style="font-size:.72rem;color:var(--warning);font-weight:600;margin-bottom:.25rem">Pages Jaunes — professionals</div>
+          <div style="font-size:.8rem"><a href="${esc(ann.pages_jaunes)}" target="_blank" style="color:var(--warning);word-break:break-all">Open search ↗</a></div>
         </div>`;
       }
       document.getElementById('annuaires-list').innerHTML = annHtml;
@@ -1894,54 +2534,59 @@ ${body}
       document.getElementById('llm-summary').innerHTML = md;
     }
 
-    // ── Pseudos & Usernames table ─────────────────────────────
-    (function() {
-      const rows = [];
-
-      (r.social_media?.instagram?.found || []).forEach(p => {
-        rows.push({ platform: 'Instagram', username: '@' + p.username, url: p.url || '', conf: p.relevance + '/10', display: p.display_name || '' });
+    // ── Hypotheses + Pivot suggestions ───────────────────────
+    const analysis = r.analysis || {};
+    (function renderHypotheses() {
+      const hyps = analysis.hypotheses || [];
+      if (!hyps.length) return;
+      document.getElementById('sect-hypotheses').style.display = 'block';
+      let html = '';
+      hyps.forEach(h => {
+        const lvl = h.level || 'low';
+        const cf  = Math.round((h.confidence || 0) * 100);
+        const icon = lvl === 'confirmed' ? '✅' : lvl === 'probable' ? '🟡' : '⚪';
+        const sup  = (h.supporting || []).map(s => `<span class="ev-ok">✓ ${esc(s)}</span>`).join('<br>');
+        const agt  = (h.against   || []).map(s => `<span class="ev-no">✗ ${esc(s)}</span>`).join('<br>');
+        html += `<div class="hyp-card">
+          <div class="hyp-header">
+            <span class="hyp-badge hyp-${esc(lvl)}">${icon} ${esc(lvl)}</span>
+            <span class="hyp-claim">${esc(h.claim || '')}</span>
+            <span class="hyp-cf">${cf}%</span>
+          </div>
+          <div class="hyp-bar ${`hyp-${esc(lvl)}`}">
+            <div class="hyp-bar-fill" style="width:${cf}%"></div>
+          </div>
+          ${(sup || agt) ? `<div class="hyp-evidence">${sup}${sup && agt ? '<br>' : ''}${agt}</div>` : ''}
+        </div>`;
       });
-
-      const platMeta = { twitter: 'Twitter/X', tiktok: 'TikTok', snapchat: 'Snapchat', bereal: 'BeReal', linkedin: 'LinkedIn', facebook: 'Facebook' };
-      const plats = r.social_media?.platforms || {};
-      Object.entries(platMeta).forEach(([pk, label]) => {
-        (plats[pk]?.found || []).forEach(p => {
-          rows.push({ platform: label, username: '@' + p.username, url: p.url || '', conf: p.relevance + '/10', display: p.display_name || '' });
-        });
-      });
-
-      const mg2 = r.social_media?.maigret || {};
-      ['location_relevant','marketplace','gaming','social'].forEach(cat => {
-        (mg2[cat] || []).forEach(p => {
-          if (p.username) rows.push({ platform: p.site, username: '@' + p.username, url: p.url || '', conf: '', display: '' });
-        });
-      });
-      const actSig2 = mg2.activity_signals || {};
-      if (actSig2.reddit) rows.push({ platform: 'Reddit', username: '@' + (actSig2.reddit.username || '?'), url: 'https://reddit.com/u/' + (actSig2.reddit.username || ''), conf: '', display: '' });
-      if (actSig2.github) rows.push({ platform: 'GitHub', username: '@' + (actSig2.github.username || '?'), url: 'https://github.com/' + (actSig2.github.username || ''), conf: '', display: actSig2.github.location || '' });
-
-      if (rows.length) {
-        document.getElementById('sect-pseudos').style.display = 'block';
-        let th = `<table class="data-table"><thead><tr>
-          <th>Platform</th><th>Username</th><th>Display name</th><th>Confidence</th><th>Link</th>
-        </tr></thead><tbody>`;
-        rows.forEach(r2 => {
-          const rel = parseInt(r2.conf) || 0;
-          const confColor = rel >= 7 ? 'var(--accent2)' : rel >= 4 ? 'var(--warning)' : rel > 0 ? 'var(--muted)' : 'var(--muted)';
-          const conf = r2.conf ? `<span style="color:${confColor}">${esc(r2.conf)}</span>` : '—';
-          const link = r2.url ? `<a href="${esc(r2.url)}" target="_blank" style="color:var(--accent);font-size:.75rem">↗ open</a>` : '—';
-          th += `<tr>
-            <td class="td-platform">${esc(r2.platform)}</td>
-            <td class="td-mono" style="color:var(--text)">${esc(r2.username)}</td>
-            <td style="color:var(--muted);font-size:.75rem">${esc(r2.display)}</td>
-            <td>${conf}</td>
-            <td>${link}</td>
-          </tr>`;
-        });
-        th += `</tbody></table>`;
-        document.getElementById('pseudos-content').innerHTML = th;
-      }
+      document.getElementById('hyp-list').innerHTML = html;
     })();
+
+    (function renderPivots() {
+      const pivots = analysis.pivot_suggestions || [];
+      if (!pivots.length) return;
+      document.getElementById('sect-pivots').style.display = 'block';
+      let html = '';
+      pivots.forEach(p => {
+        const pri = p.priority || 'medium';
+        html += `<div class="pivot-item">
+          <span class="pivot-pri pri-${esc(pri)}">${esc(pri)}</span>
+          <div class="pivot-body">
+            <div class="pivot-action">${esc(p.action || '')}
+              <button class="pivot-ask-btn" onclick="askPivot(${JSON.stringify(p.action||'').replace(/'/g,"\\'")})" title="Ask AI about this pivot">Ask ↗</button>
+            </div>
+            ${p.rationale ? `<div class="pivot-why">${esc(p.rationale)}</div>` : ''}
+          </div>
+        </div>`;
+      });
+      document.getElementById('pivot-list').innerHTML = html;
+
+      // Populate suggested questions in the chat panel from pivots
+      populateChatSuggestions(pivots);
+    })();
+
+    // Watson: load contextual actions + populate suggestions
+    watsonOnReport(r);
 
     // ── Key dates table ───────────────────────────────────────
     (function() {
@@ -2010,6 +2655,626 @@ ${body}
 
   // Auto-connect immediately on page load
   window.addEventListener('DOMContentLoaded', connectSSE);
+
+
+  // ── Watson ────────────────────────────────────────────────────
+  const INV_ID       = {{ inv_id | tojson }};
+  const CASE_ID_SESS = {{ (create_case and inv_id) | tojson }};
+  let _wHistory  = [];   // [{role, content}]
+  let _wCollapsed = false;
+  let _lastReport = null;  // last full report received
+
+  // ── collapse ─────────────────────────────────────────────────
+  function watsonToggle() {
+    _wCollapsed = !_wCollapsed;
+    document.getElementById('watson').classList.toggle('collapsed', _wCollapsed);
+    if (!_wCollapsed) document.getElementById('w-input').focus();
+  }
+
+  // ── set status dot ───────────────────────────────────────────
+  function _wDot(state) {  // 'idle' | 'ready' | 'busy' | 'warming' | 'offline'
+    const d      = document.getElementById('w-dot');
+    const sub    = document.getElementById('w-sub');
+    const input  = document.getElementById('w-input');
+    const send   = document.getElementById('w-send');
+    const offBar = document.getElementById('w-offline-bar');
+
+    // Hide offline bar by default; shown only in offline state
+    if (offBar) offBar.classList.remove('show');
+    if (sub)    sub.style.color = '';
+
+    switch (state) {
+      case 'ready':
+        d.className = 'w-status-dot ready';
+        if (sub) { sub.textContent = 'AI investigation partner'; delete sub.dataset.llm; }
+        if (input) { input.disabled = false; input.placeholder = 'Ask Watson…'; }
+        if (send)  send.disabled = false;
+        break;
+      case 'busy':
+        d.className = 'w-status-dot busy';
+        break;
+      case 'warming':
+        d.className = 'w-status-dot busy';
+        if (sub) { sub.textContent = 'Loading AI model…'; sub.dataset.llm = 'set'; }
+        if (input) { input.disabled = false; input.placeholder = 'Watson is loading — try in a moment…'; }
+        break;
+      case 'offline':
+        d.className = 'w-status-dot offline';
+        if (sub) { sub.textContent = 'Ollama offline'; sub.style.color = 'var(--danger)'; sub.dataset.llm = 'set'; }
+        if (input) { input.disabled = true; input.placeholder = 'Ollama offline — use the button below'; }
+        if (send)  send.disabled = true;
+        if (offBar) offBar.classList.add('show');
+        break;
+      default:
+        d.className = 'w-status-dot';
+    }
+  }
+
+  // ── Ollama restart / retry ────────────────────────────────────
+  async function watsonRestartOllama() {
+    const btn = document.querySelector('.w-offline-btn.restart');
+    if (btn) { btn.disabled = true; btn.textContent = '⟳ Starting…'; }
+    _wDot('warming');
+
+    try {
+      const res  = await fetch('/api/ollama/restart', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.ok) {
+        // Poll every 2s until ready or 30s timeout
+        let tries = 0;
+        const poll = setInterval(async () => {
+          tries++;
+          const pr = await fetch('/api/ollama/ping').then(r => r.json()).catch(() => ({}));
+          if (pr.alive) {
+            clearInterval(poll);
+            _wDot('ready');
+            _wMsg('system', '✅ Ollama is back online. Watson is ready.');
+          } else if (tries >= 15) {
+            clearInterval(poll);
+            _wDot('offline');
+            _wMsg('system', '⚠ Ollama did not come up in 30s. Check your terminal.');
+          }
+        }, 2000);
+      } else {
+        _wDot('offline');
+        _wMsg('watson', `⚠ ${data.message}`);
+      }
+    } catch(e) {
+      _wDot('offline');
+      _wMsg('watson', `⚠ Restart request failed: ${e}`);
+    }
+  }
+
+  async function watsonRetryConnection() {
+    const btn = document.querySelector('.w-offline-btn.retry');
+    if (btn) { btn.disabled = true; btn.textContent = '↺ Checking…'; }
+    try {
+      const data = await fetch('/api/ollama/ping').then(r => r.json());
+      if (data.alive) {
+        _wDot('ready');
+        _wMsg('system', '✅ Ollama is reachable. Watson is ready.');
+      } else {
+        _wDot('offline');
+        _wMsg('system', '⚠ Ollama still not reachable. Start it with `ollama serve`.');
+      }
+    } catch(e) {
+      _wDot('offline');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '↺ Check again'; }
+    }
+  }
+
+  // ── LLM status polling ────────────────────────────────────────
+  let _llmPollTimer = null;
+  async function _pollLlmStatus() {
+    try {
+      const r = await fetch('/api/llm-status');
+      if (!r.ok) return;
+      const data = await r.json();
+      const st = data.status;  // idle | warming | ready | unavailable
+      if (st === 'ready') {
+        _wDot('ready');
+        if (_llmPollTimer) { clearInterval(_llmPollTimer); _llmPollTimer = null; }
+      } else if (st === 'warming') {
+        _wDot('warming');
+      } else if (st === 'unavailable') {
+        _wDot('offline');
+        if (_llmPollTimer) { clearInterval(_llmPollTimer); _llmPollTimer = null; }
+      }
+    } catch(_) {}
+  }
+
+  // Start polling on page load — stops once ready or unavailable
+  document.addEventListener('DOMContentLoaded', () => {
+    _pollLlmStatus();
+    _llmPollTimer = setInterval(_pollLlmStatus, 5000);
+  });
+
+  // ── append message ───────────────────────────────────────────
+  function _escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function _wMsg(role, content, {sources=[], confidence='', followups=[], isHTML=false}={}) {
+    const box = document.getElementById('w-msgs');
+    const wrap = document.createElement('div');
+    wrap.className = `w-msg ${role === 'user' ? 'user' : role === 'system' ? 'system' : 'watson'}`;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'w-bubble';
+    if (isHTML) bubble.innerHTML = content;
+    else bubble.textContent = content;
+    wrap.appendChild(bubble);
+
+    if (role === 'watson') {
+      if (confidence && confidence !== 'unknown') {
+        const b = document.createElement('span');
+        b.className = `w-cf cf-${confidence}`;
+        b.textContent = confidence;
+        bubble.appendChild(b);
+      }
+      if (sources && sources.length) {
+        const s = document.createElement('div');
+        s.className = 'w-sources';
+        s.textContent = '📎 ' + sources.join(' · ');
+        wrap.appendChild(s);
+      }
+      if (followups && followups.length) {
+        const fq = document.createElement('div');
+        fq.className = 'w-followup';
+        followups.forEach(q => {
+          const btn = document.createElement('button');
+          btn.textContent = q;
+          btn.onclick = () => { document.getElementById('w-input').value = q; watsonSend(); };
+          fq.appendChild(btn);
+        });
+        wrap.appendChild(fq);
+      }
+    }
+
+    box.appendChild(wrap);
+    box.scrollTop = box.scrollHeight;
+    return wrap;
+  }
+
+  // ── command parser ────────────────────────────────────────────
+  // Minimal set — Watson LLM handles all natural language via record_to_case tool.
+  // Only keep unambiguous explicit shortcuts that are useful offline too.
+  const _CMD = [
+    // Explicit "add @username to case" shortcut
+    { re: /^add\s+@([\w.\-_]+)\s+(?:to\s+)?(?:the\s+)?case/i, fn: m => _cmdAddToCase(m[1]) },
+    // Explicit enrich shortcut
+    { re: /^(?:investigate|enrich)\s+@([\w.\-_]+)/i,           fn: m => _cmdEnrich(m[1]) },
+  ];
+
+  function _tryCommand(text) {
+    for (const {re, fn} of _CMD) {
+      const m = text.match(re);
+      if (m) { fn(m); return true; }
+    }
+    return false;
+  }
+
+  // ── command handlers ──────────────────────────────────────────
+  async function _cmdAddToCase(username) {
+    // Find the profile in the last report
+    const r   = _lastReport || {};
+    const sm  = r.social_media || {};
+    const caseId = _resolveCaseId();
+    if (!caseId) {
+      _wMsg('watson', `No active case. Click "Save as Case" first, then try adding @${username}.`);
+      return;
+    }
+    // Search across all platforms for this username
+    let found = null;
+    for (const igP of (sm.instagram?.found || [])) {
+      if (igP.username.toLowerCase() === username.toLowerCase()) { found = {platform:'instagram', ...igP}; break; }
+    }
+    if (!found) {
+      for (const ttP of (sm.tiktok?.found || [])) {
+        if (ttP.username.toLowerCase() === username.toLowerCase()) { found = {platform:'tiktok', ...ttP}; break; }
+      }
+    }
+    if (!found) {
+      // Fall through — still add with minimal info
+      found = {platform:'unknown', username, url:''};
+    }
+
+    _wDot('busy');
+    const thinking = _wMsg('watson', '⏳ Adding to case…');
+    try {
+      const resp = await fetch('/api/validate_profile', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          platform: found.platform, username: found.username,
+          url: found.url || '', display_name: found.display_name || '',
+          relevance: found.relevance || 5,
+          case_id: caseId,
+        }),
+      });
+      const data = await resp.json();
+      thinking.remove();
+      if (data.ok) {
+        _wMsg('watson', `✅ @${username} added to the case (${found.platform}).`, {
+          followups: [`Find more info on @${username}`, `What other accounts should I add?`]
+        });
+      } else {
+        _wMsg('watson', `⚠ Could not add @${username}: ${data.error || 'unknown error'}`);
+      }
+    } catch(e) {
+      thinking.remove();
+      _wMsg('watson', `⚠ Request failed: ${e}`);
+    }
+    _wDot('ready');
+  }
+
+  async function _cmdEnrich(username) {
+    _wDot('busy');
+    const thinking = _wMsg('watson', `🔍 Enriching profile for @${username}…`);
+    // Try to find platform
+    const r = _lastReport || {};
+    const sm = r.social_media || {};
+    let platform = 'instagram';
+    let url = '';
+    for (const igP of (sm.instagram?.found || [])) {
+      if (igP.username.toLowerCase() === username.toLowerCase()) { platform='instagram'; url=igP.url||''; break; }
+    }
+    for (const ttP of (sm.tiktok?.found || [])) {
+      if (ttP.username.toLowerCase() === username.toLowerCase()) { platform='tiktok'; url=ttP.url||''; break; }
+    }
+    try {
+      const resp = await fetch('/api/validate_profile', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({platform, username, url}),
+      });
+      const data = await resp.json();
+      thinking.remove();
+      if (data.ok && data.enriched) {
+        const e = data.enriched;
+        const parts = [];
+        if (e.display_name) parts.push(`Display name: ${e.display_name}`);
+        if (e.bio)          parts.push(`Bio: ${e.bio.slice(0,120)}`);
+        if (e.followers)    parts.push(`Followers: ${e.followers}`);
+        if (e.is_private)   parts.push(`Account is private`);
+        if (e.external_url) parts.push(`Link: ${e.external_url}`);
+        const summary = parts.length ? parts.join(' — ') : 'No additional data found.';
+        _wMsg('watson', `📋 @${username} (${platform}): ${summary}`, {
+          followups: [`Add @${username} to case`, `What does the bio suggest?`]
+        });
+      } else {
+        _wMsg('watson', `⚠ Could not enrich @${username}: ${data.error||'no data'}`);
+      }
+    } catch(e) {
+      thinking.remove();
+      _wMsg('watson', `⚠ Request failed: ${e}`);
+    }
+    _wDot('ready');
+  }
+
+  function _cmdSearch(query) {
+    // Just pass to LLM as a question
+    watsonAsk(`Search in the investigation data for: ${query}`);
+  }
+
+  // "bereal @peanaths", "j'ai trouvé le bereal c'est peanaths", etc.
+  async function _cmdRecordPlatform(platform, username) {
+    platform = platform.toLowerCase();
+    const platformLabels = {
+      bereal:'BeReal', tiktok:'TikTok', snapchat:'Snapchat', steam:'Steam',
+      vinted:'Vinted', strava:'Strava', telegram:'Telegram',
+      reddit:'Reddit', github:'GitHub',
+    };
+    const label = platformLabels[platform] || platform;
+    const urlMap = {
+      bereal:   `https://bere.al/${username}`,
+      tiktok:   `https://www.tiktok.com/@${username}`,
+      snapchat: `https://www.snapchat.com/add/${username}`,
+      steam:    `https://steamcommunity.com/id/${username}`,
+      vinted:   `https://www.vinted.fr/member/${username}`,
+      strava:   `https://www.strava.com/athletes/${username}`,
+      telegram: `https://t.me/${username}`,
+      reddit:   `https://www.reddit.com/user/${username}`,
+      github:   `https://github.com/${username}`,
+    };
+    const profileUrl = urlMap[platform] || `https://${platform}.com/${username}`;
+
+    _wMsg('system', `📌 Recording ${label} @${username}…`);
+
+    const caseId = _resolveCaseId();
+    const body = {
+      platform, username, url: profileUrl, display_name: username,
+      relevance: 1, manually_added: true,
+    };
+    if (caseId) body.case_id = caseId;
+
+    try {
+      const resp = await fetch('/api/validate_profile', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) {
+        _wMsg('watson', `⚠ Could not record ${label}: ${data.error || 'unknown error'}`);
+      } else {
+        _wMsg('watson',
+          `✅ Recorded ${label} @${username} — ${profileUrl}` +
+          (caseId ? ' (added to case)' : ' (saved to report)'),
+          {sources: [label], confidence: 'probable'}
+        );
+        // Offer enrichment via follow-up button
+        setTimeout(() => {
+          _wMsg('watson',
+            `Want more details on ${label} @${username}?`,
+            {followups: [`Enrich ${label} @${username}`, `Search for ${label} @${username} online`]}
+          );
+        }, 300);
+      }
+    } catch(e) {
+      _wMsg('watson', `⚠ Request failed: ${e}`);
+    }
+  }
+
+  function _resolveCaseId() {
+    // Try to find case_id from the URL if on a case page, or from a session hint
+    const m = window.location.href.match(/\/cases\/([\w-]+)/);
+    if (m) return m[1];
+    // Fall back: use the last auto-created case (set by autoCreateCase)
+    return window._watsonCaseId || null;
+  }
+
+  // ── Watson on report ─────────────────────────────────────────
+  function watsonOnReport(r) {
+    _lastReport = r;
+    _wDot('ready');
+    _buildQuickActions(r);
+    _buildSuggestions(r);
+
+    // Auto-greeting with key finding
+    const analysis = r.analysis || {};
+    const summary  = analysis.executive_summary || r.llm_summary || '';
+    const hyps     = analysis.hypotheses || [];
+    const pivots   = analysis.pivot_suggestions || [];
+
+    if (summary) {
+      _wMsg('watson', summary.slice(0, 280) + (summary.length > 280 ? '…' : ''), {
+        followups: pivots.slice(0,2).map(p => p.action?.slice(0,60) + '?').filter(Boolean)
+      });
+    }
+    if (hyps.length) {
+      const top = hyps[0];
+      const pct = Math.round((top.confidence||0)*100);
+      _wMsg('system', `Top hypothesis (${pct}% confidence): ${top.claim}`);
+    }
+  }
+
+  function _buildQuickActions(r) {
+    const sm   = r.social_media || {};
+    const row  = document.getElementById('w-action-row');
+    const sect = document.getElementById('w-actions');
+    const btns = [];
+
+    // Add buttons for top social profiles
+    for (const ig of (sm.instagram?.found || []).slice(0,2)) {
+      btns.push({label:`📷 Add @${ig.username}`, cls:'action-add', fn: () => _cmdAddToCase(ig.username)});
+      btns.push({label:`🔍 Enrich @${ig.username}`, cls:'action-enrich', fn: () => _cmdEnrich(ig.username)});
+    }
+    for (const tt of (sm.tiktok?.found || []).slice(0,1)) {
+      btns.push({label:`🎵 Add @${tt.username}`, cls:'action-add', fn: () => _cmdAddToCase(tt.username)});
+    }
+    // Report link
+    btns.push({label:'📊 Full report', cls:'action-search', fn: () => window.open('/investigation/report','_blank')});
+
+    if (!btns.length) return;
+    row.innerHTML = '';
+    btns.slice(0,6).forEach(b => {
+      const btn = document.createElement('button');
+      btn.className = `wa-btn ${b.cls}`;
+      btn.textContent = b.label;
+      btn.onclick = b.fn;
+      row.appendChild(btn);
+    });
+    sect.style.display = 'flex';
+  }
+
+  function _buildSuggestions(r) {
+    const analysis = r.analysis || {};
+    const pivots   = analysis.pivot_suggestions || [];
+    const box      = document.getElementById('w-suggestions');
+    if (!pivots.length) return;
+
+    let html = '<div class="ws-label">Suggested</div>';
+    pivots.slice(0,3).forEach(p => {
+      const q = p.action || '';
+      html += `<button onclick="watsonAsk(${JSON.stringify(q)})">${esc(q.slice(0,68))}${q.length>68?'…':''}</button>`;
+    });
+    box.innerHTML = html;
+    box.style.display = 'block';
+  }
+
+  // ── ask (pre-fill + send) ─────────────────────────────────────
+  function watsonAsk(question) {
+    const inp = document.getElementById('w-input');
+    inp.value = question;
+    inp.dispatchEvent(new Event('input'));
+    watsonSend();
+  }
+
+  // ── used from pivot cards ──────────────────────────────────────
+  function askPivot(question) { watsonAsk(question); }
+  function populateChatSuggestions() {}  // no-op, now handled by watsonOnReport
+
+  // ── send ──────────────────────────────────────────────────────
+  // Tool display names for indicators
+  const _TOOL_LABELS = {
+    web_search:           '🌐 Searching the web',
+    instagram_lookup:     '📷 Looking up Instagram',
+    sherlock_check:       '🕵️ Checking platforms',
+    enrich_profile:       '🔍 Enriching profile',
+    email_osint:          '📧 Investigating email',
+    phone_lookup:         '📞 Looking up phone',
+    web_archive:          '📁 Checking archives',
+    whois_lookup:         '🌍 Running WHOIS',
+    validate_email_batch: '✉️ Validating emails',
+  };
+
+  async function watsonSend() {
+    const input = document.getElementById('w-input');
+    const btn   = document.getElementById('w-send');
+    const q     = input.value.trim();
+    if (!q) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+    _wMsg('user', q);
+    _wHistory.push({role: 'user', content: q});
+
+    // Try command first (no LLM needed)
+    if (_tryCommand(q)) return;
+
+    _wDot('busy');
+    btn.disabled = true;
+
+    // Create the bubble Watson will stream into
+    const msgWrap = document.createElement('div');
+    msgWrap.className = 'w-msg watson';
+    const bubble = document.createElement('div');
+    bubble.className = 'w-bubble';
+    // Start with animated dots
+    bubble.innerHTML = '<span class="w-thinking-dots"><span>.</span><span>.</span><span>.</span></span>';
+    bubble.style.cssText = 'color:var(--muted);font-style:italic;';
+    msgWrap.appendChild(bubble);
+    document.getElementById('w-msgs').appendChild(msgWrap);
+    document.getElementById('w-msgs').scrollTop = 9999;
+
+    let streamedText = '';
+    let toolsUsedArr = [];
+    let toolTagsEl   = null;
+
+    function _showToolTags(toolsUsed) {
+      if (!toolsUsed.length) return;
+      const names = [...new Set(toolsUsed.map(t => _TOOL_LABELS[t.tool] || t.tool))];
+      if (!toolTagsEl) {
+        toolTagsEl = document.createElement('div');
+        toolTagsEl.className = 'w-tools-used';
+        bubble.prepend(toolTagsEl);
+      }
+      toolTagsEl.innerHTML = names.map(n =>
+        `<span class="w-tool-tag">${_escHtml(n.split(' ').slice(1).join(' ') || n)}</span>`
+      ).join('');
+    }
+
+    try {
+      const res = await fetch('/api/investigation/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          inv_id: INV_ID, question: q,
+          history: _wHistory.slice(-8), stream: true,
+          case_id: _resolveCaseId() || '',
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({error: 'HTTP ' + res.status}));
+        bubble.style.cssText = '';
+        bubble.textContent = `⚠ ${err.error || 'Error'}`;
+        return;
+      }
+
+      // SSE reader
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let streaming = false;
+
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, {stream: true});
+
+        const lines = buf.split('\n');
+        buf = lines.pop();  // keep incomplete line
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') break;
+
+          let evt;
+          try { evt = JSON.parse(raw); } catch { continue; }
+
+          if (evt.type === 'error') {
+            bubble.style.cssText = '';
+            bubble.textContent = `⚠ ${evt.error}`;
+            return;
+          }
+
+          if (evt.type === 'tools') {
+            toolsUsedArr = evt.tools_used || [];
+            // Show tool indicator while tools run
+            bubble.innerHTML = '<span class="w-thinking-dots"><span>.</span><span>.</span><span>.</span></span>';
+            bubble.style.cssText = 'color:var(--muted);font-style:italic;';
+            const names = [...new Set(toolsUsedArr.map(t => _TOOL_LABELS[t.tool] || t.tool))];
+            const ind = document.createElement('div');
+            ind.style.cssText = 'font-size:.72rem;color:var(--accent2);margin-top:.25rem;';
+            ind.innerHTML = names.map(n => `<span class="w-tool-spin">⟳</span> ${_escHtml(n)}…`).join(' ');
+            bubble.appendChild(ind);
+            document.getElementById('w-msgs').scrollTop = 9999;
+          }
+
+          if (evt.type === 'token') {
+            if (!streaming) {
+              // First token: clear the thinking dots, switch to normal style
+              bubble.innerHTML = '';
+              bubble.style.cssText = '';
+              if (toolsUsedArr.length) _showToolTags(toolsUsedArr);
+              streaming = true;
+            }
+            streamedText += evt.content;
+            // Append text node after the tool tags
+            const textNode = document.createTextNode(evt.content);
+            bubble.appendChild(textNode);
+            document.getElementById('w-msgs').scrollTop = 9999;
+          }
+
+          if (evt.type === 'done') {
+            toolsUsedArr = evt.tools_used || toolsUsedArr;
+            if (!streaming) {
+              bubble.innerHTML = '';
+              bubble.style.cssText = '';
+              if (toolsUsedArr.length) _showToolTags(toolsUsedArr);
+              bubble.appendChild(document.createTextNode('(no response)'));
+            } else if (toolsUsedArr.length) {
+              _showToolTags(toolsUsedArr);
+            }
+          }
+        }
+      }
+
+      // Save to history
+      _wHistory.push({role: 'assistant', content: streamedText});
+      document.getElementById('w-msgs').scrollTop = 9999;
+
+    } catch(e) {
+      bubble.style.cssText = '';
+      bubble.textContent = `⚠ Request failed: ${e}`;
+    } finally {
+      btn.disabled = false;
+      _wDot('ready');
+      input.focus();
+    }
+  }
+
+  // Auto-resize textarea
+  document.addEventListener('DOMContentLoaded', () => {
+    const ta = document.getElementById('w-input');
+    if (ta) ta.addEventListener('input', () => {
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 90) + 'px';
+    });
+  });
 </script>
 
 </body>

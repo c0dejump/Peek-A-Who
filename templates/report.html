@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Peek-A-Who</title>
+  <link rel="icon" type="image/png" href="/static/logo_PAW.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --surface2:#1c2128;
+      --border:  #30363d;
+      --accent:  #58a6ff;
+      --accent2: #3fb950;
+      --muted:   #8b949e;
+      --text:    #c9d1d9;
+      --danger:  #f85149;
+      --warning: #d29922;
+      --col: 860px;
+    }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh; line-height: 1.6;
+    }
+
+    /* ── Nav ── */
+    nav {
+      width: 100%; padding: .85rem 2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 1.5rem;
+      background: var(--surface);
+    }
+    .logo { display: flex; align-items: center; gap: .5rem; text-decoration: none; }
+    .logo img { width: 36px; }
+    .logo span { font-weight: 700; color: #fff; font-size: .9rem; }
+    .logo span em { color: var(--accent); font-style: normal; }
+    nav a.nav-link { color: var(--muted); text-decoration: none; font-size: .82rem; }
+    nav a.nav-link:hover { color: var(--text); }
+    .nav-right { margin-left: auto; display: flex; gap: .75rem; align-items: center; }
+    .btn-print {
+      font-size: .78rem; padding: .3rem .85rem;
+      background: rgba(88,166,255,.1); border: 1px solid rgba(88,166,255,.3);
+      border-radius: 6px; color: var(--accent); cursor: pointer;
+      transition: background .12s;
+    }
+    .btn-print:hover { background: rgba(88,166,255,.2); }
+
+    /* ── Page wrapper ── */
+    .page { max-width: var(--col); margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+
+    /* ── Report header ── */
+    .rpt-header {
+      border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); padding: 1.5rem 2rem; margin-bottom: 2rem;
+      position: relative;
+    }
+    .rpt-header .rpt-classification {
+      font-size: .62rem; font-weight: 800; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--warning);
+      border: 1px solid rgba(210,153,34,.4); border-radius: 4px;
+      padding: .1rem .5rem; display: inline-block; margin-bottom: .75rem;
+    }
+    .rpt-header h1 { font-size: 1.45rem; color: #fff; margin-bottom: .2rem; }
+    .rpt-header .rpt-sub { font-size: .8rem; color: var(--muted); margin-bottom: .85rem; }
+    .rpt-meta { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .rpt-meta-item { font-size: .78rem; }
+    .rpt-meta-item .ml { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; }
+    .rpt-meta-item .mv { color: var(--text); font-weight: 600; }
+    .confidence-global {
+      position: absolute; top: 1.5rem; right: 2rem;
+      text-align: center;
+    }
+    .conf-ring {
+      width: 64px; height: 64px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; font-size: .7rem; font-weight: 700;
+      border: 3px solid;
+    }
+    .conf-high   { border-color: #3fb950; color: #3fb950; }
+    .conf-medium { border-color: #d29922; color: #d29922; }
+    .conf-low    { border-color: var(--muted); color: var(--muted); }
+    .conf-ring .conf-pct { font-size: 1rem; font-weight: 800; }
+    .conf-ring .conf-label { font-size: .55rem; text-transform: uppercase; letter-spacing: .08em; }
+
+    /* ── Section ── */
+    .rpt-section { margin-bottom: 2rem; }
+    .rpt-section-title {
+      font-size: .78rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+      border-bottom: 1px solid var(--border); padding-bottom: .5rem;
+      margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem;
+    }
+    .rpt-section-title .ico { font-size: 1rem; }
+
+    /* ── Executive summary ── */
+    .exec-summary {
+      font-size: .9rem; line-height: 1.75; color: var(--text);
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 4px solid var(--accent); border-radius: 8px;
+      padding: 1rem 1.2rem;
+    }
+
+    /* ── Evidence buckets ── */
+    .evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 600px) { .evidence-grid { grid-template-columns: 1fr; } }
+    .ev-bucket {
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface2); padding: .85rem 1rem;
+    }
+    .ev-bucket-title {
+      font-size: .65rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; margin-bottom: .6rem; padding-bottom: .35rem;
+      border-bottom: 1px solid rgba(48,54,61,.6);
+    }
+    .ev-bucket.confirmed .ev-bucket-title { color: #3fb950; }
+    .ev-bucket.probable  .ev-bucket-title { color: #d29922; }
+    .ev-bucket.low       .ev-bucket-title { color: var(--muted); }
+    .ev-bucket.rejected  .ev-bucket-title { color: var(--danger); }
+    .ev-bucket ul { list-style: none; }
+    .ev-bucket li {
+      font-size: .78rem; padding: .25rem 0;
+      border-bottom: 1px solid rgba(48,54,61,.4); line-height: 1.45;
+    }
+    .ev-bucket li:last-child { border-bottom: none; }
+    .ev-bucket li::before { margin-right: .4rem; }
+    .ev-bucket.confirmed li::before { content: "✓"; color: #3fb950; }
+    .ev-bucket.probable  li::before { content: "~"; color: #d29922; }
+    .ev-bucket.low       li::before { content: "?"; color: var(--muted); }
+    .ev-bucket.rejected  li::before { content: "✗"; color: var(--danger); }
+    .ev-empty { font-size: .75rem; color: var(--muted); font-style: italic; }
+
+    /* ── Platform badges ── */
+    .platform-grid {
+      display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: .6rem;
+    }
+    .plat-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: .5rem .75rem; min-width: 130px;
+    }
+    .plat-card.active { border-color: rgba(63,185,80,.4); }
+    .plat-card.inactive { opacity: .65; }
+    .plat-name { font-size: .72rem; font-weight: 700; color: var(--text); margin-bottom: .15rem; }
+    .plat-user { font-size: .7rem; color: var(--accent); }
+    .plat-note { font-size: .65rem; color: var(--muted); margin-top: .1rem; }
+    .plat-status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: .3rem; }
+    .dot-active   { background: #3fb950; }
+    .dot-inactive { background: var(--muted); }
+
+    /* ── Timeline ── */
+    .timeline { position: relative; padding-left: 1.5rem; }
+    .timeline::before {
+      content: ''; position: absolute; left: .5rem; top: 0; bottom: 0;
+      width: 2px; background: var(--border);
+    }
+    .tl-event {
+      position: relative; padding: .35rem 0 .35rem .75rem; margin-bottom: .1rem;
+    }
+    .tl-event::before {
+      content: ''; position: absolute; left: -.62rem; top: .65rem;
+      width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--border);
+      background: var(--bg);
+    }
+    .tl-event.confirmed::before { background: #3fb950; border-color: #3fb950; }
+    .tl-event.probable::before  { background: #d29922; border-color: #d29922; }
+    .tl-event.low::before       { background: var(--muted); border-color: var(--muted); }
+    .tl-date { font-size: .68rem; color: var(--muted); font-family: monospace; }
+    .tl-text { font-size: .8rem; color: var(--text); }
+    .tl-src  { font-size: .65rem; color: var(--muted); font-style: italic; }
+
+    /* ── Hypothesis cards ── */
+    .hyp-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: .75rem;
+    }
+    .hyp-card-header { display: flex; gap: .65rem; align-items: flex-start; margin-bottom: .7rem; }
+    .hyp-badge {
+      font-size: .58rem; font-weight: 800; letter-spacing: .08em;
+      text-transform: uppercase; padding: .15rem .5rem; border-radius: 20px;
+      flex-shrink: 0; margin-top: .1rem;
+    }
+    .badge-confirmed { background: rgba(63,185,80,.15); color: #3fb950; border: 1px solid rgba(63,185,80,.3); }
+    .badge-probable  { background: rgba(210,153,34,.15); color: #d29922; border: 1px solid rgba(210,153,34,.3); }
+    .badge-low       { background: rgba(139,148,158,.12); color: var(--muted); border: 1px solid rgba(139,148,158,.25); }
+    .hyp-claim { font-size: .88rem; font-weight: 600; color: #fff; flex: 1; }
+    .hyp-cf-label { font-size: .72rem; color: var(--muted); flex-shrink: 0; }
+    .conf-bar { height: 4px; border-radius: 2px; background: var(--border); margin-bottom: .75rem; }
+    .conf-bar-fill { height: 100%; border-radius: 2px; }
+    .fill-confirmed { background: #3fb950; }
+    .fill-probable  { background: #d29922; }
+    .fill-low       { background: var(--muted); }
+    .hyp-evidence { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    .ev-list { font-size: .75rem; }
+    .ev-list .ev-label { font-size: .62rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: .3rem; }
+    .ev-list li { color: var(--text); margin-bottom: .2rem; line-height: 1.4; }
+    .ev-list li.ev-for::before  { content: "✓ "; color: #3fb950; }
+    .ev-list li.ev-against::before { content: "✗ "; color: var(--danger); }
+
+    /* ── Geo map placeholder ── */
+    .geo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 600px) { .geo-grid { grid-template-columns: 1fr; } }
+    .geo-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: .75rem 1rem;
+    }
+    .geo-card-title { font-size: .65rem; font-weight: 700; text-transform: uppercase;
+                      letter-spacing: .07em; margin-bottom: .5rem; }
+    .geo-card.confirmed .geo-card-title { color: #3fb950; }
+    .geo-card.probable  .geo-card-title { color: #d29922; }
+    .geo-item { font-size: .8rem; color: var(--text); padding: .2rem 0; }
+    .geo-src  { font-size: .65rem; color: var(--muted); margin-left: .35rem; }
+
+    /* ── Pivot / recommendations ── */
+    .pivot-row {
+      display: flex; gap: .75rem; align-items: flex-start;
+      padding: .6rem 0; border-bottom: 1px solid rgba(48,54,61,.4);
+    }
+    .pivot-row:last-child { border-bottom: none; }
+    .pivot-pri {
+      font-size: .58rem; font-weight: 800; padding: .12rem .5rem;
+      border-radius: 20px; text-transform: uppercase; flex-shrink: 0; margin-top: .1rem;
+    }
+    .pri-high   { background: rgba(248,81,73,.15); color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+    .pri-medium { background: rgba(210,153,34,.12); color: #d29922; border: 1px solid rgba(210,153,34,.3); }
+    .pri-low    { background: rgba(63,185,80,.1); color: #3fb950; border: 1px solid rgba(63,185,80,.2); }
+    .pivot-body { flex: 1; }
+    .pivot-action { font-size: .83rem; font-weight: 600; color: var(--text); margin-bottom: .2rem; }
+    .pivot-rationale { font-size: .74rem; color: var(--muted); line-height: 1.45; }
+
+    /* ── Risk indicators ── */
+    .risk-item {
+      background: rgba(248,81,73,.07); border: 1px solid rgba(248,81,73,.2);
+      border-left: 4px solid var(--danger); border-radius: 6px;
+      padding: .5rem .85rem; font-size: .8rem; color: var(--text);
+      margin-bottom: .45rem;
+    }
+    .risk-item::before { content: "⚠ "; color: var(--danger); }
+
+    /* ── Human verifications ── */
+    .hv-item {
+      background: rgba(88,166,255,.05); border: 1px solid rgba(88,166,255,.18);
+      border-radius: 6px; padding: .5rem .85rem; font-size: .8rem;
+      color: var(--text); margin-bottom: .4rem;
+    }
+    .hv-item::before { content: "👁 "; }
+
+    /* ── Correlations ── */
+    .corr-item { font-size: .8rem; color: var(--text); padding: .3rem 0; }
+    .corr-item::before { content: "🔗 "; }
+    .anom-item { font-size: .8rem; color: var(--warning); padding: .3rem 0; }
+    .anom-item::before { content: "⚡ "; }
+
+    /* ── Missing data ── */
+    .missing-item { font-size: .78rem; color: var(--muted); padding: .2rem 0; }
+    .missing-item::before { content: "○ "; }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff; color: #111; }
+      :root {
+        --bg: #fff; --surface: #f6f8fa; --surface2: #f0f4f8;
+        --border: #d0d7de; --text: #1f2328; --muted: #636c76;
+        --accent: #0969da; --accent2: #1a7f37; --danger: #cf222e; --warning: #9a6700;
+      }
+      nav { display: none; }
+      .btn-print { display: none; }
+      .page { padding: 1rem; max-width: 100%; }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">
+    <img src="/static/logo_PAW.png" alt="PAW" />
+    <span>Peek-<em>A</em>-Who</span>
+  </a>
+  <a href="/" class="nav-link">New investigation</a>
+  <a href="/investigation" class="nav-link">Terminal</a>
+  <a href="/cases" class="nav-link">Cases</a>
+  <a href="/history" class="nav-link">History</a>
+  <div class="nav-right">
+    <button class="btn-print" onclick="window.print()">🖨 Print / Export PDF</button>
+  </div>
+</nav>
+
+<div class="page" id="page-content">
+  <p style="color:var(--muted);font-size:.82rem">Loading intelligence report…</p>
+</div>
+
+<script>
+const REPORT_DATA = {{ report_json | safe }};
+const TARGET      = {{ target_json | safe }};
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function confidenceClass(score) {
+  if (score >= 0.7) return 'high';
+  if (score >= 0.4) return 'medium';
+  return 'low';
+}
+
+function render() {
+  const r   = REPORT_DATA;
+  const a   = r.analysis   || {};
+  const pre = r.pre_analysis || {};
+  const tgt = r.target     || TARGET;
+  const em  = r.emails     || {};
+  const sm  = r.social_media || {};
+  const dip = r.diplomas   || {};
+  const ph  = r.phone      || {};
+
+  const fn  = esc(tgt.firstname || '');
+  const ln  = esc(tgt.lastname  || '');
+  const by  = esc(tgt.birth_year || '');
+  const gen = a.generated_at || pre.generated_at || new Date().toISOString().slice(0,16).replace('T',' ') + ' UTC';
+  const gc  = a.global_confidence ?? pre?.identity?.confidence_score ?? 0;
+  const gcPct = Math.round(gc * 100);
+  const gcClass = confidenceClass(gc);
+
+  // ── Geo data ─────────────────────────────────────────────────
+  const geoA = a.geolocation || pre?.geolocation || {};
+  const geoConf = geoA.confirmed || [];
+  const geoProb = geoA.probable  || [];
+  const geoEst  = esc(geoA.current_estimate || '');
+
+  // ── Identity evidence ─────────────────────────────────────────
+  const idA  = a.identity || {};
+  const preId = pre?.identity || {};
+  const idConf = idA.confirmed || preId.confirmed || [];
+  const idProb = idA.probable  || preId.probable  || [];
+  const idRej  = idA.rejected  || preId.rejected  || [];
+
+  // ── Digital presence ─────────────────────────────────────────
+  const dpA      = a.digital_presence || {};
+  const preSoc   = pre?.social || {};
+  const activePlat  = dpA.active_platforms  || preSoc.active_platforms  || [];
+  const inactivePlat = dpA.inactive_platforms || preSoc.inactive_platforms || [];
+
+  // ── Timeline ──────────────────────────────────────────────────
+  const tlA    = a.timeline    || [];
+  const preTl  = pre?.timeline || {};
+  const tlEvts = tlA.length ? tlA : (preTl.events || []);
+
+  // ── Hypotheses ────────────────────────────────────────────────
+  const hyps = a.hypotheses || [];
+
+  // ── Pivots ────────────────────────────────────────────────────
+  const pivots = a.pivot_suggestions || [];
+  const hvs    = a.human_verifications || [];
+  const risks  = a.risk_indicators    || [];
+  const missing = a.missing_data       || [];
+
+  // ── Correlations ──────────────────────────────────────────────
+  const corrs = pre?.correlations?.correlations || [];
+  const anoms = pre?.correlations?.anomalies    || [];
+
+  // ── Build HTML ────────────────────────────────────────────────
+  let html = '';
+
+  // ── Report header ─────────────────────────────────────────────
+  html += `<div class="rpt-header">
+    <div class="confidence-global">
+      <div class="conf-ring conf-${gcClass}">
+        <span class="conf-pct">${gcPct}%</span>
+        <span class="conf-label">${gcClass}</span>
+      </div>
+      <div style="font-size:.62rem;color:var(--muted);margin-top:.3rem">global confidence</div>
+    </div>
+    <div class="rpt-classification">OSINT Intelligence Report</div>
+    <h1>${fn} ${ln}</h1>
+    <div class="rpt-sub">Peek-A-Who investigation — ${esc(gen)}</div>
+    <div class="rpt-meta">
+      ${by ? `<div class="rpt-meta-item"><div class="ml">Birth year</div><div class="mv">${by}</div></div>` : ''}
+      ${ph.e164 || ph.formatted ? `<div class="rpt-meta-item"><div class="ml">Phone</div><div class="mv">${esc(ph.e164 || ph.formatted || '')}</div></div>` : ''}
+      ${geoEst ? `<div class="rpt-meta-item"><div class="ml">Location est.</div><div class="mv">${geoEst}</div></div>` : ''}
+      ${em.smtp_valid?.length ? `<div class="rpt-meta-item"><div class="ml">Verified email(s)</div><div class="mv">${em.smtp_valid.slice(0,2).map(esc).join(', ')}</div></div>` : ''}
+    </div>
+  </div>`;
+
+  // ── Executive summary ─────────────────────────────────────────
+  if (a.executive_summary || r.llm_summary) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">📋</span> Executive Summary</div>
+      <div class="exec-summary">${esc(a.executive_summary || r.llm_summary || '')}</div>
+    </div>`;
+  }
+
+  // ── Identity validation ───────────────────────────────────────
+  if (idConf.length || idProb.length || idRej.length) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">🪪</span> Identity Validation</div>
+      <div class="evidence-grid">
+        <div class="ev-bucket confirmed">
+          <div class="ev-bucket-title">Confirmed</div>
+          ${idConf.length ? `<ul>${idConf.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>` : '<p class="ev-empty">No confirmed facts</p>'}
+        </div>
+        <div class="ev-bucket probable">
+          <div class="ev-bucket-title">Probable</div>
+          ${idProb.length ? `<ul>${idProb.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>` : '<p class="ev-empty">No probable facts</p>'}
+        </div>
+        ${idRej.length ? `<div class="ev-bucket rejected" style="grid-column:1/-1">
+          <div class="ev-bucket-title">Rejected / False Positives</div>
+          <ul>${idRej.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  // ── Digital presence ──────────────────────────────────────────
+  if (activePlat.length || inactivePlat.length || preSoc.maigret_total) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">🌐</span> Digital Presence</div>`;
+    if (activePlat.length) {
+      html += `<div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem">Active accounts</div>
+      <div class="platform-grid">`;
+      activePlat.slice(0,8).forEach(p => {
+        html += `<div class="plat-card active">
+          <div class="plat-name"><span class="plat-status-dot dot-active"></span>${esc(p.platform||'')}</div>
+          ${p.username ? `<div class="plat-user">@${esc(p.username)}</div>` : ''}
+          ${p.title    ? `<div class="plat-user">${esc(p.title)}</div>` : ''}
+          ${p.note     ? `<div class="plat-note">${esc(p.note)}</div>` : ''}
+          ${p.company  ? `<div class="plat-note">🏢 ${esc(p.company)}</div>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    if (inactivePlat.length) {
+      html += `<div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:.75rem 0 .5rem">Other accounts</div>
+      <div class="platform-grid">`;
+      inactivePlat.slice(0,6).forEach(p => {
+        html += `<div class="plat-card inactive">
+          <div class="plat-name"><span class="plat-status-dot dot-inactive"></span>${esc(p.platform||'')}</div>
+          ${p.username ? `<div class="plat-user">@${esc(p.username)}</div>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    if (preSoc.maigret_total) {
+      html += `<div style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">
+        Maigret cross-platform scan: ${preSoc.maigret_total} platform(s) found — `;
+      const cats = preSoc?.maigret_summary || {};
+      html += Object.entries(cats).map(([k,v]) => `${v} ${k}`).join(', ') + '.';
+      html += '</div>';
+    }
+    if (dpA.username_pattern || preSoc.username_pattern) {
+      html += `<div style="margin-top:.5rem;font-size:.75rem;color:var(--muted)">
+        🔠 Username pattern: ${esc(dpA.username_pattern || preSoc.username_pattern || '')}
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Geographic analysis ───────────────────────────────────────
+  if (geoConf.length || geoProb.length || geoEst) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">📍</span> Geographic Analysis</div>
+      ${geoEst ? `<div style="background:rgba(88,166,255,.06);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:.65rem 1rem;font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:.85rem">
+        📍 Current location estimate: ${geoEst}
+      </div>` : ''}
+      <div class="geo-grid">
+        <div class="geo-card confirmed">
+          <div class="geo-card-title">Confirmed</div>
+          ${geoConf.length ? geoConf.map(l => {
+            const loc = typeof l === 'object' ? l : {location: l, source: ''};
+            return `<div class="geo-item">${esc(loc.location||l)}<span class="geo-src">${esc(loc.source||'')}</span></div>`;
+          }).join('') : '<p class="ev-empty">No confirmed locations</p>'}
+        </div>
+        <div class="geo-card probable">
+          <div class="geo-card-title">Probable</div>
+          ${geoProb.length ? geoProb.map(l => {
+            const loc = typeof l === 'object' ? l : {location: l, source: ''};
+            return `<div class="geo-item">${esc(loc.location||l)}<span class="geo-src">${esc(loc.source||'')}</span></div>`;
+          }).join('') : '<p class="ev-empty">No probable locations</p>'}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Timeline ──────────────────────────────────────────────────
+  if (tlEvts.length) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">📅</span> Activity Timeline</div>
+      <div class="timeline">`;
+    tlEvts.slice(0, 20).forEach(ev => {
+      const cf = ev.confidence || 'low';
+      html += `<div class="tl-event ${cf}">
+        <div class="tl-date">${esc(ev.date||'?')}</div>
+        <div class="tl-text">${esc(ev.event||'')}</div>
+        ${ev.source ? `<div class="tl-src">${esc(ev.source)}</div>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // ── Correlations + anomalies ──────────────────────────────────
+  if (corrs.length || anoms.length) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">🔗</span> Correlations & Anomalies</div>
+      ${corrs.map(c => `<div class="corr-item">${esc(c)}</div>`).join('')}
+      ${anoms.map(a => `<div class="anom-item">${esc(a)}</div>`).join('')}
+    </div>`;
+  }
+
+  // ── Hypotheses ────────────────────────────────────────────────
+  if (hyps.length) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">🧠</span> Hypotheses</div>`;
+    hyps.forEach(h => {
+      const lvl = h.level || 'low';
+      const cf  = Math.round((h.confidence || 0) * 100);
+      const sup = h.supporting || [];
+      const agt = h.against    || [];
+      html += `<div class="hyp-card">
+        <div class="hyp-card-header">
+          <span class="hyp-badge badge-${lvl}">${lvl}</span>
+          <span class="hyp-claim">${esc(h.claim||'')}</span>
+          <span class="hyp-cf-label">${cf}%</span>
+        </div>
+        <div class="conf-bar">
+          <div class="conf-bar-fill fill-${lvl}" style="width:${cf}%"></div>
+        </div>
+        ${(sup.length || agt.length) ? `<div class="hyp-evidence">
+          <div class="ev-list">
+            <div class="ev-label">Supporting evidence</div>
+            <ul>${sup.length ? sup.map(s=>`<li class="ev-for">${esc(s)}</li>`).join('') : '<li style="color:var(--muted);list-style:none">None</li>'}</ul>
+          </div>
+          <div class="ev-list">
+            <div class="ev-label">Counter-evidence</div>
+            <ul>${agt.length ? agt.map(s=>`<li class="ev-against">${esc(s)}</li>`).join('') : '<li style="color:var(--muted);list-style:none">None</li>'}</ul>
+          </div>
+        </div>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // ── Risk indicators ───────────────────────────────────────────
+  if (risks.length) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">⚠</span> Risk Indicators</div>
+      ${risks.map(r => `<div class="risk-item">${esc(r)}</div>`).join('')}
+    </div>`;
+  }
+
+  // ── Recommendations: pivots + human verifications ─────────────
+  if (pivots.length || hvs.length) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">🔭</span> Recommendations</div>`;
+
+    if (pivots.length) {
+      html += `<div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem">Next investigation steps</div>`;
+      pivots.forEach(p => {
+        const pri = p.priority || 'medium';
+        html += `<div class="pivot-row">
+          <span class="pivot-pri pri-${pri}">${pri}</span>
+          <div class="pivot-body">
+            <div class="pivot-action">${esc(p.action||'')}</div>
+            ${p.rationale ? `<div class="pivot-rationale">${esc(p.rationale)}</div>` : ''}
+          </div>
+        </div>`;
+      });
+    }
+
+    if (hvs.length) {
+      html += `<div style="font-size:.7rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:.85rem 0 .5rem">Human verifications needed</div>
+      ${hvs.map(h => `<div class="hv-item">${esc(h)}</div>`).join('')}`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Missing data ──────────────────────────────────────────────
+  if (missing.length) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">○</span> Data Gaps</div>
+      ${missing.map(m => `<div class="missing-item">${esc(m)}</div>`).join('')}
+    </div>`;
+  }
+
+  document.getElementById('page-content').innerHTML = html;
+}
+
+render();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PAW — {{ case.title }}</title>
+  <title>Peek-A-Who</title>
   <link rel="icon" type="image/png" href="/static/logo_PAW.png" />
   <link href="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/dist/vis-network.min.css" rel="stylesheet" />
   <style>
@@ -447,15 +447,117 @@
     .gtp-val { color: var(--text); word-break: break-all; }
     .gtp-empty { padding: .5rem .6rem; color: var(--muted); font-size: .73rem; font-style: italic; }
 
-    /* Inline note textarea in popup */
-    .popup-note-form { margin-top: .4rem; display: flex; flex-direction: column; gap: .3rem; }
-    .popup-note-form textarea {
-      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-      color: var(--text); font-size: .75rem; padding: .4rem .5rem;
-      resize: none; outline: none; width: 100%; font-family: inherit;
-      transition: border-color .12s;
+    /* ── Sticky note annotation in popup ── */
+    .popup-sticky-note {
+      margin-top: .55rem; border-radius: 6px;
+      background: #fef9c3; border: 1px solid #fde047;
+      box-shadow: 2px 2px 6px rgba(0,0,0,.25);
+      padding: 0;
     }
-    .popup-note-form textarea:focus { border-color: var(--accent); }
+    .popup-sticky-header {
+      background: #fde047; border-radius: 5px 5px 0 0;
+      padding: .2rem .5rem; font-size: .62rem; font-weight: 700;
+      color: #713f12; letter-spacing: .06em; text-transform: uppercase;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .popup-sticky-header .sticky-save-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: .7rem; color: #713f12; font-weight: 700; padding: 0;
+    }
+    .popup-sticky-note textarea {
+      background: transparent; border: none; border-radius: 0 0 5px 5px;
+      color: #1c1917; font-size: .78rem; padding: .4rem .5rem;
+      resize: none; outline: none; width: 100%;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 52px;
+    }
+    .popup-sticky-note textarea::placeholder { color: #a16207; opacity: .7; }
+
+    /* ── Image fact pill ── */
+    .fact-pill.image-pill {
+      padding: .25rem .4rem; gap: .4rem;
+    }
+    .fact-pill .image-thumb {
+      width: 48px; height: 36px; object-fit: cover; border-radius: 4px;
+      border: 1px solid var(--border); flex-shrink: 0;
+    }
+
+    /* ── Sub-cases section ── */
+    .subcases-panel {
+      margin-bottom: .75rem;
+    }
+    .subcases-list { display: flex; flex-direction: column; gap: .3rem; margin-top: .4rem; }
+    .subcase-item {
+      display: flex; align-items: center; gap: .4rem;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: .35rem .5rem; font-size: .75rem;
+      text-decoration: none; color: var(--text); cursor: pointer;
+      transition: border-color .12s, background .12s;
+    }
+    .subcase-item:hover { border-color: var(--accent); background: rgba(88,166,255,.06); }
+    .subcase-item .sub-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .subcase-item .sub-badge { font-size: .65rem; color: var(--muted); flex-shrink: 0; }
+    .btn-new-subcase {
+      width: 100%; margin-top: .35rem; padding: .3rem;
+      background: transparent; border: 1px dashed var(--border);
+      border-radius: 6px; color: var(--muted); font-size: .73rem;
+      cursor: pointer; transition: border-color .12s, color .12s;
+    }
+    .btn-new-subcase:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Parent breadcrumb ── */
+    .case-breadcrumb {
+      font-size: .72rem; color: var(--muted); margin-bottom: .35rem;
+      display: flex; align-items: center; gap: .3rem;
+    }
+    .case-breadcrumb a { color: var(--accent); text-decoration: none; }
+    .case-breadcrumb a:hover { text-decoration: underline; }
+
+    /* ── Add image button ── */
+    .btn-add-image {
+      width: 100%; margin-top: .4rem; padding: .35rem;
+      background: transparent; border: 1px dashed var(--border);
+      border-radius: 6px; color: var(--muted); font-size: .73rem;
+      cursor: pointer; transition: border-color .12s, color .12s;
+      display: flex; align-items: center; justify-content: center; gap: .3rem;
+    }
+    .btn-add-image:hover { border-color: var(--accent2); color: var(--accent2); }
+    #imageUploadInput { display: none; }
+
+    /* ── HTML note overlay cards ── */
+    #notes-canvas {
+      position: absolute; inset: 0;
+      pointer-events: none; overflow: hidden; z-index: 30;
+    }
+    .note-card {
+      position: absolute; width: 200px; min-height: 140px;
+      background: #fef9c3; border: 1px solid #e9c46a; border-radius: 3px;
+      box-shadow: 3px 4px 12px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.25);
+      display: flex; flex-direction: column;
+      cursor: grab; pointer-events: all; user-select: none;
+    }
+    .note-card:active { cursor: grabbing; }
+    .note-card textarea {
+      flex: 1; background: transparent; border: none;
+      padding: 24px 10px 10px; font-size: 13px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #1c1917; resize: none; outline: none;
+      cursor: text; line-height: 1.5; min-height: 110px;
+      user-select: text;
+    }
+    .note-card textarea::placeholder { color: #a16207; opacity: .7; }
+    .note-card-close {
+      position: absolute; top: 5px; right: 5px; display: none;
+      background: rgba(120,53,15,.12); border: none; border-radius: 50%;
+      width: 18px; height: 18px; font-size: 11px; line-height: 18px;
+      text-align: center; cursor: pointer; color: #78350f; padding: 0;
+      transition: background .12s, color .12s;
+    }
+    .note-card:hover .note-card-close { display: block; }
+    .note-card-close:hover { background: rgba(220,38,38,.2); color: #dc2626; }
+
+    /* Legacy (kept for compat) */
+    .popup-note-form { margin-top: .4rem; display: flex; flex-direction: column; gap: .3rem; }
     .popup-note-form .note-btns { display: flex; gap: .3rem; }
     .popup-note-form .note-btns button {
       flex: 1; padding: .3rem; border-radius: 5px; cursor: pointer;
@@ -568,9 +670,34 @@
 
         <!-- Case info -->
         <div class="case-info">
+          {% if parent %}
+          <div class="case-breadcrumb">
+            <a href="/cases">Cases</a> / <a href="/cases/{{ parent.id }}">{{ parent.title }}</a> /
+          </div>
+          {% endif %}
           <div class="case-info-title">{{ case.title }}</div>
           <div class="case-info-id">#{{ case.id }}</div>
         </div>
+
+        <!-- Sub-cases -->
+        {% if children or not case.parent_id %}
+        <div class="subcases-panel sb-section">
+          <div class="sb-label">Sub-cases</div>
+          <div class="subcases-list" id="subcasesList">
+            {% for sc in children %}
+            <a class="subcase-item" href="/cases/{{ sc.id }}">
+              <span>📁</span>
+              <span class="sub-title">{{ sc.title }}</span>
+              <span class="sub-badge">{{ sc.fact_count }}f / {{ sc.finding_count }}fd</span>
+            </a>
+            {% endfor %}
+            {% if not children %}
+            <div style="font-size:.72rem;color:var(--muted);font-style:italic;padding:.2rem .1rem">No sub-cases yet.</div>
+            {% endif %}
+          </div>
+          <button class="btn-new-subcase" onclick="openSubCaseModal()">+ New sub-case</button>
+        </div>
+        {% endif %}
 
         <!-- Run all -->
         <button class="btn-run-all" id="btnRunAll" onclick="runFullInvestigation()">
@@ -590,6 +717,7 @@
               <option value="city">&#127961;&#65039; City</option>
               <option value="birth_year">&#128197; Birth year</option>
               <option value="note">&#128221; Note</option>
+              <option value="image">&#128444;&#65039; Image</option>
             </select>
 
             <!-- Single value input (non-name types) -->
@@ -609,14 +737,20 @@
           </div>
         </div>
 
+        <!-- Quick image upload -->
+        <input type="file" id="imageUploadInput" accept="image/*" multiple onchange="uploadImages(this)" />
+        <button class="btn-add-image" onclick="document.getElementById('imageUploadInput').click()">
+          &#128444;&#65039; Add image(s) to case
+        </button>
+
         <!-- Facts grouped by type -->
         <div class="sb-label" style="margin-bottom:.5rem;">
           Known facts
           <span id="factCount" style="font-size:.7rem;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;">{{ case.facts | length }}</span>
         </div>
-        {%- set ICONS  = {'name':'&#128100;','alias':'&#127917;','email':'&#128231;','phone':'&#128222;','keyword':'&#128273;','city':'&#127961;&#65039;','birth_year':'&#128197;','note':'&#128221;'} -%}
-        {%- set LABELS = {'name':'Identity','alias':'Aliases','email':'Email','phone':'Phone','keyword':'Keywords','city':'Location','birth_year':'Birth year','note':'Notes'} -%}
-        {%- for ftype in ['name','alias','email','phone','keyword','city','birth_year','note'] -%}
+        {%- set ICONS  = {'name':'&#128100;','alias':'&#127917;','email':'&#128231;','phone':'&#128222;','keyword':'&#128273;','city':'&#127961;&#65039;','birth_year':'&#128197;','note':'&#128221;','image':'&#128444;&#65039;'} -%}
+        {%- set LABELS = {'name':'Identity','alias':'Aliases','email':'Email','phone':'Phone','keyword':'Keywords','city':'Location','birth_year':'Birth year','note':'Notes','image':'Images'} -%}
+        {%- for ftype in ['name','alias','email','phone','keyword','city','birth_year','note','image'] -%}
           {%- set ns = namespace(count=0) -%}
           {%- for fid, fact in case.facts.items() if fact.type == ftype -%}{%- set ns.count = ns.count+1 -%}{%- endfor -%}
           <div id="section-{{ ftype }}" class="fact-section"{% if ns.count == 0 %} style="display:none"{% endif %}>
@@ -681,6 +815,8 @@
     <!-- ── Canvas ── -->
     <div class="canvas-wrap">
       <div id="network-canvas"></div>
+      <!-- HTML overlay for interactive note cards -->
+      <div id="notes-canvas"></div>
 
       <!-- Empty state -->
       <div class="canvas-empty" id="canvasEmpty">
@@ -745,6 +881,23 @@
   </div><!-- /main-row -->
 </div><!-- /app-shell -->
 
+<!-- Sub-case creation overlay -->
+<div class="overlay" id="subCaseOverlay">
+  <div class="confirm-box">
+    <h3>&#128193; New sub-case</h3>
+    <p>Create a sub-folder for this case. Sub-cases inherit no facts — add them separately.</p>
+    <input type="text" id="subCaseTitle" placeholder="e.g. Visited locations, Social profiles, Timeline…"
+           style="width:100%;margin-bottom:1rem;background:var(--bg);border:1px solid var(--border);
+                  border-radius:7px;color:var(--text);font-size:.85rem;padding:.5rem .7rem;outline:none;"
+           onkeydown="if(event.key==='Enter')createSubCase()" />
+    <div class="confirm-actions">
+      <button class="btn-confirm-cancel" onclick="closeSubCaseModal()">Cancel</button>
+      <button class="btn-confirm-delete" style="background:var(--accent);color:#0d1117;"
+              onclick="createSubCase()">Create</button>
+    </div>
+  </div>
+</div>
+
 <!-- Delete confirmation overlay -->
 <div class="overlay" id="deleteOverlay">
   <div class="confirm-box">
@@ -787,6 +940,7 @@ const FACT_COLORS = {
   city:       '#fb8500',
   birth_year: '#8b949e',
   note:       '#e8c84a',
+  image:      '#a371f7',
 };
 
 const FINDING_COLORS = {
@@ -806,7 +960,7 @@ const FINDING_COLORS = {
 
 const FACT_ICONS = {
   name: '👤', email: '📧', phone: '📞',
-  keyword: '🔑', alias: '🎭', city: '🏙', birth_year: '📅', note: '📝',
+  keyword: '🔑', alias: '🎭', city: '🏙', birth_year: '📅', note: '📝', image: '🖼️',
 };
 
 const PLATFORM_ICONS = {
@@ -838,6 +992,42 @@ let isLinkMode         = false;   // vis.js addEdgeMode active
 let linkFromId         = null;    // node selected via action bar "Link"
 let selectedNodeId     = null;    // node selected via popup "Select"
 let currentPopupNodeId = null;
+
+// ── Graph layout persistence ───────────────────────────────────
+let _layoutSaveTimer = null;
+
+function _saveLayout() {
+  if (!network || !CASE_ID) return;
+  const positions = {};
+  nodesDS.getIds().forEach(id => {
+    const p = network.getPosition(id);
+    if (p) positions[id] = { x: Math.round(p.x), y: Math.round(p.y) };
+  });
+  const vp = network.getViewPosition();
+  const sc = network.getScale();
+  const viewport = { scale: sc, position: { x: Math.round(vp.x), y: Math.round(vp.y) } };
+  fetch(`/cases/${CASE_ID}/graph-layout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ positions, viewport }),
+  }).catch(() => {});
+}
+
+function _scheduleSave() {
+  clearTimeout(_layoutSaveTimer);
+  _layoutSaveTimer = setTimeout(_saveLayout, 600);
+}
+
+function _restoreViewport(vp) {
+  if (!network || !vp) return;
+  try {
+    network.moveTo({
+      position: vp.position || { x: 0, y: 0 },
+      scale:    vp.scale    || 1,
+      animation: false,
+    });
+  } catch (_) {}
+}
 
 // ── vis-network initialisation ────────────────────────────────────────────────
 
@@ -904,7 +1094,10 @@ function initNetwork() {
       return;
     }
     if (params.nodes.length === 1) {
-      showNodePopup(params.nodes[0], params.event.center);
+      const nid = params.nodes[0];
+      // Note-type facts are handled by HTML overlay — skip popup
+      if (state.facts[nid] && state.facts[nid].type === 'note') return;
+      showNodePopup(nid, params.event.center);
     } else if (params.edges.length === 1 && params.nodes.length === 0) {
       showEdgePopup(params.edges[0], params.event.center);
     } else {
@@ -933,7 +1126,13 @@ function initNetwork() {
   // Hide popup when dragging view
   network.on('dragStart', hideNodePopup);
 
-  // Build initial graph
+  // ── Whiteboard persistence + note card sync ──────────────────
+  network.on('dragEnd',   () => { _scheduleSave(); updateNoteCardPositions(); });
+  network.on('zoom',      () => { _scheduleSave(); updateNoteCardPositions(); });
+  network.on('dragView',  () => { _scheduleSave(); updateNoteCardPositions(); });
+  network.on('stabilized', updateNoteCardPositions);
+
+  // Build initial graph (positions restored inside rebuildGraph)
   rebuildGraph(state);
 }
 
@@ -943,6 +1142,9 @@ function factLabel(fact) {
   if (fact.type === 'name') {
     const v = typeof fact.value === 'string' ? tryParseJSON(fact.value) : fact.value;
     return ((v.firstname || '') + ' ' + (v.lastname || '')).trim() || 'Name';
+  }
+  if (fact.type === 'image') {
+    return '🖼️ ' + (String(fact.value || '').split('/').pop() || 'image');
   }
   return String(fact.value);
 }
@@ -980,16 +1182,60 @@ function nodeFlag(nid) {
 }
 
 function buildNodeForFact(fact) {
-  const color      = FACT_COLORS[fact.type] || '#8b949e';
   const flag       = nodeFlag(fact.id);
   const toCheck    = flag === 'to_check';
   const inProgress = flag === 'in_progress';
+
+  // ── Note — invisible anchor dot; HTML overlay card handles rendering ──
+  if (fact.type === 'note') {
+    return {
+      id:    fact.id,
+      label: '',
+      shape: 'dot',
+      size:  2,
+      mass:  1,
+      color: {
+        background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)',
+        highlight:  { background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)' },
+        hover:      { background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)' },
+      },
+      borderWidth: 0,
+      _nodeType: 'fact',
+      _data:     fact,
+    };
+  }
+
+  // ── Image node ───────────────────────────────────────────────
+  if (fact.type === 'image') {
+    const color = '#a371f7';
+    const border = toCheck ? '#d29922' : inProgress ? '#58a6ff' : color;
+    return {
+      id:    fact.id,
+      label: '🖼️\n' + (String(fact.value || '').split('/').pop() || 'image'),
+      shape: 'box',
+      mass:  2,
+      color: {
+        background: '#2d1b4e',
+        border, highlight: { background: '#3d2466', border: '#fff' },
+        hover:      { background: '#3d2466', border: '#fff' },
+      },
+      font:            { color: '#c9b3f5', size: 11 },
+      borderWidth:     (toCheck || inProgress) ? 3 : 2,
+      shapeProperties: (toCheck || inProgress) ? { borderDashes: [6, 3] } : {},
+      _nodeType:       'fact',
+      _data:           fact,
+    };
+  }
+
+  // ── Default fact node ─────────────────────────────────────────
+  const color      = FACT_COLORS[fact.type] || '#8b949e';
   const border     = toCheck ? '#d29922' : inProgress ? '#58a6ff' : color;
+  const icon       = FACT_ICONS[fact.type] || '';
   return {
     id:    fact.id,
-    label: factLabel(fact),
+    label: (icon ? icon + '\n' : '') + factLabel(fact),
     shape: 'box',
-    mass:  3,   // heavier than findings → stays central during physics
+    mass:  3,
     color: {
       background: color,
       border,
@@ -1010,21 +1256,26 @@ function buildNodeForFinding(fnd) {
   const flag       = nodeFlag(fnd.id);
   const toCheck    = flag === 'to_check';
   const inProgress = flag === 'in_progress';
-  const border     = toCheck ? '#d29922' : inProgress ? '#58a6ff' : color;
+  const faceMatch  = fnd.face_match && fnd.face_match.matched;
+  const border     = toCheck ? '#d29922' : inProgress ? '#58a6ff' : faceMatch ? '#4ade80' : color;
+  const _fndPl     = (fnd.type === 'social_profile') ? (fnd.platform || '').toLowerCase() : fnd.type;
+  const _fndIcon   = fnd.type === 'social_profile' ? (PLATFORM_ICONS[_fndPl] || '🌐') : (PLATFORM_ICONS[fnd.type] || '');
+  const label      = (_fndIcon ? _fndIcon + ' ' : '') + findingLabel(fnd) + (faceMatch ? '\n🧬' : '');
   return {
     id:      fnd.id,
-    label:   findingLabel(fnd),
+    label,
     shape:   'ellipse',
     opacity: dismissed ? 0.25 : 1,
     color: {
-      background: color + '22',
+      background: faceMatch ? 'rgba(34,197,94,.15)' : color + '22',
       border,
-      highlight:  { background: color + '44', border: '#fff' },
-      hover:      { background: color + '44', border: '#fff' },
+      highlight:  { background: faceMatch ? 'rgba(34,197,94,.3)' : color + '44', border: '#fff' },
+      hover:      { background: faceMatch ? 'rgba(34,197,94,.3)' : color + '44', border: '#fff' },
     },
     font:            { color: '#c9d1d9', size: 12 },
-    borderWidth:     (toCheck || inProgress) ? 2.5 : 1.5,
+    borderWidth:     (toCheck || inProgress || faceMatch) ? 2.5 : 1.5,
     shapeProperties: (toCheck || inProgress) ? { borderDashes: [6, 3] } : {},
+    shadow:          faceMatch ? { enabled: true, color: 'rgba(74,222,128,.4)', size: 10, x: 0, y: 0 } : false,
     _nodeType:       'finding',
     _data:           fnd,
   };
@@ -1035,16 +1286,18 @@ const edgeCurveMap = {};
 const edgeCurveKey = (f, t) => `${f}-->${t}`;
 
 function buildEdge(link, idx) {
-  const style  = EDGE_STYLES[link.type] || { color: '#8b949e', dashes: false };
-  const smooth = edgeCurveMap[edgeCurveKey(link.from, link.to)] || { type: 'continuous', roundness: 0.15 };
+  const style      = EDGE_STYLES[link.type] || { color: '#8b949e', dashes: false };
+  const smooth     = edgeCurveMap[edgeCurveKey(link.from, link.to)] || { type: 'continuous', roundness: 0.15 };
+  const faceBoost  = link.face_boost > 0;
+  const edgeColor  = faceBoost ? '#4ade80' : style.color;
   return {
     id:     `edge-${idx}-${link.from}-${link.to}`,
     from:   link.from,
     to:     link.to,
-    color:  { color: style.color, highlight: '#fff', hover: style.color + 'cc', opacity: 0.85 },
+    color:  { color: edgeColor, highlight: '#fff', hover: edgeColor + 'cc', opacity: 0.85 },
     dashes: style.dashes,
-    width:  edgeWidth(link.confidence),
-    title:  link.reason || link.type,
+    width:  faceBoost ? Math.max(edgeWidth(link.confidence), 2.5) : edgeWidth(link.confidence),
+    title:  (link.reason || link.type) + (faceBoost ? ' · face match' : ''),
     smooth,
     _data:  link,
   };
@@ -1093,15 +1346,32 @@ function rebuildGraph(data) {
     newEdges.push(buildEdge(link, i));
   });
 
+  // Saved positions from server (whiteboard memory)
+  const savedPos = data.graph_positions || {};
+  const savedVP  = data.graph_viewport  || null;
+
   // Merge into datasets (preserve positions of existing nodes)
   const existingIds = new Set(nodesDS.getIds());
   const toAdd    = newNodes.filter(n => !existingIds.has(n.id));
   const toUpdate = newNodes.filter(n =>  existingIds.has(n.id));
 
-  // Place new findings near their parent facts, not at random coords
+  // Apply saved positions first; fall back to _nodeInitPos for new nodes
   toAdd.forEach(n => {
-    const pos = _nodeInitPos(n.id, data);
-    if (pos) { n.x = pos.x; n.y = pos.y; }
+    if (savedPos[n.id]) {
+      n.x = savedPos[n.id].x;
+      n.y = savedPos[n.id].y;
+      n.fixed = false;
+    } else {
+      const pos = _nodeInitPos(n.id, data);
+      if (pos) { n.x = pos.x; n.y = pos.y; }
+    }
+  });
+
+  // Also reposition existing nodes to their saved coords if they moved
+  toUpdate.forEach(n => {
+    if (savedPos[n.id] && network) {
+      network.moveNode(n.id, savedPos[n.id].x, savedPos[n.id].y);
+    }
   });
 
   if (toAdd.length)    nodesDS.add(toAdd);
@@ -1111,21 +1381,30 @@ function rebuildGraph(data) {
   edgesDS.clear();
   edgesDS.add(newEdges);
 
-  // If new nodes arrived, briefly re-enable physics to settle them, then freeze
-  if (toAdd.length && network) {
+  const hasSavedLayout = Object.keys(savedPos).length > 0;
+
+  if (!hasSavedLayout && toAdd.length && network) {
+    // No saved layout — let physics settle new nodes, then freeze
     network.setOptions({ physics: { enabled: true } });
     network.once('stabilized', function() {
       network.setOptions({ physics: { enabled: false } });
+      if (savedVP) _restoreViewport(savedVP);
     });
-    // Safety timeout in case 'stabilized' never fires
     setTimeout(() => {
       if (network) network.setOptions({ physics: { enabled: false } });
     }, 4000);
+  } else if (hasSavedLayout && network) {
+    // Saved layout — freeze immediately, restore exact viewport
+    network.setOptions({ physics: { enabled: false } });
+    if (savedVP) _restoreViewport(savedVP);
   }
 
   // Show/hide empty state
   const totalNodes = nodesDS.length;
   document.getElementById('canvasEmpty').classList.toggle('hidden', totalNodes > 0);
+
+  // Sync HTML note cards (non-destructive)
+  syncNoteCards(data);
 }
 
 function mergeGraphData(fresh) {
@@ -1133,6 +1412,109 @@ function mergeGraphData(fresh) {
   state = fresh;
   rebuildGraph(fresh);
   refreshGTP();
+}
+
+// ── Note card HTML overlay system ─────────────────────────────────────────────
+
+let _dragNoteCard = null;
+let _dragNoteOffX = 0, _dragNoteOffY = 0;
+
+function renderNoteCard(fact) {
+  const container = document.getElementById('notes-canvas');
+  if (!container || document.getElementById(`notecard-${fact.id}`)) return;
+
+  const card = document.createElement('div');
+  card.className   = 'note-card';
+  card.id          = `notecard-${fact.id}`;
+  card.dataset.fid = fact.id;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'note-card-close';
+  closeBtn.innerHTML = '&#10005;';
+  closeBtn.title = 'Delete note';
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    confirmDeleteFact(fact.id);
+  });
+
+  const ta = document.createElement('textarea');
+  ta.value = String(fact.value || '');
+  ta.placeholder = 'Write here…';
+
+  // Auto-save on blur (debounced)
+  let _saveTimer = null;
+  const doSave = () => {
+    const newText = ta.value;
+    if (state.facts[fact.id]) state.facts[fact.id].value = newText;
+    fetch(`/cases/${CASE_ID}/fact/${fact.id}/value`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: newText }),
+    }).catch(() => {});
+  };
+  ta.addEventListener('blur', () => { clearTimeout(_saveTimer); doSave(); });
+  ta.addEventListener('input', () => { clearTimeout(_saveTimer); _saveTimer = setTimeout(doSave, 1500); });
+
+  // Prevent note drag while typing in textarea
+  ta.addEventListener('mousedown', (e) => e.stopPropagation());
+
+  card.appendChild(closeBtn);
+  card.appendChild(ta);
+  container.appendChild(card);
+
+  // Drag: grab the card frame (not textarea/close)
+  card.addEventListener('mousedown', (e) => {
+    if (e.target === ta || e.target === closeBtn) return;
+    _dragNoteCard = card;
+    const wr = document.querySelector('.canvas-wrap').getBoundingClientRect();
+    _dragNoteOffX = e.clientX - wr.left - (parseInt(card.style.left) || 0);
+    _dragNoteOffY = e.clientY - wr.top  - (parseInt(card.style.top)  || 0);
+    e.preventDefault();
+  });
+
+  // Position the card (after a tick so network has coords)
+  setTimeout(() => _positionNoteCard(card, fact.id), 60);
+}
+
+function _positionNoteCard(card, fid) {
+  if (!network) return;
+  try {
+    const canvasPos = network.getPosition(fid);
+    const domPos    = network.canvasToDOM(canvasPos);
+    card.style.left = (domPos.x - 100) + 'px';
+    card.style.top  = (domPos.y - 70)  + 'px';
+  } catch (_) {}
+}
+
+function updateNoteCardPositions() {
+  if (!network) return;
+  document.querySelectorAll('.note-card').forEach(card => {
+    const fid = card.dataset.fid;
+    if (!fid || !nodesDS.get(fid)) return;
+    _positionNoteCard(card, fid);
+  });
+}
+
+function destroyNoteCard(fid) {
+  const card = document.getElementById(`notecard-${fid}`);
+  if (card) card.remove();
+}
+
+function syncNoteCards(data) {
+  const existing = new Set();
+  document.querySelectorAll('.note-card').forEach(c => existing.add(c.dataset.fid));
+
+  const noteFacts = Object.values(data.facts || {}).filter(f => f.type === 'note');
+  const current   = new Set(noteFacts.map(f => f.id));
+
+  // Remove stale cards
+  existing.forEach(fid => { if (!current.has(fid)) destroyNoteCard(fid); });
+
+  // Create new cards
+  noteFacts.forEach(fact => { if (!existing.has(fact.id)) renderNoteCard(fact); });
+
+  // Reposition all after a tick
+  setTimeout(updateNoteCardPositions, 80);
 }
 
 // ── Node popup ────────────────────────────────────────────────────────────────
@@ -1161,12 +1543,118 @@ function showNodePopup(nodeId, center) {
       if (data.value.firstname) html += row('First', data.value.firstname);
       if (data.value.lastname)  html += row('Last',  data.value.lastname);
     } else if (data.type === 'note') {
-      html += row('Note', String(data.value));
+      html += row('Text', String(data.value));
+    } else if (data.type === 'image') {
+      const imgUrl = `/static/uploads/${escHtml(String(data.value))}`;
+      html += `<div style="margin:.4rem 0;"><img src="${imgUrl}" style="max-width:100%;max-height:120px;border-radius:5px;border:1px solid var(--border);" /></div>`;
+    } else if (data.type === 'city') {
+      html += row('City', String(data.value));
+      const mapsQ = encodeURIComponent(String(data.value));
+      html += `<div style="margin-top:.45rem">
+        <a href="https://www.google.com/maps/search/${mapsQ}" target="_blank" rel="noopener"
+           style="font-size:.72rem;color:#4db6ac;text-decoration:none;display:inline-flex;
+                  align-items:center;gap:.3rem;padding:.22rem .55rem;border-radius:4px;
+                  border:1px solid rgba(77,182,172,.3);background:rgba(77,182,172,.08)">
+          🗺️ View on Google Maps
+        </a>
+      </div>`;
     } else {
       html += row('Value', String(data.value));
     }
     html += row('Source', data.source || 'investigator');
     if (data.added_at) html += row('Added', data.added_at.slice(0, 16).replace('T', ' '));
+  } else if (data.type === 'social_profile') {
+    const pl      = (data.platform || '').toLowerCase();
+    const icon    = PLATFORM_ICONS[pl] || '🌐';
+    const plColor = FINDING_COLORS[pl] || '#8b949e';
+    const plLabel = (data.platform || 'Profile').charAt(0).toUpperCase() + (data.platform || '').slice(1);
+
+    // ── Header with platform badge ────────────────────────────
+    html += `<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">
+      <span style="font-size:1.1rem">${escHtml(icon)}</span>
+      <span style="font-size:.7rem;font-weight:700;padding:.15rem .5rem;border-radius:4px;
+                   background:${plColor}22;color:${plColor};border:1px solid ${plColor}44;
+                   text-transform:uppercase;letter-spacing:.05em">${escHtml(plLabel)}</span>
+      <span class="node-popup-badge" style="margin-left:auto">Finding</span>
+    </div>`;
+
+    // ── Username as big clickable link ────────────────────────
+    if (data.username) {
+      const uUrl = data.url || '#';
+      html += `<div style="margin-bottom:.5rem">
+        <a href="${escHtml(uUrl)}" target="_blank" rel="noopener"
+           style="font-size:1rem;font-weight:700;color:${plColor};text-decoration:none">
+          @${escHtml(data.username)}
+        </a>
+        ${data.is_verified ? '<span style="font-size:.7rem;color:#4fc3f7;margin-left:.35rem">✓ verified</span>' : ''}
+      </div>`;
+    }
+
+    // ── Display name ──────────────────────────────────────────
+    if (data.display_name && data.display_name !== data.username) {
+      html += `<div style="font-size:.85rem;color:var(--text);font-weight:500;margin-bottom:.4rem">${escHtml(data.display_name)}</div>`;
+    }
+
+    // ── Bio ───────────────────────────────────────────────────
+    if (data.bio) {
+      html += `<div style="font-size:.75rem;color:#8b949e;line-height:1.5;margin-bottom:.5rem;
+                            border-left:2px solid ${plColor}44;padding-left:.5rem;
+                            max-height:3.5rem;overflow:hidden">${escHtml(data.bio)}</div>`;
+    }
+
+    // ── Stats row ─────────────────────────────────────────────
+    const fmtN = n => n == null ? null : n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(0)+'K' : String(n);
+    const stats = [];
+    if (data.followers  != null) stats.push(`<strong>${fmtN(data.followers)}</strong> followers`);
+    if (data.following  != null) stats.push(`<strong>${fmtN(data.following)}</strong> following`);
+    if (data.posts      != null) stats.push(`<strong>${fmtN(data.posts)}</strong> posts`);
+    if (data.videos     != null) stats.push(`<strong>${fmtN(data.videos)}</strong> videos`);
+    if (data.hearts     != null) stats.push(`<strong>${fmtN(data.hearts)}</strong> ♥`);
+    if (stats.length) {
+      html += `<div style="font-size:.72rem;color:#8b949e;margin-bottom:.4rem;display:flex;flex-wrap:wrap;gap:.4rem">
+        ${stats.map(s => `<span>${s}</span>`).join('<span style="color:#444">·</span>')}
+      </div>`;
+    }
+
+    // ── Confidence bar ────────────────────────────────────────
+    const link = (state.links || []).find(l => l.to === nodeId);
+    if (link && typeof link.confidence === 'number') {
+      const pct = Math.round(link.confidence * 100);
+      html += `<div class="node-popup-conf">
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:var(--muted);font-size:.72rem">Confidence</span>
+          <span style="color:var(--accent2);font-size:.72rem">${pct}%</span>
+        </div>
+        <div class="conf-bar-wrap"><div class="conf-bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }
+
+    // ── Face match badge ──────────────────────────────────────
+    if (data.face_match && data.face_match.matched) {
+      const fm  = data.face_match;
+      const pct = Math.round((fm.confidence || 0) * 100);
+      const dist = fm.distance != null ? fm.distance.toFixed(2) : '?';
+      const strength = fm.distance < 0.35 ? 'Strong' : fm.distance < 0.45 ? 'Probable' : 'Possible';
+      html += `<div style="margin:.5rem 0 .3rem;padding:.35rem .55rem;
+                            background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);
+                            border-radius:5px;display:flex;align-items:center;gap:.45rem">
+        <span style="font-size:.95rem">🧬</span>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:#4ade80">${strength} Face Match</div>
+          <div style="font-size:.65rem;color:#86efac">${pct}% confidence · distance ${dist}</div>
+        </div>
+      </div>`;
+    }
+
+    // ── Metadata footer ───────────────────────────────────────
+    if (data.validated_at) {
+      const d = data.validated_at.slice(0,16).replace('T',' ');
+      html += `<div style="font-size:.65rem;color:#444;margin-top:.4rem">Validated on ${escHtml(d)}</div>`;
+    }
+    if (data.note) {
+      html += `<div style="font-size:.68rem;color:var(--warning);margin-top:.25rem">${escHtml(data.note)}</div>`;
+    }
+
   } else {
     const platform = data.platform || data.type || 'Finding';
     const icon = PLATFORM_ICONS[(data.platform || '').toLowerCase()] || '🌐';
@@ -1240,12 +1728,17 @@ function showNodePopup(nodeId, center) {
   }
 
   html += `</div>`;
-  html += `<div id="popupNoteForm" class="popup-note-form" style="display:none">
-    <textarea id="popupNoteText" rows="2" placeholder="Add a note…"></textarea>
-    <div class="note-btns">
-      <button onclick="hideNoteInput()">Cancel</button>
-      <button class="btn-save" onclick="saveNote('${nodeId}')">Save</button>
+
+  // ── Sticky note annotation (always visible, stored inline on node) ──────────
+  const existingNote = escHtml(data.note || '');
+  html += `<div class="popup-sticky-note">
+    <div class="popup-sticky-header">
+      📝 Note
+      <button class="sticky-save-btn" onclick="saveNote('${nodeId}')">Save ↵</button>
     </div>
+    <textarea id="popupNoteText" rows="3" placeholder="Write a note about this node…"
+              onkeydown="if(event.ctrlKey&&event.key==='Enter')saveNote('${nodeId}')"
+    >${existingNote}</textarea>
   </div>`;
 
   popup.innerHTML = html;
@@ -1433,12 +1926,7 @@ async function cycleStatus(nodeId) {
 }
 
 function showNoteInput(nodeId) {
-  const form = document.getElementById('popupNoteForm');
-  if (form) {
-    form.style.display = '';
-    const ta = document.getElementById('popupNoteText');
-    if (ta) { ta.value = ''; ta.focus(); }
-  }
+  // Stub kept for legacy calls — popup renders sticky note inline now
 }
 
 function hideNoteInput() {
@@ -1446,46 +1934,90 @@ function hideNoteInput() {
   if (form) form.style.display = 'none';
 }
 
+// Save inline annotation directly on the node (no new fact, no link)
 async function saveNote(nodeId) {
-  const ta = document.getElementById('popupNoteText');
-  const text = ta ? ta.value.trim() : '';
-  if (!text) return;
-
+  const ta   = document.getElementById('popupNoteText');
+  const text = ta ? ta.value : '';
   try {
-    const resp = await fetch(`/cases/${CASE_ID}/fact`, {
-      method: 'POST',
+    await fetch(`/cases/${CASE_ID}/node/${nodeId}/note`, {
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'note', value: text }),
+      body:    JSON.stringify({ text }),
+    });
+    // Update local state so re-opening the popup shows the current note
+    if (state.facts[nodeId])    state.facts[nodeId].note = text;
+    if (state.findings[nodeId]) state.findings[nodeId].note = text;
+    const visNode = nodesDS.get(nodeId);
+    if (visNode && visNode._data) { visNode._data.note = text; nodesDS.update(visNode); }
+  } catch (e) {
+    console.error('Note save error:', e);
+  }
+}
+
+// ── Sub-case modal ─────────────────────────────────────────────────────────────
+
+function openSubCaseModal() {
+  document.getElementById('subCaseOverlay').classList.add('visible');
+  setTimeout(() => document.getElementById('subCaseTitle').focus(), 80);
+}
+
+function closeSubCaseModal() {
+  document.getElementById('subCaseOverlay').classList.remove('visible');
+  document.getElementById('subCaseTitle').value = '';
+}
+
+async function createSubCase() {
+  const title = document.getElementById('subCaseTitle').value.trim();
+  if (!title) { document.getElementById('subCaseTitle').focus(); return; }
+  closeSubCaseModal();
+  try {
+    const resp = await fetch(`/cases/${CASE_ID}/sub-case`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ title }),
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Failed');
-
-    // data.fact is the new note fact
-    const fact = data.fact;
-    state.facts[fact.id] = fact;
-    nodesDS.add(buildNodeForFact(fact));
-
-    // Link note to nodeId if possible
-    if (nodeId) {
-      const lresp = await fetch(`/cases/${CASE_ID}/link`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: nodeId, to: fact.id, type: 'note', label: 'note' }),
-      });
-      if (lresp.ok) {
-        const ld = await lresp.json();
-        state.links = ld.links;
-        edgesDS.clear();
-        (state.links || []).forEach((link, i) => edgesDS.add(buildEdge(link, i)));
-      }
-      // Add pill to sidebar
-      if (typeof renderFactPill === 'function') { renderFactPill(fact); updateFactCount(); }
+    // Add to sidebar list
+    const list = document.getElementById('subcasesList');
+    if (list) {
+      const a = document.createElement('a');
+      a.className = 'subcase-item';
+      a.href = `/cases/${data.case_id}`;
+      a.innerHTML = `<span>📁</span><span class="sub-title">${escHtml(title)}</span><span class="sub-badge">0f / 0fd</span>`;
+      // Remove "no sub-cases" message if present
+      list.querySelectorAll('div').forEach(d => d.remove());
+      list.appendChild(a);
     }
-    hideNodePopup();
   } catch (e) {
-    console.error('Note save error:', e);
-    alert('Error saving note: ' + e.message);
+    alert('Error creating sub-case: ' + e.message);
   }
+}
+
+// ── Image upload ───────────────────────────────────────────────────────────────
+
+async function uploadImages(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append('image', file);
+    try {
+      const resp = await fetch(`/cases/${CASE_ID}/image`, { method: 'POST', body: fd });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Upload failed');
+      // Add to state + graph
+      state.facts[data.fact.id] = data.fact;
+      nodesDS.add(buildNodeForFact(data.fact));
+      document.getElementById('canvasEmpty').classList.add('hidden');
+      renderFactPill(data.fact);
+      updateFactCount();
+    } catch (e) {
+      alert('Image upload error: ' + e.message);
+    }
+  }
+  input.value = '';
 }
 
 async function actionToCheck() {
@@ -1708,10 +2240,20 @@ function onFactTypeChange() {
   const ftype     = document.getElementById('factType').value;
   const valInput  = document.getElementById('factValue');
   const nameFields= document.getElementById('nameFields');
+  const btn       = document.getElementById('btnAddFact');
+
+  // Note and image don't start an investigation — change button label
+  const noInvestigate = ['note', 'image'];
+  btn.innerHTML = noInvestigate.includes(ftype)
+    ? '+ Add'
+    : '+ Add &amp; Investigate';
 
   if (ftype === 'name') {
     valInput.style.display = 'none';
     nameFields.classList.add('visible');
+  } else if (ftype === 'image') {
+    valInput.style.display = 'none';
+    nameFields.classList.remove('visible');
   } else {
     valInput.style.display = '';
     nameFields.classList.remove('visible');
@@ -1719,6 +2261,7 @@ function onFactTypeChange() {
       keyword: 'e.g. mchl', email: 'e.g. user@gmail.com',
       phone: 'e.g. +33612345678', city: 'e.g. Paris',
       birth_year: 'e.g. 1993', alias: 'e.g. t.mchl',
+      note: 'Write your note here…',
     };
     valInput.placeholder = placeholders[ftype] || 'Value...';
   }
@@ -1729,6 +2272,12 @@ function onFactTypeChange() {
 async function addFact() {
   const ftype = document.getElementById('factType').value;
   let value;
+
+  // Image type → delegate to file picker
+  if (ftype === 'image') {
+    document.getElementById('imageUploadInput').click();
+    return;
+  }
 
   if (ftype === 'name') {
     const fn = document.getElementById('factFirstname').value.trim();
@@ -1756,8 +2305,18 @@ async function addFact() {
     state.facts[data.fact.id] = data.fact;
 
     // Add node to graph immediately
-    nodesDS.add(buildNodeForFact(data.fact));
+    const visNode = buildNodeForFact(data.fact);
+    // For notes: place anchor at current canvas center
+    if (data.fact.type === 'note' && network) {
+      const vp = network.getViewPosition();
+      visNode.x = vp.x + (Math.random() - 0.5) * 80;
+      visNode.y = vp.y + (Math.random() - 0.5) * 80;
+    }
+    nodesDS.add(visNode);
     document.getElementById('canvasEmpty').classList.add('hidden');
+
+    // Render note card immediately (after vis places the anchor node)
+    if (data.fact.type === 'note') renderNoteCard(data.fact);
 
     // Add sidebar pill
     renderFactPill(data.fact);
@@ -1769,13 +2328,14 @@ async function addFact() {
     document.getElementById('factFirstname').value = '';
     document.getElementById('factLastname').value  = '';
 
-    // Start SSE
+    // Start SSE (not for notes or images)
     if (data.inv_id) startSSE(data.inv_id);
   } catch (e) {
     alert('Error: ' + e.message);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '+ Add &amp; Investigate';
+    const noInvestigate = ['note', 'image'];
+    btn.innerHTML = noInvestigate.includes(ftype) ? '+ Add' : '+ Add &amp; Investigate';
   }
 }
 
@@ -1801,6 +2361,8 @@ async function executeDeleteFact() {
   closeDeleteOverlay();
   if (!fid) return;
 
+  const wasNote = state.facts[fid] && state.facts[fid].type === 'note';
+
   try {
     const resp = await fetch(`/cases/${CASE_ID}/fact/${fid}`, { method: 'DELETE' });
     const data = await resp.json();
@@ -1815,6 +2377,9 @@ async function executeDeleteFact() {
     // Rebuild edges (cheapest approach)
     edgesDS.clear();
     (state.links || []).forEach((link, i) => edgesDS.add(buildEdge(link, i)));
+
+    // Remove note card if applicable
+    if (wasNote) destroyNoteCard(fid);
 
     // Remove sidebar pill
     const pill = document.getElementById(`fact-${fid}`);
@@ -1976,31 +2541,41 @@ function renderFactPill(fact) {
   const icons = {
     name: '&#128100;', email: '&#128231;', phone: '&#128222;',
     keyword: '&#128273;', alias: '&#127917;', city: '&#127961;&#65039;', birth_year: '&#128197;',
-    note: '&#128221;',
+    note: '&#128221;', image: '&#128444;&#65039;',
   };
   const icon = icons[fact.type] || '&#10067;';
-  let valueText = '';
-  if (fact.type === 'name') {
-    const v = typeof fact.value === 'string' ? tryParseJSON(fact.value) : fact.value;
-    valueText = ((v.firstname || '') + ' ' + (v.lastname || '')).trim();
+  let innerHtml;
+
+  if (fact.type === 'image') {
+    const imgUrl = `/static/uploads/${escHtml(String(fact.value))}`;
+    const fname  = String(fact.value).split('/').pop();
+    innerHtml = `
+      <img class="image-thumb" src="${imgUrl}" alt="${escHtml(fname)}" />
+      <div class="fact-pill-body"><div class="fact-pill-value">${escHtml(fname)}</div></div>
+      <button class="btn-danger-sm" title="Remove"
+              onclick="event.stopPropagation(); confirmDeleteFact('${fact.id}')">&#10005;</button>`;
   } else {
-    valueText = escHtml(String(fact.value));
+    let valueText = '';
+    if (fact.type === 'name') {
+      const v = typeof fact.value === 'string' ? tryParseJSON(fact.value) : fact.value;
+      valueText = ((v.firstname || '') + ' ' + (v.lastname || '')).trim();
+    } else {
+      valueText = escHtml(String(fact.value));
+    }
+    innerHtml = `
+      <span class="fact-pill-icon">${icon}</span>
+      <div class="fact-pill-body"><div class="fact-pill-value">${valueText}</div></div>
+      <button class="btn-danger-sm" title="Remove fact"
+              onclick="event.stopPropagation(); confirmDeleteFact('${fact.id}')">&#10005;</button>`;
   }
 
   const div = document.createElement('div');
-  div.className = 'fact-pill';
+  div.className = fact.type === 'image' ? 'fact-pill image-pill' : 'fact-pill';
   div.id = `fact-${fact.id}`;
   div.dataset.fid = fact.id;
   div.setAttribute('onclick', `highlightNode('${fact.id}')`);
   div.setAttribute('ondblclick', `confirmDeleteFact('${fact.id}')`);
-  div.innerHTML = `
-    <span class="fact-pill-icon">${icon}</span>
-    <div class="fact-pill-body">
-      <div class="fact-pill-value">${valueText}</div>
-    </div>
-    <button class="btn-danger-sm" title="Remove fact"
-            onclick="event.stopPropagation(); confirmDeleteFact('${fact.id}')">&#10005;</button>
-  `;
+  div.innerHTML = innerHtml;
   group.appendChild(div);
 }
 
@@ -2023,18 +2598,45 @@ function startDragPanel(e, panelId) {
 }
 
 document.addEventListener('mousemove', e => {
-  if (!_dragPanel) return;
   const wrap = document.querySelector('.canvas-wrap');
   const wr   = wrap.getBoundingClientRect();
-  let x = e.clientX - wr.left - _dragOffX;
-  let y = e.clientY - wr.top  - _dragOffY;
-  x = Math.max(0, Math.min(x, wr.width  - _dragPanel.offsetWidth));
-  y = Math.max(0, Math.min(y, wr.height - _dragPanel.offsetHeight));
-  _dragPanel.style.left  = x + 'px';
-  _dragPanel.style.top   = y + 'px';
-  _dragPanel.style.right = 'auto';
+
+  if (_dragPanel) {
+    let x = e.clientX - wr.left - _dragOffX;
+    let y = e.clientY - wr.top  - _dragOffY;
+    x = Math.max(0, Math.min(x, wr.width  - _dragPanel.offsetWidth));
+    y = Math.max(0, Math.min(y, wr.height - _dragPanel.offsetHeight));
+    _dragPanel.style.left  = x + 'px';
+    _dragPanel.style.top   = y + 'px';
+    _dragPanel.style.right = 'auto';
+  }
+
+  if (_dragNoteCard) {
+    let x = e.clientX - wr.left - _dragNoteOffX;
+    let y = e.clientY - wr.top  - _dragNoteOffY;
+    x = Math.max(0, Math.min(x, wr.width  - _dragNoteCard.offsetWidth));
+    y = Math.max(0, Math.min(y, wr.height - _dragNoteCard.offsetHeight));
+    _dragNoteCard.style.left = x + 'px';
+    _dragNoteCard.style.top  = y + 'px';
+  }
 });
-document.addEventListener('mouseup', () => { _dragPanel = null; });
+
+document.addEventListener('mouseup', () => {
+  _dragPanel = null;
+  if (_dragNoteCard) {
+    // Sync note anchor position back to vis-network
+    const card = _dragNoteCard;
+    const fid  = card.dataset.fid;
+    if (network && fid) {
+      const domX = parseInt(card.style.left) + 100;
+      const domY = parseInt(card.style.top)  + 70;
+      const cp   = network.DOMtoCanvas({ x: domX, y: domY });
+      network.moveNode(fid, cp.x, cp.y);
+      _scheduleSave();
+    }
+    _dragNoteCard = null;
+  }
+});
 
 function toggleGTP(id) {
   const el = document.getElementById(id);

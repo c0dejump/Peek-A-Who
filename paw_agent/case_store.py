@@ -55,13 +55,14 @@ class CaseStore:
 
     # ── Public API ────────────────────────────────────────────────────
 
-    def create(self, form_data: dict) -> dict:
+    def create(self, form_data: dict, parent_id: str | None = None) -> dict:
         """
-        Parse initial form data and create a new case.
+        Parse initial form data and create a new case (or sub-case).
 
         Expected keys (all optional):
           firstname, lastname, keywords (comma string or list),
-          pseudo, city, birth_year
+          pseudo, city, birth_year, title
+        parent_id: if set, this case is a sub-case of the given parent DID.
         """
         did   = uuid.uuid4().hex[:8]
         now   = _now()
@@ -78,9 +79,15 @@ class CaseStore:
         else:
             keywords = [k.strip() for k in raw_kw.split(",") if k.strip()]
 
-        # Build title
+        # Build title — allow explicit override from form_data
+        explicit_title = (form_data.get("title") or "").strip()
         parts = [p for p in [firstname, lastname] if p]
-        title = f"Investigation: {' '.join(parts)}" if parts else f"Case {did}"
+        if explicit_title:
+            title = explicit_title
+        elif parent_id:
+            title = f"Sub-case: {' '.join(parts)}" if parts else f"Sub-case {did}"
+        else:
+            title = f"Investigation: {' '.join(parts)}" if parts else f"Case {did}"
 
         facts: dict = {}
 
@@ -108,6 +115,7 @@ class CaseStore:
         dossier = {
             "id":         did,
             "title":      title,
+            "parent_id":  parent_id or None,
             "created_at": now,
             "updated_at": now,
             "facts":      facts,
@@ -139,14 +147,60 @@ class CaseStore:
                 d   = self._read_raw(did)
                 if d:
                     result.append({
-                        "id":         d.get("id", did),
-                        "title":      d.get("title", did),
-                        "created_at": d.get("created_at", ""),
-                        "updated_at": d.get("updated_at", ""),
+                        "id":            d.get("id", did),
+                        "title":         d.get("title", did),
+                        "parent_id":     d.get("parent_id"),
+                        "color":         d.get("color", ""),
+                        "created_at":    d.get("created_at", ""),
+                        "updated_at":    d.get("updated_at", ""),
                         "fact_count":    len(d.get("facts", {})),
                         "finding_count": len(d.get("findings", {})),
                     })
         return result
+
+    def get_children(self, did: str) -> list[dict]:
+        """Return summary list of all sub-cases whose parent_id == did."""
+        return [c for c in self.list_all() if c.get("parent_id") == did]
+
+    def update_fact_value(self, did: str, fid: str, value) -> bool:
+        """Update the value field of a specific fact (e.g. note text)."""
+        with self._lock:
+            d = self._read_raw(did)
+            if d is None or fid not in d.get("facts", {}):
+                return False
+            d["facts"][fid]["value"] = value
+            d["updated_at"] = _now()
+            self._write(d)
+        return True
+
+    def update_case_color(self, did: str, color: str) -> bool:
+        """Persist a hex color for the case (portfolio view)."""
+        with self._lock:
+            d = self._read_raw(did)
+            if d is None:
+                return False
+            d["color"] = color
+            self._write(d)
+        return True
+
+    def update_node_note(self, did: str, node_id: str, note_text: str) -> bool:
+        """Set inline annotation text directly on a fact or finding node."""
+        with self._lock:
+            d = self._read_raw(did)
+            if d is None:
+                return False
+            updated = False
+            if node_id in d.get("facts", {}):
+                d["facts"][node_id]["note"] = note_text
+                updated = True
+            elif node_id in d.get("findings", {}):
+                d["findings"][node_id]["note"] = note_text
+                updated = True
+            if not updated:
+                return False
+            d["updated_at"] = _now()
+            self._write(d)
+        return True
 
     def add_fact(self, did: str, ftype: str, value) -> Optional[dict]:
         """Add a fact to an existing case. Returns the new fact dict or None."""
@@ -262,6 +316,22 @@ class CaseStore:
             d["dismissed_findings"] = sorted(dismissed)
             d["updated_at"] = now
             d["log"].append({"ts": now, "event": action, "details": fid})
+            self._write(d)
+        return True
+
+    def save_graph_layout(self, did: str, positions: dict, viewport: dict) -> bool:
+        """
+        Persist vis-network node positions and viewport (scale + x/y).
+        positions: {nodeId: {x, y}}
+        viewport:  {scale, position: {x, y}}
+        No log entry — this is a silent background save.
+        """
+        with self._lock:
+            d = self._read_raw(did)
+            if d is None:
+                return False
+            d["graph_positions"] = positions
+            d["graph_viewport"]  = viewport
             self._write(d)
         return True
 

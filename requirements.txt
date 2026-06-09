@@ -1,22 +1,32 @@
-# Core web framework
+# ── Core framework ─────────────────────────────────────────────
 flask>=3.0
 python-dotenv>=1.0
 
-# HTTP & HTML parsing
+# ── LLM integration ────────────────────────────────────────────
+litellm>=1.40          # multi-provider LLM (Ollama, OpenAI, Anthropic, Groq, Gemini…)
+
+# ── HTTP / scraping ────────────────────────────────────────────
 requests>=2.31
-beautifulsoup4>=4.12
+beautifulsoup4>=4.12   # HTML parsing (DDG search, platform detection, web_archive)
+lxml>=5.0              # faster BS4 parser (optional but recommended)
 
-# Phone number parsing
-phonenumbers>=8.13
+# ── OSINT tools ────────────────────────────────────────────────
+maigret>=0.4.4         # cross-platform username scanner (36+ targeted sites)
+sherlock-project>=0.15 # cross-platform username scanner (parallel with maigret)
+ghunt>=2.2             # Google account OSINT (Gmail → Gaia ID, Maps reviews)
+phonenumbers>=8.13     # phone parsing, carrier, region, line type
+ignorant>=1.0          # phone → social platform registration (WhatsApp, Telegram…)
 
-# MCP (Model Context Protocol) — LLM tool orchestration
-mcp>=1.5
+# ── Domain / WHOIS ─────────────────────────────────────────────
+python-whois>=0.9      # WHOIS lookups for Watson whois_lookup tool
 
-# LLM integration (supports OpenAI, Anthropic, Ollama, Groq, Gemini, etc.)
-litellm>=1.40
+# ── MCP server (external tool-calling integrations) ────────────
+mcp>=1.0               # Model Context Protocol — used by mcp_server.py only
 
-# ── Optional external CLI tools (install separately) ──────────────────────────
-# maigret (500+ site cross-platform username search):   pip install maigret
-# ignorant (phone social registration check):           pip install ignorant
-# ghunt (Google account OSINT):                         pip install ghunt
-# phoneinfoga (phone OSINT binary): https://github.com/sundowndev/phoneinfoga/releases
+# ── Optional / enhanced features ───────────────────────────────
+# playwright>=1.44     # JavaScript-rendered page fallback (Instagram, TikTok)
+# pimeyes             # paid facial recognition — manual integration only
+#
+# Face recognition (optional — feature degrades gracefully if not installed):
+#   pip install cmake dlib face_recognition
+# face_recognition

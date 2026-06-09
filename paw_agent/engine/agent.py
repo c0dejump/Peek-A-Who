@@ -380,8 +380,10 @@ async def _search_diplomas_direct(
         # Only search when birth year is known (to bound the year range).
         if birth_yr_int:
             bac_years = range(birth_yr_int + 17, birth_yr_int + 21)  # +17 to +20
-            # If academies known, search each; else search all France (no filter)
-            search_academies = academies if academies else [None]
+            # Always search all-France (no academy filter) first, then narrow by
+            # academy if cities are known.  The all-France pass ensures we never
+            # miss a result when the person studied in a different region.
+            search_academies = [None] + (academies if academies else [])
             seen_ids: set[int] = set()
             for year in bac_years:
                 for acad in search_academies:
@@ -425,9 +427,10 @@ async def _search_diplomas_direct(
         # ── resultat-brevet.linternaute.com ──────────────────
         if birth_yr_int:
             brevet_years = range(birth_yr_int + 13, birth_yr_int + 16)  # +13 to +15 (age 14–15)
+            search_academies_b = [None] + (academies if academies else [])
             seen_ids_b: set[int] = set()
             for year in brevet_years:
-                for acad in (academies if academies else [None]):
+                for acad in search_academies_b:
                     try:
                         params_b: dict = {"candidate-name": lastname}
                         if acad:
@@ -608,11 +611,17 @@ async def _search_phone_direct(
         if results["valid"]:
             try:
                 ig = subprocess.run(
-                    ["ignorant", results["country_code"], results["national_number"]],
-                    capture_output=True, text=True, timeout=45,
+                    [
+                        "ignorant",
+                        "--no-color", "--no-clear",
+                        "-T", "8",           # 8s per-platform timeout (default 10)
+                        results["country_code"],
+                        results["national_number"],
+                    ],
+                    capture_output=True, text=True, timeout=120,
                 )
-                if ig.returncode == 0 and ig.stdout.strip():
-                    raw_ig = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", ig.stdout)
+                raw_ig = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", ig.stdout or "")
+                if raw_ig.strip():
                     platforms: list[dict] = []
                     for ln in raw_ig.splitlines():
                         ln = ln.strip()
@@ -716,8 +725,8 @@ def _generate_ig_usernames(
             yr = m.group(1)
     yr2 = yr[2:] if len(yr) == 4 else ""
 
-    kws = [_norm(k) for k in (keywords or []) if k.strip()][:5]
-    depts = [d for d in (dept_codes or []) if re.match(r"^\d{2}$", str(d))][:2]
+    kws = [_norm(k) for k in (keywords or []) if k.strip()]
+    depts = [d for d in (dept_codes or []) if re.match(r"^\d{2}$", str(d))]
 
     # ── Priority 1: pseudo (exact match, most reliable) ───────
     if pseudo:
@@ -770,7 +779,7 @@ def _generate_ig_usernames(
 
     # ── Priority 4: name + year ─────────────────────────────────
     if yr and (fn or ln):
-        core_snap = list(result)[:16]
+        core_snap = list(result)
         for base in core_snap:
             _add(f"{base}{yr2}")
             _add(f"{base}{yr}")
@@ -785,7 +794,230 @@ def _generate_ig_usernames(
             _add(f"{base}{dept}")
             _add(f"{base}_{dept}")
 
-    return result[:100]
+    # ── Priority 6: leet-speak variants ────────────────────────
+    # Substitute common chars (o→0, e→3, i→1, a→4, s→5, t→7)
+    # Only on the top-priority seeds (pseudo + keywords + core names)
+    # to avoid combinatorial explosion.
+    _LEET = {'o': '0', 'e': '3', 'i': '1', 'a': '4', 's': '5', 't': '7'}
+
+    def _leet_variants(s: str) -> list[str]:
+        pos = [(idx, _LEET[c]) for idx, c in enumerate(s) if c in _LEET]
+        if not pos:
+            return []
+        out = []
+        # single substitutions
+        for i, sub in pos:
+            out.append(s[:i] + sub + s[i + 1:])
+        # double substitutions (all pairs)
+        for a in range(len(pos)):
+            for b in range(a + 1, len(pos)):
+                v = list(s)
+                v[pos[a][0]] = pos[a][1]
+                v[pos[b][0]] = pos[b][1]
+                out.append(''.join(v))
+        return out
+
+    # Seed from pseudo + keywords + first core names (highest priority slice)
+    leet_seeds = []
+    if pseudo:
+        raw_pseudo = re.sub(r"[^a-z0-9._]", "", pseudo.lower().translate(_ACCENT_MAP))
+        if raw_pseudo:
+            leet_seeds.append(raw_pseudo)
+    for kw in kws:
+        if kw:
+            leet_seeds.append(kw)
+    for base in result[:15]:
+        if base not in leet_seeds:
+            leet_seeds.append(base)
+
+    for seed in leet_seeds[:20]:
+        for variant in _leet_variants(seed):
+            _add(variant)
+
+    return result
+
+
+async def _prevalidate_usernames(
+    candidates: list[str],
+    firstname: str = "",
+    lastname: str = "",
+    keywords: list[str] | None = None,
+    birth_year: str = "",
+    pseudo: str = "",
+) -> dict:
+    """
+    Pre-validates ALL username candidates using maigret + sherlock on the
+    36 targeted sites (_MISSING_PERSONS_SITES). Both tools run in parallel
+    per username (ThreadPoolExecutor). Only candidates with ≥1 hit on any
+    of the 36 sites are considered validated.
+
+    Returns a dict:
+      validated        – [username, ...]  with ≥1 hit, sorted by hit_count desc
+      not_found        – [username, ...]  with 0 hits
+      hits             – {username: [{"site", "url", "tool", "category"}, ...]}
+      location_relevant, marketplace, gaming, social  – categorised hits (for enrichment)
+      total_found      – total number of (username, site) pairs found
+      maigret_ok       – maigret was installed and ran
+      sherlock_ok      – sherlock was installed and ran
+    """
+    import concurrent.futures as _cf
+    import subprocess, tempfile, os as _os, json as _json, shutil
+
+    orig_order = {un: i for i, un in enumerate(candidates)}
+
+    # Sites known to return false positives in sherlock (return "found" for every username)
+    _SHERLOCK_FP: frozenset[str] = frozenset({"Reddit", "Spotify"})
+
+    mg_site_flags: list[str] = []
+    sh_site_flags: list[str] = []
+    for s in _MISSING_PERSONS_SITES:
+        mg_site_flags.extend(["--site", s])
+        if s not in _SHERLOCK_FP:
+            sh_site_flags.extend(["--site", s])
+
+    # ── Per-username maigret scan ────────────────────────────────
+    def _maigret_one(username: str) -> tuple[str, list[dict], bool]:
+        """Returns (username, hits, installed)."""
+        tmpdir = tempfile.mkdtemp(prefix="paw_mg_")
+        try:
+            subprocess.run(
+                ["maigret", username,
+                 "--timeout", "10", "--retries", "1", "-n", "20",
+                 "--folderoutput", tmpdir, "-J", "simple",
+                 *mg_site_flags],
+                capture_output=True, text=True, timeout=120,
+            )
+            # maigret -J simple creates report_{username}_simple.json
+            json_path = _os.path.join(tmpdir, f"report_{username}_simple.json")
+            if not _os.path.exists(json_path):
+                existing = [f for f in _os.listdir(tmpdir) if f.endswith(".json")]
+                if not existing:
+                    return username, [], True
+                json_path = _os.path.join(tmpdir, existing[0])
+            data = _json.load(open(json_path, encoding="utf-8"))
+            hits: list[dict] = []
+            # simple format: {site_key: {status: {status: "Claimed", url: "..."}, url_user: "..."}}
+            for site_name, site_info in data.items():
+                status = site_info.get("status", {})
+                claimed = (
+                    status.get("status") == "Claimed"
+                    if isinstance(status, dict) else str(status) == "Claimed"
+                )
+                if claimed:
+                    hits.append({"site": site_name, "url": site_info.get("url_user", ""), "tool": "maigret"})
+            return username, hits, True
+        except FileNotFoundError:
+            return username, [], False
+        except Exception:
+            return username, [], True
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    # ── Per-username sherlock scan ───────────────────────────────
+    def _sherlock_one(username: str) -> tuple[str, list[dict], bool]:
+        """Returns (username, hits, installed). Reddit + Spotify excluded (permanent false positives)."""
+        import tempfile
+        _tmp = tempfile.mkdtemp(prefix="paw_sh_")
+        try:
+            proc = subprocess.run(
+                ["sherlock", username, "--print-found", "--no-color", "--timeout", "10",
+                 *sh_site_flags],
+                capture_output=True, text=True, timeout=120,
+                cwd=_tmp,
+            )
+            hits: list[dict] = []
+            for line in proc.stdout.splitlines():
+                if not line.startswith("[+]"):
+                    continue
+                m = re.match(r"\[\+\]\s+(.+?):\s+(https?://\S+)", line)
+                if m:
+                    hits.append({"site": m.group(1).strip(), "url": m.group(2).strip(), "tool": "sherlock"})
+            return username, hits, True
+        except FileNotFoundError:
+            return username, [], False
+        except Exception:
+            return username, [], True
+        finally:
+            import shutil as _sh
+            _sh.rmtree(_tmp, ignore_errors=True)
+
+    # ── Check one username via both tools in parallel ────────────
+    def _check_one(username: str) -> tuple[str, list[dict], bool, bool]:
+        with _cf.ThreadPoolExecutor(max_workers=2) as inner:
+            mg_f = inner.submit(_maigret_one, username)
+            sh_f = inner.submit(_sherlock_one, username)
+            _, mg_hits, mg_ok = mg_f.result()
+            _, sh_hits, sh_ok = sh_f.result()
+        # Merge hits, deduplicating by site name
+        seen_sites: set[str] = set()
+        merged: list[dict] = []
+        for h in mg_hits + sh_hits:
+            if h["site"] not in seen_sites:
+                seen_sites.add(h["site"])
+                merged.append(h)
+        return username, merged, mg_ok, sh_ok
+
+    # ── Run all candidates (20 parallel workers) ─────────────────
+    def _run_all() -> dict:
+        hits_map: dict[str, list[dict]] = {}
+        maigret_ok = True
+        sherlock_ok = True
+
+        with _cf.ThreadPoolExecutor(max_workers=20) as ex:
+            futs = {ex.submit(_check_one, un): un for un in candidates}
+            for fut in _cf.as_completed(futs):
+                username, merged, mg_ok, sh_ok = fut.result()
+                hits_map[username] = merged
+                if not mg_ok: maigret_ok = False
+                if not sh_ok: sherlock_ok = False
+
+        # Categorise and sort
+        location_relevant: list[dict] = []
+        marketplace:       list[dict] = []
+        gaming:            list[dict] = []
+        social:            list[dict] = []
+        total_found = 0
+
+        validated: list[str] = []
+        not_found: list[str] = []
+
+        for username in candidates:
+            hits = hits_map.get(username, [])
+            if hits:
+                validated.append(username)
+                total_found += len(hits)
+                for h in hits:
+                    sl = h["site"].lower()
+                    entry = {**h, "username": username}
+                    if sl in _LOCATION_SITES_LOW:
+                        location_relevant.append(entry)
+                    elif sl in _MARKETPLACE_SITES_LOW:
+                        marketplace.append(entry)
+                    elif sl in _GAMING_SITES_LOW:
+                        gaming.append(entry)
+                    else:
+                        social.append(entry)
+            else:
+                not_found.append(username)
+
+        # Sort validated by hit count desc, then original order
+        validated.sort(key=lambda u: (-len(hits_map.get(u, [])), orig_order.get(u, 999)))
+
+        return {
+            "validated":        validated,
+            "not_found":        not_found,
+            "hits":             hits_map,
+            "location_relevant": location_relevant,
+            "marketplace":      marketplace,
+            "gaming":           gaming,
+            "social":           social,
+            "total_found":      total_found,
+            "maigret_ok":       maigret_ok,
+            "sherlock_ok":      sherlock_ok,
+        }
+
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _run_all)
 
 
 async def _search_instagram_direct(
@@ -848,7 +1080,8 @@ async def _search_instagram_direct(
         })
 
         use_api = True          # flip to False on 429/403
-        consecutive_misses = 0
+        consecutive_misses = 0  # confirmed False (not found) only
+        wall_hits = 0           # None (inconclusive / login wall)
         PRIORITY_ZONE = 20
 
         def _via_api(un: str) -> "tuple[bool | None, str]":
@@ -952,10 +1185,17 @@ async def _search_instagram_direct(
                     "first_seen":   first_seen,
                     "relevance":    score,
                 })
-            else:
+            elif found is False:
                 consecutive_misses += 1
-                # Stop only after priority zone AND not getting API answers
-                if consecutive_misses >= 5 and idx >= PRIORITY_ZONE and not use_api:
+                # Stop only after priority zone when we have many confirmed misses
+                if consecutive_misses >= 15 and idx >= PRIORITY_ZONE:
+                    results["blocked"] = True
+                    break
+            else:
+                # None = inconclusive (login wall, timeout) — don't count as miss
+                wall_hits += 1
+                # If blocked everywhere past priority zone, give up
+                if wall_hits >= 20 and idx >= PRIORITY_ZONE and not use_api:
                     results["blocked"] = True
                     break
 
@@ -987,12 +1227,13 @@ async def _search_social_platforms_direct(
         "Chrome/124.0.0.0 Safari/537.36"
     )
     _PLAT_CFG = {
-        "twitter":  {"label": "Twitter/X",  "url": "https://x.com/{}"},
-        "tiktok":   {"label": "TikTok",     "url": "https://www.tiktok.com/@{}"},
-        "snapchat": {"label": "Snapchat",   "url": "https://www.snapchat.com/add/{}"},
-        "linkedin": {"label": "LinkedIn",   "url": "https://www.linkedin.com/in/{}/"},
-        "telegram": {"label": "Telegram",   "url": "https://t.me/{}"},
-        "bereal":   {"label": "BeReal",     "url": "https://bere.al/@{}"},
+        # Twitter/X is a SPA — title requires JS rendering (Playwright fallback)
+        "twitter":  {"label": "Twitter/X",  "url": "https://x.com/{}",                  "needs_browser": True},
+        "snapchat": {"label": "Snapchat",   "url": "https://www.snapchat.com/add/{}",   "needs_browser": False},
+        "telegram": {"label": "Telegram",   "url": "https://t.me/{}",                   "needs_browser": False},
+        # BeReal: bere.al/{username} (new format, without @) returns same page for all
+        # usernames → unverifiable without auth. Candidates only.
+        "bereal":   {"label": "BeReal",     "url": "https://bere.al/{}",                "needs_browser": False, "unverifiable": True},
     }
 
     fn_l = firstname.lower().translate(_ACCENT_MAP) if firstname else ""
@@ -1036,32 +1277,29 @@ async def _search_social_platforms_direct(
                 if dn and len(dn) > 2 and "linkedin" not in dn.lower():
                     return True, dn
         elif plat == "telegram":
-            # Personal account: "Telegram: Contact @username"
+            # "Telegram: View @username" → public account exists
+            # "Telegram: Contact @username" → username doesn't exist (generic contact page)
             if f"@{un}" in tl:
-                m = re.match(r"(?i)telegram\s*:\s*contact\s+@?(.+)", title.strip())
-                raw = m.group(1).strip() if m else ""
-                # Don't echo username as display name — they're the same thing
-                dn = "" if raw.lower() == un.lower() else raw
-                return True, dn
-            # Channel/bot: title is the entity name (no @username in title)
+                if re.search(r"(?i)telegram\s*:\s*view\b", title):
+                    m = re.match(r"(?i)telegram\s*:\s*view\s+@?(.+)", title.strip())
+                    raw = m.group(1).strip() if m else ""
+                    dn = "" if raw.lower() == un.lower() else raw
+                    return True, dn
+                # "Contact" page = generic fallback, does NOT confirm existence
+                return False, ""
+            # Channel/bot without @ in title (e.g. "Channel Name | Telegram")
             if status == 200 and tl and tl != "telegram" and len(tl) > 3:
-                skip = ("error", "not found", "404", "join telegram", "sign up", "log in")
+                skip = ("error", "not found", "404", "join telegram", "sign up",
+                        "log in", "contact", "send message")
                 if not any(w in tl for w in skip):
                     m2 = re.match(r"^(.+?)\s*(?:[-–—|]\s*telegram)?\s*$", title.strip(), re.I)
                     ch_name = m2.group(1).strip() if m2 else ""
                     if ch_name and ch_name.lower() != "telegram" and len(ch_name) > 2:
                         return True, ch_name
         elif plat == "bereal":
-            # bere.al returns 404 for non-existent users; 200 with @username for real profiles
-            if status == 404:
-                return False, ""
-            if status == 200 and tl:
-                if f"@{un}" in tl.lower():
-                    return True, ""
-                # Reject generic splash/join pages
-                skip = ("be real", "bereal", "join", "download", "404", "not found")
-                if all(w not in tl.lower() for w in skip) and len(tl) > 2:
-                    return True, ""
+            # BeReal now returns same template for all usernames (real or fake).
+            # Cannot verify existence without auth — always return False.
+            return False, ""
         return False, ""
 
     def _score(dn: str, un: str) -> int:
@@ -1073,35 +1311,78 @@ async def _search_social_platforms_direct(
         for kw in kws[:4]:
             if kw in u:  s += 3
             elif kw in d: s += 3
-        return min(s, 10)
+        # Penalise when display name is known but name parts don't match
+        # — avoids surfacing accounts with only partial name coincidence
+        if fn_l and len(fn_l) > 1 and d and fn_l not in d:
+            s -= 4   # firstname mismatch (e.g. "Corentin" for target "Chloé")
+        if ln_l and len(ln_l) > 2 and d and ln_l not in d:
+            s -= 3   # lastname mismatch (e.g. "Nelson" for target "Gernigon")
+        return max(0, min(s, 10))
+
+    def _fetch_title_browser(url: str) -> tuple[int, str]:
+        """Render url with Playwright and return (status, title)."""
+        try:
+            from skills.utils.browser import BrowserSession
+            with BrowserSession() as b:
+                status, html = b.fetch(url, networkidle_timeout=6000)
+                return status, _get_title(html)
+        except Exception:
+            return 0, ""
 
     def _check_platform(plat: str, cfg: dict, candidates: list[str]) -> tuple[str, dict]:
         import requests as _req
         import time
+
+        # BeReal: unverifiable — return candidates only (no actual HTTP check)
+        if cfg.get("unverifiable"):
+            cands = [
+                {"slug": un, "url": cfg["url"].format(un), "note": "unverified"}
+                for un in candidates
+            ]
+            return plat, {"label": cfg["label"], "found": [], "candidates": cands,
+                          "checked": 0, "unverifiable": True}
+
         out: dict = {"label": cfg["label"], "found": [], "checked": 0}
+        needs_browser = cfg.get("needs_browser", False)
+
         sess = _req.Session()
         sess.headers.update({
             "User-Agent": _UA_DESK,
             "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
             "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
         })
+
         for username in candidates:
             out["checked"] += 1
             try:
                 url = cfg["url"].format(username)
-                r = sess.get(url, timeout=8, allow_redirects=True)
-                title = _get_title(r.text)
-                found, dn = _detect(plat, title, r.status_code, username)
+                if needs_browser:
+                    status_code, title = _fetch_title_browser(url)
+                else:
+                    r = sess.get(url, timeout=8, allow_redirects=True)
+                    status_code = r.status_code
+                    title = _get_title(r.text)
+
+                found, dn = _detect(plat, title, status_code, username)
                 if found:
+                    rel = _score(dn, username)
+                    # Drop accounts where display name is known but first name
+                    # clearly doesn't match — wrong person, not just low confidence
+                    d_low = dn.lower().translate(_ACCENT_MAP) if dn else ""
+                    # If display name is known but score is very low, the account
+                    # is almost certainly a different person — drop it
+                    if d_low and rel < 3:
+                        continue
                     out["found"].append({
                         "username":     username,
                         "display_name": dn,
                         "url":          url,
-                        "relevance":    _score(dn, username),
+                        "relevance":    rel,
                     })
             except Exception:
                 pass
             time.sleep(0.3)
+
         out["found"].sort(key=lambda x: x["relevance"], reverse=True)
         return plat, out
 
@@ -1131,25 +1412,42 @@ async def _search_social_platforms_direct(
     return await loop.run_in_executor(None, _fetch)
 
 
+# Sites most relevant for missing persons OSINT.
+# Used by both maigret and sherlock to avoid scanning 500+ irrelevant sites.
+_MISSING_PERSONS_SITES: list[str] = [
+    # Location / Sport — GPS routes, check-ins, last known location
+    "Strava", "Komoot", "AllTrails", "Wikiloc", "Geocaching",
+    "Garmin", "Foursquare", "Swarm", "Runkeeper",
+    # Marketplace — city in listings, last activity date
+    "LeBonCoin", "Vinted", "BlaBlaCar", "Airbnb", "Etsy", "eBay",
+    # Social — last post date, location clues in posts
+    "Reddit", "Twitter", "Instagram", "TikTok", "Snapchat",
+    "Telegram", "Discord", "Pinterest", "Tumblr", "Flickr", "Mastodon",
+    # Gaming — last online timestamp
+    "Steam", "Twitch", "Xbox", "PlayStation",
+    # Professional / other
+    "GitHub", "LinkedIn", "Spotify", "SoundCloud",
+]
+
+_LOCATION_SITES_LOW = {
+    "strava", "komoot", "garmin", "alltrails", "geocaching", "wikiloc",
+    "runkeeper", "foursquare", "swarm",
+}
+_MARKETPLACE_SITES_LOW = {
+    "leboncoin", "vinted", "blablacar", "airbnb", "etsy", "ebay",
+}
+_GAMING_SITES_LOW = {
+    "steam", "twitch", "xbox", "playstation",
+}
+_LOCATION_TAGS = {"sport", "fitness", "geolocation", "travel", "outdoors", "running", "cycling"}
+_GAMING_TAGS   = {"gaming", "game", "games"}
+
+
 async def _run_maigret_direct(usernames: list[str]) -> dict:
     """
-    Cross-platform username search via maigret (2500+ sites).
-    Categorises found profiles: location/sport, marketplace, gaming, social.
+    Targeted maigret scan on missing-person-relevant sites only.
+    No username cap — pre-validation already filtered to real candidates.
     """
-    _LOCATION_SITES = {
-        "strava", "komoot", "garmin", "alltrails", "geocaching", "wikiloc",
-        "runkeeper", "foursquare", "swarm", "untappd", "openstreetmap",
-        "peakbagger", "couchsurfing", "warmshowers", "bikemap", "kamoot",
-        "polarflow", "suunto", "endomondo", "tripadvisor", "yelp",
-    }
-    _MARKETPLACE_SITES = {
-        "leboncoin", "vinted", "ebay", "airbnb", "blablacar", "etsy",
-        "depop", "poshmark", "backmarket", "back market", "offerUp",
-        "craigslist", "gumtree", "olx",
-    }
-    _LOCATION_TAGS = {"sport", "fitness", "geolocation", "travel", "outdoors", "running", "cycling"}
-    _GAMING_TAGS   = {"gaming", "game", "games"}
-
     def _fetch() -> dict:
         import subprocess, tempfile, os, json as _json, shutil
 
@@ -1164,10 +1462,13 @@ async def _run_maigret_direct(usernames: list[str]) -> dict:
             "not_installed":     False,
         }
 
+        site_flags: list[str] = []
+        for s in _MISSING_PERSONS_SITES:
+            site_flags.extend(["--site", s])
+
         tmpdir = tempfile.mkdtemp(prefix="paw_maigret_")
         try:
-            for username in usernames[:5]:
-                # Track all attempted usernames immediately (not just successful JSON parses)
+            for username in usernames:
                 results["checked_usernames"].append(username)
                 try:
                     subprocess.run(
@@ -1175,9 +1476,9 @@ async def _run_maigret_direct(usernames: list[str]) -> dict:
                             "maigret", username,
                             "--timeout", "10",
                             "--retries", "1",
-                            "--top-sites", "500",
-                            "--workers",  "30",
+                            "--workers",  "20",
                             "--folderoutput", tmpdir,
+                            *site_flags,
                         ],
                         capture_output=True, text=True, timeout=180,
                     )
@@ -1213,11 +1514,11 @@ async def _run_maigret_direct(usernames: list[str]) -> dict:
                         found_profiles.append(entry)
                         results["total_found"] += 1
 
-                        if site_low in _LOCATION_SITES or tags_low & _LOCATION_TAGS:
+                        if site_low in _LOCATION_SITES_LOW or tags_low & _LOCATION_TAGS:
                             results["location_relevant"].append({**entry, "username": username})
-                        elif site_low in _MARKETPLACE_SITES or "marketplace" in tags_low or "shopping" in tags_low:
+                        elif site_low in _MARKETPLACE_SITES_LOW or "marketplace" in tags_low or "shopping" in tags_low:
                             results["marketplace"].append({**entry, "username": username})
-                        elif tags_low & _GAMING_TAGS or "gaming" in category:
+                        elif site_low in _GAMING_SITES_LOW or tags_low & _GAMING_TAGS or "gaming" in category:
                             results["gaming"].append({**entry, "username": username})
                         else:
                             results["social"].append({**entry, "username": username})
@@ -1235,6 +1536,85 @@ async def _run_maigret_direct(usernames: list[str]) -> dict:
                     results.setdefault("errors", []).append(f"{username}: {exc}")
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+
+        return results
+
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _fetch)
+
+
+async def _run_sherlock_direct(usernames: list[str]) -> dict:
+    """
+    Targeted sherlock scan on missing-person-relevant sites only.
+    Uses the shared _MISSING_PERSONS_SITES list via --site flags.
+    """
+    def _fetch() -> dict:
+        import subprocess
+
+        results: dict = {
+            "checked_usernames": [],
+            "found": {},
+            "location_relevant": [],
+            "marketplace": [],
+            "gaming": [],
+            "social": [],
+            "total_found": 0,
+            "not_installed": False,
+        }
+
+        site_flags: list[str] = []
+        for s in _MISSING_PERSONS_SITES:
+            site_flags.extend(["--site", s])
+
+        import tempfile, shutil as _sh
+        for username in usernames:
+            results["checked_usernames"].append(username)
+            _tmp = tempfile.mkdtemp(prefix="paw_sh_")
+            try:
+                proc = subprocess.run(
+                    [
+                        "sherlock", username,
+                        "--print-found",
+                        "--no-color",
+                        "--timeout", "10",
+                        *site_flags,
+                    ],
+                    capture_output=True, text=True, timeout=180,
+                    cwd=_tmp,
+                )
+                found_profiles: list[dict] = []
+                for line in proc.stdout.splitlines():
+                    if not line.startswith("[+]"):
+                        continue
+                    m = re.match(r"\[\+\]\s+(.+?):\s+(https?://\S+)", line)
+                    if not m:
+                        continue
+                    site = m.group(1).strip()
+                    url  = m.group(2).strip()
+                    site_low = site.lower()
+                    entry = {"site": site, "url": url, "tags": [], "category": "social"}
+                    found_profiles.append(entry)
+                    results["total_found"] += 1
+                    if site_low in _LOCATION_SITES_LOW:
+                        results["location_relevant"].append({**entry, "username": username})
+                    elif site_low in _MARKETPLACE_SITES_LOW:
+                        results["marketplace"].append({**entry, "username": username})
+                    elif site_low in _GAMING_SITES_LOW:
+                        results["gaming"].append({**entry, "username": username})
+                    else:
+                        results["social"].append({**entry, "username": username})
+                results["found"][username] = found_profiles
+
+            except FileNotFoundError:
+                results["not_installed"] = True
+                break
+            except subprocess.TimeoutExpired:
+                if results["checked_usernames"] and results["checked_usernames"][-1] == username:
+                    results["checked_usernames"][-1] = f"{username}(timeout)"
+            except Exception as exc:
+                results.setdefault("errors", []).append(f"{username}: {exc}")
+            finally:
+                _sh.rmtree(_tmp, ignore_errors=True)
 
         return results
 
@@ -1779,7 +2159,7 @@ async def _run_with_llm(session, tools, firstname, lastname, birth_year, keyword
                 emit(f"  🎓  {len(bac)} bac result(s) — linternaute.com:")
                 for b in bac:
                     rel_tag = f"  [{b['relevance']}]" if b.get("relevance") else ""
-                    emit(f"  📜  {b['name']} — {b.get('diploma','?')} ({b['year']}, âge {b['age_at_bac']}){rel_tag}")
+                    emit(f"  📜  {b['name']} — {b.get('diploma','?')} ({b['year']}, age {b['age_at_bac']}){rel_tag}")
             elif birth_yr_int:
                 emit(f"  ℹ  No bac result (years {birth_yr_int+17}–{birth_yr_int+20})")
 
@@ -1788,7 +2168,7 @@ async def _run_with_llm(session, tools, firstname, lastname, birth_year, keyword
                 emit(f"  🎓  {len(brevet)} brevet result(s) — linternaute.com:")
                 for b in brevet:
                     rel_tag = f"  [{b['relevance']}]" if b.get("relevance") else ""
-                    emit(f"  📜  {b['name']} (brevet {b['year']}, âge {b['age_at_brevet']}){rel_tag}")
+                    emit(f"  📜  {b['name']} (brevet {b['year']}, age {b['age_at_brevet']}){rel_tag}")
             elif birth_yr_int:
                 emit(f"  ℹ  No brevet result (years {birth_yr_int+13}–{birth_yr_int+15})")
 
@@ -1855,7 +2235,7 @@ async def _run_with_llm(session, tools, firstname, lastname, birth_year, keyword
             f"?quoiqui={_qp(full_name)}&ou={_qp(city_hint)}"
         )
 
-        emit("  🔗 [Step 0.8] Annuaires (manual verification — Cloudflare protected):")
+        emit("  🔗 [Step 0.8] Phone Directories (manual verification — Cloudflare protected):")
         emit(f"  📋  Pages Blanches : {pb_url}")
         emit(f"  📋  Pages Jaunes   : {pj_url}")
         emit("")
@@ -1906,14 +2286,17 @@ async def _run_with_llm(session, tools, firstname, lastname, birth_year, keyword
 
                 platforms = ph.get("ignorant_platforms", [])
                 if platforms:
-                    found   = [p["site"] for p in platforms if p["status"] == "found"]
-                    limited = [p["site"] for p in platforms if p["status"] == "rate_limited"]
+                    found     = [p["site"] for p in platforms if p["status"] == "found"]
+                    limited   = [p["site"] for p in platforms if p["status"] == "rate_limited"]
+                    not_found = [p["site"] for p in platforms if p["status"] == "not_found"]
                     emit(f"  🔍  ignorant — {len(platforms)} platforms checked:")
                     if found:
-                        emit(f"  ✅    Registered on: {', '.join(found)}")
+                        emit(f"  ✅    Registered on : {', '.join(found)}")
                     if limited:
-                        emit(f"  ⚠    Rate-limited: {', '.join(limited)}")
-                    if not found and not limited:
+                        emit(f"  ⚠    Rate-limited  : {', '.join(limited)}")
+                    if not_found:
+                        emit(f"  ➖    Not found     : {', '.join(not_found)}")
+                    if not found and not limited and not not_found:
                         emit(f"  ℹ    Not found on any checked platform")
                 elif ph.get("valid"):
                     emit("  ℹ  ignorant not installed — social checks skipped (pip install ignorant)")
@@ -1959,7 +2342,10 @@ async def _run_with_llm(session, tools, firstname, lastname, birth_year, keyword
                 dn = f' — "{p["display_name"]}"' if p.get("display_name") else ""
                 emit(f"  ✅  @{p['username']}{dn}{age_note} [{stars} {p['relevance']}/10]")
             if not found:
-                emit(f"  ℹ  No Instagram profiles found among checked candidates")
+                if ig.get("blocked"):
+                    emit(f"  ⚠  Instagram: rate-limited or login wall — only checked {ig['checked']} candidates")
+                else:
+                    emit(f"  ℹ  No Instagram profiles found among checked candidates")
 
             report["social_media"] = {"instagram": ig}
         except Exception as exc:

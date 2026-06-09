@@ -8,8 +8,9 @@ No authentication required. No credentials stored.
 | File | Platform(s) | Method |
 |------|------------|--------|
 | `instagram.py` | Instagram | `og:title` via `facebookexternalhit/1.1` UA — Meta/Instagram whitelists this to return profile data to link-preview crawlers |
-| `platforms.py` | Twitter/X, TikTok, Snapchat, Telegram, LinkedIn, BeReal | Parallel title-pattern matching |
-| `maigret.py` | 500+ sites | CLI subprocess wrapping `maigret` |
+| `platforms.py` | Twitter/X, TikTok, Snapchat, Telegram, LinkedIn, BeReal | Parallel title-pattern matching (kept for standalone CLI use; pipeline uses pre-validation instead) |
+| `maigret.py` | 36 targeted sites | CLI subprocess wrapping `maigret` with `--site` flags for `_MISSING_PERSONS_SITES` |
+| `sherlock.py` | 36 targeted sites | CLI subprocess wrapping `sherlock` with `--site` flags for `_MISSING_PERSONS_SITES` |
 | `ig_lookup.py` | Instagram (account lookup) | POST to `i.instagram.com/api/v1/users/lookup/` with `q=<username>` → obfuscated email + phone |
 
 ---
@@ -65,11 +66,29 @@ Runs the `maigret` CLI on a list of username candidates and categorises results.
 python -m skills.social_media.maigret jean.dupont jdupont j.dupont
 ```
 
-Categorises results into:
-- **Location/Sport** — Strava, Komoot, Garmin, AllTrails, Wikiloc, Foursquare (GPS routes, last location)
-- **Marketplace** — Leboncoin, Vinted, Airbnb, BlaBlaCar (city in listing, last active date)
-- **Gaming** — Steam, Xbox, PSN, Twitch (last online timestamp)
-- **Social** — Reddit, Mastodon, Pinterest, Tumblr (last post date, location clues)
+Scans **36 targeted sites** (`_MISSING_PERSONS_SITES` in `agent.py`) via `--site` flags. Run in parallel with sherlock inside `_prevalidate_usernames` (Step 0.93); results are merged per username.
+
+- **Location/Sport** — Strava, Komoot, AllTrails, Wikiloc, Geocaching, Garmin, Foursquare
+- **Marketplace** — LeBonCoin, Vinted, BlaBlaCar, Airbnb, Etsy, eBay
+- **Gaming** — Steam, Twitch, Xbox, PlayStation
+- **Social** — Reddit, Twitter, Instagram, TikTok, Snapchat, Telegram, Discord, Pinterest, Tumblr, Flickr, Mastodon
+- **Professional** — GitHub, LinkedIn, Spotify, SoundCloud
+
+**Interfaces:** `run_sync(usernames)`, `async run(usernames)`
+
+---
+
+## sherlock
+
+Runs the `sherlock` CLI on a list of username candidates and categorises results.
+
+**Requirements:** `pip install sherlock-project`
+
+```bash
+python -m skills.social_media.sherlock jean.dupont jdupont
+```
+
+Same 36 targeted sites as maigret. Launched **in parallel** with maigret inside `_prevalidate_usernames` (Step 0.93). Results merged per-username; any username with ≥1 hit is validated.
 
 **Interfaces:** `run_sync(usernames)`, `async run(usernames)`
 

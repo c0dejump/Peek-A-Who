@@ -16,6 +16,39 @@ from typing import Optional
 
 from paw_agent.engine.pipeline import run_investigation as run_agent
 
+# ── Step marker → (step_id, label, phase) ──────────────────────
+_STEP_MARKERS: list[tuple[str, str, str, int]] = [
+    ("[Step 0]",    "step0",     "Surname demographics",    1),
+    ("[Step 0.5]",  "step0_5",   "Diplomas",                1),
+    ("[Step 0.7]",  "step0_7",   "Business registries",     1),
+    ("[Step 0.8]",  "step0_8",   "Directories",             1),
+    ("[Step 0.9]",  "step0_9",   "Phone OSINT",             1),
+    ("[Step 0.93]", "step0_93",  "Username pre-validation", 1),
+    ("[Step 0.95]", "step0_95",  "Instagram",               1),
+    ("[Step 0.95c]","step0_95c", "TikTok",                  1),
+    ("[Step 0.95d]","step0_95d", "LinkedIn",                1),
+    ("[Step 0.96]", "step0_96",  "Multi-platform",          1),
+    ("[Step 1/4]",  "step1",     "Email generation",        2),
+    ("[Step 2/4]",  "step2",     "SMTP validation",         2),
+    ("[Step 2b]",   "step2b",    "GHunt",                   2),
+    ("[Step 3/4]",  "step3",     "HIBP breach check",       2),
+    ("[Step 4/4]",  "step4",     "Intelligence report",     2),
+]
+
+
+def _detect_step(line: str) -> dict | None:
+    """Return a progress event if line contains a known step marker, else None."""
+    for marker, step_id, label, phase in _STEP_MARKERS:
+        if marker in line:
+            return {
+                "type":  "progress",
+                "step":  step_id,
+                "label": label,
+                "phase": phase,
+                "status": "running",
+            }
+    return None
+
 _HISTORY_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "history")
 )
@@ -53,6 +86,9 @@ class Investigation:
     def _callback(self, line: str) -> None:
         with self._lock:
             self.log.append({"type": "log", "text": line})
+            prog = _detect_step(line)
+            if prog:
+                self.log.append(prog)
 
     def _report_callback(self, report: dict) -> None:
         _save_history(self.target, report)

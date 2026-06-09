@@ -40,15 +40,25 @@ import warnings
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 warnings.filterwarnings("ignore", message="Unverified HTTPS")
 
-_GHUNT_CREDS = os.path.expanduser("~/.config/ghunt/creds.m")
+# GHunt v1.x stored creds at ~/.config/ghunt/creds.m
+# GHunt v2.x stores them at ~/.malfrats/ghunt/ (any file inside = authenticated)
+_GHUNT_CREDS_V1  = os.path.expanduser("~/.config/ghunt/creds.m")
+_GHUNT_CREDS_V2  = os.path.expanduser("~/.malfrats/ghunt")
 
 
 def _ghunt_status() -> dict:
     if not shutil.which("ghunt"):
         return {"available": False, "reason": "ghunt not installed — run: pip install ghunt"}
-    if not os.path.exists(_GHUNT_CREDS):
-        return {"available": False, "reason": "ghunt not authenticated — run: ghunt login"}
-    return {"available": True}
+    # v1 credentials
+    if os.path.exists(_GHUNT_CREDS_V1):
+        return {"available": True}
+    # v2 credentials — directory must exist AND contain at least one file
+    if os.path.isdir(_GHUNT_CREDS_V2) and any(os.scandir(_GHUNT_CREDS_V2)):
+        return {"available": True}
+    return {
+        "available": False,
+        "reason": "ghunt not authenticated — run: ghunt login  (opens a browser for Google OAuth)",
+    }
 
 
 def _dig(obj, *keys, default=None):

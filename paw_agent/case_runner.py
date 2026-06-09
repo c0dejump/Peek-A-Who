@@ -622,7 +622,7 @@ _active_case_investigations: dict[str, CaseInvestigation] = {}
 
 def start_case_investigation(case_id: str, fact_id: Optional[str]) -> str:
     """Start a background investigation for a case fact. Returns inv_id."""
-    inv = CaseInvestigation(dossier_id, fact_id)
+    inv = CaseInvestigation(case_id, fact_id)
     _active_case_investigations[inv.inv_id] = inv
     inv.start()
     return inv.inv_id

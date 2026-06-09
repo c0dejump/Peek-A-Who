@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Peek-A-Who — OSINT Investigation</title>
+  <title>Peek-A-Who</title>
   <link rel="icon" type="image/png" href="/static/logo_PAW.png" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -269,24 +269,24 @@
     <div class="section-label">&#128100; Identity</div>
     <div class="grid-2">
       <div class="field">
-        <label>First name <span class="opt">optional</span></label>
+        <label>First name</label>
         <input type="text" name="firstname" placeholder="e.g. John" autocomplete="off" />
       </div>
       <div class="field">
-        <label>Last name <span class="opt">optional</span></label>
+        <label>Last name</label>
         <input type="text" name="lastname" placeholder="e.g. Doe" autocomplete="off" />
       </div>
     </div>
 
     <div style="margin-top:1rem" class="grid-2">
       <div class="field">
-        <label>Pseudo / Username <span class="opt">optional</span></label>
+        <label>Pseudo / Username</label>
         <input type="text" name="pseudo" placeholder="e.g. jdoe42" autocomplete="off" />
       </div>
       <div class="field">
-        <label>Picture <span class="opt">optional</span></label>
-        <input type="file" name="picture" accept="image/*" />
-        <span class="hint">Used for facial comparison (min. 200×200px)</span>
+        <label>Photos <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+        <input type="file" name="picture" accept="image/*" multiple />
+        <span class="hint">One or more photos for facial comparison (min. 200×200px)</span>
       </div>
     </div>
 
@@ -296,11 +296,11 @@
     <div class="section-label">&#128222; Contact</div>
     <div class="grid-2">
       <div class="field">
-        <label>Email address <span class="opt">optional</span></label>
+        <label>Email address</label>
         <input type="email" name="mail" placeholder="e.g. john.doe@gmail.com" autocomplete="off" />
       </div>
       <div class="field">
-        <label>Phone number <span class="opt">optional</span></label>
+        <label>Phone number</label>
         <input type="tel" name="phone" placeholder="e.g. +1 555 000 0000" autocomplete="off" />
       </div>
     </div>
@@ -311,12 +311,12 @@
     <div class="section-label">&#128205; Context</div>
     <div class="grid-3">
       <div class="field">
-        <label>Cities / Departments <span class="opt">optional</span></label>
+        <label>Cities / Departments</label>
         <input type="text" name="city" placeholder="e.g. Paris, 92, Lyon" autocomplete="off" />
         <span class="hint">Comma-separated — dept codes generate better patterns (75, 92…)</span>
       </div>
       <div class="field">
-        <label>Birth year <span class="opt">optional</span></label>
+        <label>Birth year</label>
         <input type="text" name="birth_year" placeholder="e.g. 1990 or 1988-1995" autocomplete="off" />
         <span class="hint">Single year or range — no restriction</span>
       </div>
@@ -331,7 +331,7 @@
     </div>
 
     <div style="margin-top:1rem" class="field">
-      <label>Keywords <span class="opt">optional</span></label>
+      <label>Keywords</label>
       <input type="text" name="keywords" placeholder="e.g. security, london, football" autocomplete="off" />
       <span class="hint">Separate keywords with commas</span>
     </div>
@@ -408,7 +408,7 @@
         Auto-create case when done
       </label>
       <button type="reset" class="btn-reset">Reset</button>
-      <button type="submit" class="btn-launch">
+      <button type="submit" class="btn-launch" id="btn-launch">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
           <path d="M6 3.5A.5.5 0 0 1 6.5 3h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5V12h-1v.5A1.5 1.5 0 0 0 6.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-8A1.5 1.5 0 0 0 5 3.5V4h1v-.5z"/>
           <path d="M0 6.5A1.5 1.5 0 0 1 1.5 5h8A1.5 1.5 0 0 1 11 6.5v9A1.5 1.5 0 0 1 9.5 17h-8A1.5 1.5 0 0 1 0 15.5v-9zm1.5-.5a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h8a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-8z"/>
@@ -417,12 +417,69 @@
       </button>
     </div>
 
+    <!-- LLM warmup indicator -->
+    <div id="llm-warmup-bar" style="display:none;margin-top:.75rem;padding:.5rem .75rem;
+         border-radius:6px;background:rgba(187,128,9,.08);border:1px solid rgba(187,128,9,.25);
+         font-size:.75rem;color:#e3b341;display:flex;align-items:center;gap:.5rem">
+      <span id="llm-warmup-dot" style="width:7px;height:7px;border-radius:50%;
+            background:#e3b341;display:inline-block;animation:pulse 1.2s ease-in-out infinite"></span>
+      <span id="llm-warmup-msg">Warming up LLM model…</span>
+    </div>
+
   </form>
 </div>
 
 <footer>
-  PAW — Peek-A-Who &nbsp;|&nbsp; <a href="https://github.com/c0dejump" target="_blank">@c0dejump</a> &nbsp;|&nbsp; OSINT Tool
+  Peek-A-Who &nbsp;|&nbsp; <a href="https://github.com/c0dejump" target="_blank">@c0dejump</a> &nbsp;|&nbsp; OSINT Tool
 </footer>
+
+<style>
+@keyframes pulse {
+  0%,100% { opacity:1; }
+  50%      { opacity:.3; }
+}
+</style>
+
+<script>
+(function () {
+  const bar  = document.getElementById('llm-warmup-bar');
+  const dot  = document.getElementById('llm-warmup-dot');
+  const msg  = document.getElementById('llm-warmup-msg');
+  const btn  = document.getElementById('btn-launch');
+  let   poll = null;
+
+  function check() {
+    fetch('/api/llm-status')
+      .then(r => r.json())
+      .then(d => {
+        if (!d.backend || !d.backend.startsWith('ollama/')) return;
+        if (d.status === 'warming') {
+          bar.style.display = 'flex';
+          msg.textContent   = `Warming up ${d.backend} — LLM will be ready before the investigation reaches synthesis…`;
+        } else if (d.status === 'ready') {
+          bar.style.display = 'flex';
+          dot.style.animation  = 'none';
+          dot.style.background = '#3fb950';
+          msg.style.color      = '#3fb950';
+          msg.textContent      = 'LLM model loaded and ready.';
+          clearInterval(poll);
+          setTimeout(() => { bar.style.display = 'none'; }, 4000);
+        } else if (d.status === 'unavailable') {
+          bar.style.display   = 'flex';
+          dot.style.animation = 'none';
+          dot.style.background = '#f85149';
+          msg.style.color      = '#f85149';
+          msg.textContent      = 'Ollama unreachable — investigation will run without LLM synthesis.';
+          clearInterval(poll);
+        }
+      })
+      .catch(() => {});
+  }
+
+  check();
+  poll = setInterval(check, 3000);
+})();
+</script>
 
 </body>
 </html>

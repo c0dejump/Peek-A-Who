@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PAW — Investigation History</title>
+  <title>Peek-A-Who</title>
   <link rel="icon" type="image/png" href="/static/logo_PAW.png" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -36,8 +36,22 @@
     nav a.nav-link:hover { color: var(--text); }
     nav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
 
-    h1 { font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 1rem;
-         width: 100%; max-width: 900px; }
+    .page-header {
+      width: 100%; max-width: 900px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .page-header h1 { font-size: 1.15rem; font-weight: 700; color: #fff; }
+
+    .btn-danger {
+      background: rgba(248,81,73,.12); border: 1px solid rgba(248,81,73,.4);
+      border-radius: 8px; color: var(--danger); cursor: pointer;
+      font-size: .82rem; font-weight: 700; padding: .45rem 1rem;
+      display: none; align-items: center; gap: .35rem;
+      transition: opacity .15s;
+    }
+    .btn-danger.visible { display: inline-flex; }
+    .btn-danger:hover { opacity: .8; }
 
     .empty {
       width: 100%; max-width: 900px;
@@ -62,12 +76,20 @@
       font-size: .65rem; font-weight: 700; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted);
     }
-    tbody tr { border-bottom: 1px solid var(--border); }
+    thead th.cb-col { width: 36px; padding: .6rem .75rem; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--surface2); }
+    tbody tr.selected { background: rgba(88,166,255,.06); }
     td { padding: .55rem 1rem; vertical-align: middle; }
+    td.cb-col { padding: .55rem .75rem; }
     .td-name { font-weight: 600; color: #fff; }
     .td-ts   { font-family: monospace; color: var(--muted); font-size: .75rem; }
+
+    input[type=checkbox] {
+      width: 15px; height: 15px; cursor: pointer;
+      accent-color: var(--accent);
+    }
 
     .risk-badge {
       font-size: .65rem; font-weight: 700; padding: .15rem .45rem;
@@ -110,16 +132,20 @@
   <a class="nav-link" href="/config">Config</a>
 </nav>
 
-<h1>Investigation History</h1>
+<div class="page-header">
+  <h1>Investigation History</h1>
+  <button class="btn-danger" id="btn-delete-sel" onclick="deleteSelected()">&#128465; Delete selected (<span id="sel-count">0</span>)</button>
+</div>
 
 {% if not entries %}
 <div class="empty">
   No investigations saved yet. <a href="/">Start one.</a>
 </div>
 {% else %}
-<table>
+<table id="hist-table">
   <thead>
     <tr>
+      <th class="cb-col"><input type="checkbox" id="chk-all" title="Select all" onchange="toggleAll(this)" /></th>
       <th>Date / Time</th>
       <th>Target</th>
       <th>Risk</th>
@@ -129,7 +155,8 @@
   </thead>
   <tbody>
     {% for e in entries %}
-    <tr>
+    <tr data-filename="{{ e.filename | e }}">
+      <td class="cb-col"><input type="checkbox" class="row-chk" onchange="onRowCheck()" /></td>
       <td class="td-ts">{{ e.saved_at[:4] }}-{{ e.saved_at[4:6] }}-{{ e.saved_at[6:8] }}
         &nbsp;{{ e.saved_at[9:11] }}:{{ e.saved_at[11:13] }}</td>
       <td class="td-name">
@@ -139,8 +166,10 @@
       <td><span class="risk-badge risk-{{ e.risk_level }}">{{ e.risk_level }}</span></td>
       <td>{{ e.emails_found or '—' }}</td>
       <td style="display:flex;gap:.4rem;align-items:center;">
+        <a class="btn-json" href="/history/{{ e.filename }}/report"
+           style="border-color:rgba(63,185,80,.3);color:#3fb950;" title="View intelligence report">&#128202;</a>
         <a class="btn-json" href="/history/{{ e.filename }}" target="_blank">JSON</a>
-        <button class="btn-del" onclick="delEntry(this, '{{ e.filename }}')">&#128465;</button>
+        <button class="btn-del" onclick="delEntry(this, '{{ e.filename | e }}')">&#128465;</button>
       </td>
     </tr>
     {% endfor %}
@@ -149,18 +178,70 @@
 {% endif %}
 
 <script>
+function toggleAll(chk) {
+  document.querySelectorAll('.row-chk').forEach(c => { c.checked = chk.checked; });
+  updateSelectionUI();
+}
+
+function onRowCheck() {
+  const all  = document.querySelectorAll('.row-chk');
+  const chkd = document.querySelectorAll('.row-chk:checked');
+  const hdr  = document.getElementById('chk-all');
+  if (hdr) {
+    hdr.indeterminate = chkd.length > 0 && chkd.length < all.length;
+    hdr.checked = chkd.length === all.length && all.length > 0;
+  }
+  updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  const chkd = document.querySelectorAll('.row-chk:checked');
+  const btn  = document.getElementById('btn-delete-sel');
+  document.getElementById('sel-count').textContent = chkd.length;
+  btn.classList.toggle('visible', chkd.length > 0);
+  document.querySelectorAll('tbody tr').forEach(tr => {
+    const cb = tr.querySelector('.row-chk');
+    tr.classList.toggle('selected', cb && cb.checked);
+  });
+}
+
 async function delEntry(btn, filename) {
   if (!confirm('Delete this history entry permanently?')) return;
   btn.disabled = true;
   try {
     const resp = await fetch('/history/' + encodeURIComponent(filename) + '/delete', { method: 'POST' });
     const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+    if (!resp.ok) throw new Error(data.error || 'HTTP ' + resp.status);
     btn.closest('tr').remove();
+    onRowCheck();
   } catch (e) {
     alert('Error: ' + e.message);
     btn.disabled = false;
   }
+}
+
+async function deleteSelected() {
+  const rows = [...document.querySelectorAll('tbody tr')].filter(tr => tr.querySelector('.row-chk:checked'));
+  if (!rows.length) return;
+  if (!confirm('Delete ' + rows.length + ' history entry/entries permanently?')) return;
+
+  const btn = document.getElementById('btn-delete-sel');
+  btn.disabled = true;
+
+  const results = await Promise.allSettled(
+    rows.map(tr => fetch('/history/' + encodeURIComponent(tr.dataset.filename) + '/delete', { method: 'POST' }))
+  );
+
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled' && r.value.ok) rows[i].remove();
+  });
+
+  const failed = results.filter(r => r.status === 'rejected' || !r.value?.ok).length;
+  if (failed) alert(failed + ' deletion(s) failed.');
+
+  document.getElementById('chk-all').checked = false;
+  btn.disabled = false;
+  onRowCheck();
 }
 </script>
 

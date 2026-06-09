@@ -2,7 +2,7 @@
 
 ## Purpose
 
-PAW (Peek-A-Who) is an open-source intelligence (OSINT) investigation tool designed to aggregate publicly available information about an individual into a structured, actionable report.
+PAW (Peek-A-Who) is an open-source intelligence (OSINT) investigation platform designed to aggregate publicly available information about an individual into a structured, actionable intelligence report.
 
 **Primary mission: help locate missing persons** by reconstructing their last known digital footprint — last active platforms, inferred locations, habits, and favourite places — from publicly accessible data sources without any account credentials.
 
@@ -21,60 +21,90 @@ Browser (investigator)
   │
   ├── GET  /                          → home.html  (target form)
   ├── POST /investigate               → starts background investigation thread
-  ├── GET  /investigation             → investigation.html (live terminal + report)
+  ├── GET  /investigation             → investigation.html (live terminal + Watson sidebar + report)
   ├── GET  /run                       → SSE stream (real-time log events)
   ├── POST /investigation/confirm     → unblocks Phase 2 at checkpoint
+  ├── POST /api/investigation/chat    → Watson conversational AI (streaming SSE)
+  ├── POST /api/validate_profile      → enrich + validate a found social profile
+  ├── GET  /investigation/report      → Phase 3 intelligence report (current session)
   ├── GET  /config                    → config.html (API keys, LLM backend)
   ├── GET  /history                   → history.html (past investigations)
   ├── GET  /history/<filename>        → raw JSON export
-  ├── GET  /dossiers                  → dossiers.html (case files list)
-  ├── GET  /dossiers/<did>            → dossier.html (investigation board)
-  ├── POST /dossiers/new              → create dossier
-  ├── POST /dossiers/<did>/fact       → add fact → triggers background investigation
-  ├── DELETE /dossiers/<did>/fact/<fid> → remove fact + cascade link removal
-  ├── POST /dossiers/<did>/investigate → full re-run
-  ├── GET  /dossiers/<did>/stream/<inv_id> → SSE for dossier investigation
-  └── GET  /dossiers/<did>/data       → current dossier JSON
+  ├── GET  /history/<filename>/report → Phase 3 intelligence report (historical)
+  ├── GET  /cases                     → cases.html (knowledge graph)
+  ├── GET  /cases/<id>                → case.html (individual case board)
+  └── GET  /api/llm-status            → Watson LLM health status (idle/warming/ready/unavailable)
 
 Flask app (app.py)
   └── paw_agent/
       ├── engine/
       │   ├── runner.py         ← Investigation thread manager + SSE buffer + history saving
-      │   ├── pipeline.py       ← Clean orchestrator: no MCP, imports skills directly, LLM via litellm
-      │   ├── agent.py          ← Legacy engine (kept for Phase 1 helper functions; pipeline.py imports from it)
-      │   ├── mcp_server.py     ← Thin MCP wrapper for external tool-calling use; logic lives in skills/
+      │   ├── pipeline.py       ← Main orchestrator: no MCP, imports skills directly, litellm synthesis
+      │   ├── agent.py          ← Legacy Phase 1 helpers (transitional; pipeline.py imports from it)
+      │   ├── mcp_server.py     ← Thin MCP wrapper for external tool-calling (LangChain, Dify…)
       │   └── permuter.py       ← Email permutation generator
-      ├── dossier_store.py      ← Persistent case files (facts, findings, links, audit log)
-      ├── dossier_runner.py     ← Reactive investigation: fact-triggered OSINT + LLM link synthesis
+      ├── case_store.py         ← Knowledge graph cases (nodes, edges, facts)
       └── config_manager.py     ← .env read/write, Ollama model discovery
 
   skills/                       ← Modular OSINT skills (standalone + importable)
+      core/
+          evidence.py           ← Confidence layer: confirmed/probable/low/rejected
+                                   build_context_summary() for LLM context
+          agents.py             ← 5 rule-based specialist agents (no LLM, <100ms):
+                                   identity, social, geo, timeline, correlation
+          osint_knowledge.py    ← Watson system prompt: OSINT methodology, pivoting,
+                                   French sources, platform techniques
+          watson_tools.py       ← 9 Watson tools + execute_tool() dispatcher
       social_media/
-          instagram.py          ← Instagram username detection (CLI + importable)
-          platforms.py          ← Multi-platform parallel detection (CLI + importable)
-          maigret.py            ← Maigret cross-platform wrapper (CLI + importable)
-          ig_lookup.py          ← Instagram username lookup by USERNAME (obfuscated email/phone)
+          instagram.py          ← Instagram detection (facebookexternalhit UA)
+          platforms.py          ← Multi-platform parallel detection
+          maigret.py            ← 36-site username scan via maigret CLI
+          sherlock.py           ← 36-site username scan via sherlock CLI
+          ig_lookup.py          ← Instagram username → obfuscated email + phone
+          tiktok.py             ← TikTok deep check (embedded JSON)
+          linkedin.py           ← LinkedIn slug candidate generation
+          enrich.py             ← Profile enrichment (bio, followers, links)
       email/
-          smtp_validate.py      ← SMTP validation (run_sync, validate_batch, validate_all, async run)
-          hibp.py               ← HaveIBeenPwned breach check (run_sync, async run)
-          ghunt.py              ← GHunt Google account OSINT (run_sync, async run)
-          permutation.py        ← Email permutation generator
+          smtp_validate.py      ← SMTP validation + SERP presence check
+          hibp.py               ← HaveIBeenPwned breach check
+          ghunt.py              ← GHunt Google account OSINT
       phone/
-          lookup.py             ← Phone OSINT (phonenumbers + ignorant + links)
+          lookup.py             ← phonenumbers + ignorant + PhoneInfoga
       identity/
-          diplomas.py           ← Academic records (theses.fr, HAL, bac/brevet)
+          diplomas.py           ← theses.fr, HAL, bac/brevet
           etymology.py          ← French surname demographics (filae.com)
 ```
 
 ### Key design decisions
 
-**SSE (Server-Sent Events) streaming** — Every investigation runs in a background thread. Results are buffered in `Investigation.log` and streamed live to the browser. Clients can reconnect at any time and replay from `start_idx=0`.
+**SSE (Server-Sent Events) streaming** — Every investigation runs in a background thread. Results are buffered in `Investigation.log` and streamed live to the browser. Watson also uses SSE for token-by-token streaming of LLM responses.
 
-**Clean Hybrid Architecture** (as of 2026-06-05):
-- **pipeline.py**: Single clean orchestrator. No MCP subprocess. Imports skills directly. Calls litellm directly for synthesis (2× per investigation: checkpoint + final summary). runner.py now imports `run_investigation` from pipeline.py.
-- **agent.py**: Legacy engine kept for Phase 1 helper functions (`_search_diplomas_direct`, `_search_instagram_direct`, etc.). pipeline.py imports these transitionally. Will gradually move to skills/.
-- **mcp_server.py**: Thin MCP wrapper over skills, kept for external tool-calling (LangChain, Dify, custom LLM agents). No longer used by the internal pipeline.
-- **Skills**: Standalone Python modules in `skills/` — each has `run_sync()`, `async run()`, CLI interface, and no internal state.
+**Clean Hybrid Architecture** (as of 2026-06-08):
+- **pipeline.py**: Single clean orchestrator. No MCP subprocess. Imports skills directly. Calls litellm for synthesis (2× per investigation: checkpoint + final). runner.py imports `run_investigation` from pipeline.py.
+- **runner.py**: Detects `[Step X]` markers in pipeline log lines and auto-emits `progress` SSE events for the UI progress bar.
+- **agent.py**: Legacy helpers kept for Phase 1 functions. Will migrate to skills/ over time.
+- **mcp_server.py**: Thin MCP wrapper over skills, kept for external tool-calling. Not used by the internal pipeline.
+- **Skills**: Standalone Python modules — each has `run_sync()`, `async run()`, CLI interface, no internal state.
+
+**Investigation progress bar** — Live step tracker in the investigation UI:
+- `runner.py` intercepts `[Step X]` markers in pipeline log output and emits `{type: "progress", step, label, phase, status}` events
+- `investigation.html` renders a compact strip above the terminal: phase label + step pills (pending/running/done) + progress bar
+- Phase 1 → Phase 2 transition is detected automatically (step pill set switches)
+- Strips hides automatically 1.8s after investigation completes
+
+**Watson** — AI investigation partner, fixed right sidebar in the investigation UI:
+- Powered by a dedicated `WATSON_LLM_BACKEND` (lighter, faster model than the pipeline synthesis model)
+- Streams responses token-by-token via SSE — first token appears in < 1s
+- Tool-use loop: runs 10 OSINT tools (web_search, sherlock_check, email_osint, **record_to_case**, …) then synthesises
+- `record_to_case(platform, username)` — Watson saves found accounts directly to the case store via tool call; no regex needed
+- Minimal command parser (2 patterns only: `^add @user to case`, `^investigate @user`); everything else → LLM + tools
+- Pre-flight Ollama health check (4s) + model existence check — fails fast instead of waiting 120s
+- Status dot in header: green (ready), amber (loading), red (offline)
+
+**Multi-agent synthesis** (Phase 3):
+- 5 deterministic rule-based agents produce structured domain briefings in < 100ms each
+- Single LLM call receives all 5 briefings → produces full JSON report with hypotheses, pivots, timeline, risk indicators
+- Falls back to rule-based analysis if no LLM
 
 ---
 
@@ -82,98 +112,123 @@ Flask app (app.py)
 
 ### Phase 1 — Passive intel (no login, no account queries)
 
-Runs automatically when an investigation starts. All data sources are public APIs or HTML scraping.
-
 | Step | Module | What it does |
 |---|---|---|
-| 0 | demographics | Surname rarity + geographic origin (filae.com) |
-| 1 | diplomas | theses.fr, HAL, bac/brevet results (linternaute) |
-| 2 | demographics | SIRENE + Pappers business registry |
-| 3 | phone | phonenumbers + ignorant + PhoneInfoga |
-| 0.95 | social_media | Instagram username detection (title-based) |
-| 0.96 | social_media | Twitter/X, TikTok, Snapchat, BeReal, LinkedIn (parallel) |
-| 0.97 | social_media | maigret cross-platform scan (500+ sites) |
-| 0.98 | social_media | Reddit last activity + GitHub location enrichment |
-| 0.99 | — | **Confirmation checkpoint** (LLM synthesis → user confirm) |
-
-### Confirmation checkpoint
-
-After Phase 1, the LLM produces a three-section synthesis:
-- `IDENTITY` — who this person appears to be
-- `TIMELINE` — chronological last known online activities
-- `LOCATIONS` — inferred cities/regions
-
-This is displayed as a confirmation card in the browser. The investigator reviews it and decides:
-- **Continue** → Phase 2 runs (email OSINT + breach data)
-- **Stop** → report is generated with Phase 1 data only
-
-This checkpoint exists to confirm the right person has been identified before running more intrusive queries.
+| 0 | `etymology` | Surname rarity + geographic origin (filae.com) |
+| 0.5 | `diplomas` | theses.fr, HAL, bac/brevet |
+| 0.7 | demographics | SIRENE + Pappers business registry |
+| 0.8 | — | Pages Blanches / Pages Jaunes search URLs |
+| 0.9 | `phone` | phonenumbers + ignorant + PhoneInfoga |
+| 0.93 | `maigret` + `sherlock` | **Username pre-validation** — ALL candidates on 36 targeted sites, 20 parallel workers |
+| 0.95 | `instagram` | Validated candidates only (≥1 maigret/sherlock hit) |
+| 0.95b | `ig_lookup` | Obfuscated email + phone for each Instagram profile |
+| 0.95c | `tiktok` | TikTok deep check (embedded JSON) |
+| 0.95d | `linkedin` | LinkedIn slug candidates |
+| 0.96 | `platforms` | Twitter/X, Snapchat, BeReal, Telegram, Facebook |
+| 0.99 | LLM | **Confirmation checkpoint** — IDENTITY / TIMELINE / LOCATIONS |
 
 ### Phase 2 — Active OSINT (after confirmation)
 
 | Step | Module | What it does |
 |---|---|---|
-| 1 | email | Email permutation generation (hundreds of candidates) |
-| 2 | email | SMTP validation + GHunt Google account probe |
-| 3 | email | HIBP breach history (requires API key) |
-| 4 | — | LLM final report with all findings |
+| 1 | `permuter` | Email permutation (hundreds of candidates) |
+| 2 | `smtp_validate` | SMTP validation + SERP presence |
+| 2b | `ghunt` | Google account probe |
+| 3 | `hibp` | HIBP breach history |
+| 4 | `agents` + LLM | **Phase 3 multi-agent synthesis** → full intelligence report JSON |
+
+### Phase 3 — Intelligence Report
+
+After Phase 2, 5 specialist agents analyse the full report data:
+- **Identity agent** — confirms name, birth year, cross-validates against sources
+- **Social agent** — active/inactive platforms, username pattern, behavioral signals
+- **Geo agent** — confirmed/probable locations, location evolution, cross-confirmation
+- **Timeline agent** — chronological events, last known activity, activity span
+- **Correlation agent** — links between findings, anomalies, coherence score
+
+All 5 briefings feed a single LLM call producing structured JSON:
+```json
+{
+  "executive_summary": "...",
+  "global_confidence": 0.78,
+  "identity": { "confirmed": [...], "probable": [...], "rejected": [...] },
+  "digital_presence": { "active_platforms": [...], "username_pattern": "..." },
+  "geolocation": { "confirmed": [...], "current_estimate": "Paris, 75" },
+  "hypotheses": [{ "claim": "...", "confidence": 0.8, "evidence_for": [...] }],
+  "pivot_suggestions": [{ "action": "...", "priority": "high" }],
+  "risk_indicators": [...],
+  "timeline": [...]
+}
+```
 
 ---
 
-## Module Details
+## Watson — AI Investigation Partner
 
-### `demographics`
-- **filae.com** etymology: surname bearer count per birth period, top geographic departments
-- **SIRENE API** (data.gouv.fr): company registration by director name
-- **Pappers API**: company roles, SIREN, location
-- **Pages Blanches / Pages Jaunes**: generates manual search URLs
+Watson is a persistent AI partner in the investigation sidebar, not a chat popup.
 
-### `diplomas`
-- **theses.fr API**: PhD dissertations filtered by exact author match (both firstname + lastname, whole-word, accent-insensitive)
-- **HAL.science**: publications filtered by exact author match
-- **linternaute bac/brevet**: exam results filtered by both firstname AND lastname match
+### How Watson works
 
-### `email`
-- **permuter.py**: generates realistic email permutations (first.last@, flast@, lastfirst@, + keyword variants, birth year variants)
-- **isitarealemail.com SMTP**: validates custom/corporate domains
-- **GHunt**: Google account existence + metadata (Gaia ID, name, photo, Maps reviews)
-- **HIBP v3 API**: breach history, data classes leaked
+1. **Command parser** (no LLM, instant) — matches quick actions:
+   - `"add @username to case"` → calls `/api/validate_profile` + case injection
+   - `"investigate @username"` → enriches profile
+   - `"bereal @peanaths"` / `"trouvé le bereal c'est peanaths"` → records platform finding
+   - `"search [query]"` → passes to LLM
 
-### `phone`
-- **phonenumbers** (libphonenumber): parse, validate, carrier, region, line type
-- **ignorant**: social platform registration (WhatsApp, Telegram, Snapchat, Instagram)
-- **PhoneInfoga**: generates reverse lookup links
+2. **Tool-use loop** (OSINT tools, no LLM for tool calls):
+   - Watson calls tools like `web_search`, `sherlock_check`, `email_osint`
+   - Each tool is a direct Python call into the skills layer
+   - Results are injected into the LLM context for synthesis
 
-### `social_media`
-- **Instagram** (direct, no auth): `facebookexternalhit/1.1` UA → Instagram returns `og:title` with `(@username)` to Meta link-preview crawlers even behind login walls. Pattern: `(@username)` in og:title. Also checks Wayback CDX for first-seen date.
-- **Twitter/X, TikTok, Snapchat, Telegram, LinkedIn, BeReal** (parallel, title-based): platform-specific title pattern matching. BeReal: `bere.al/@{}`, HTTP 404 = not found.
-- **Facebook**: manual search URL generation only (auth required for API)
-- **maigret** (CLI subprocess): 500+ sites; categorises findings into Location/Sport, Marketplace, Gaming, Social
-- **Reddit** (public JSON API): last active date, frequented subreddits (location proxy)
-- **GitHub** (public API): location field, last activity, bio, commit emails
-- **Instagram username lookup** (`skills/social_media/ig_lookup.py`): POST to `i.instagram.com/api/v1/users/lookup/` with `q=<username>` — returns obfuscated email + phone of the account. Technique is username-based (NOT email). No auth required. Rate-limited at 429.
+3. **LLM synthesis** (streaming):
+   - Uses `WATSON_LLM_BACKEND` (lighter model) separate from pipeline synthesis model
+   - Streams tokens via SSE — response appears immediately
+   - System prompt from `osint_knowledge.py` — full OSINT methodology knowledge base
+
+### Watson configuration
+
+```env
+LLM_BACKEND=ollama/qwen3:14b          # pipeline synthesis (quality > speed)
+WATSON_LLM_BACKEND=ollama/qwen3:14b   # Watson chat (speed > quality)
+```
+
+Recommended Watson models (fast, OSINT-capable):
+- `ollama/qwen3:14b` — 9GB, best reasoning, handles tools well
+- `ollama/qwen2.5:7b` — 4.7GB, ~3s first token on CPU, good reasoning
+- `ollama/llama3.2:3b` — 2GB, ~1s first token, lighter but capable
+
+### Watson tools (10 total)
+
+| Tool | What |
+|---|---|
+| `record_to_case` | Save found social profile to case store (direct Python call, no API round-trip) |
+| `web_search` | DuckDuckGo with operators (site:, inurl:, "exact phrase") |
+| `instagram_lookup` | Obfuscated email/phone hint via IG API |
+| `sherlock_check` | Cross-platform username presence |
+| `enrich_profile` | Bio, followers, links |
+| `email_osint` | SMTP + HIBP + GHunt + SERP |
+| `phone_lookup` | Carrier, region, social platforms |
+| `web_archive` | Wayback Machine first/last snapshot |
+| `whois_lookup` | Registrar, dates, org |
+| `validate_email_batch` | SMTP-validate a list of email candidates |
 
 ---
 
 ## Username Candidate Generation
 
-Username candidates are generated in strict priority order to ensure the most likely matches are checked first:
+Candidates generated in strict priority order:
 
 1. **Pseudo** (user-provided, exact)
-2. **Keywords** → `kw`, `fn.kw`, `kw.fn`, `ln.kw`, `fn.ln.kw`, etc.
-3. **Name combos** → `fn.ln`, `ln.fn`, abbreviations
-4. **Name + year** → `fn.ln90`, `fn.ln1990`
-5. **Name + dept code** → `fn.ln75`
+2. **Keywords** alone + combos: `kw`, `fn.kw`, `kw.fn`, `ln.kw`
+3. **Name combos**: `fn.ln`, `ln.fn`, abbreviations
+4. **Name + year**: `fn.ln90`, `fn.ln1990`
+5. **Name + dept code**: `fn.ln75`
 
-Keywords are treated as "probable username components" because users typically provide them precisely because they are known identifiers (nicknames, abbreviations). For example, keywords `mchl` → `tristan.mchl` appears at position 2 in the list.
-
-Up to 100 candidates are generated; Instagram checks up to 80.
+All candidates checked by **pre-validation** (Step 0.93) via maigret + sherlock on 36 targeted sites. Only those with ≥1 hit proceed.
 
 ---
 
 ## Relevance Scoring
-
-Profiles found on any platform are scored 0–10:
 
 | Signal | Points |
 |---|---|
@@ -181,99 +236,65 @@ Profiles found on any platform are scored 0–10:
 | Firstname in display name | +4 |
 | Keyword in username | +3 |
 | Keyword in display name / bio | +3 |
-| Maximum | 10 |
 
-Score ≥ 7 → high confidence (green)
-Score ≥ 4 → medium confidence (orange)
-Score < 4 → low confidence (grey)
+Score ≥ 7 → high (green) · Score ≥ 4 → medium (orange) · Score < 4 → low (grey)
 
 ---
 
-## Report & Exports
+## Evidence Confidence Levels
 
-The final report is available in three formats:
-- **In-browser** — live-rendered sections per module, visible as investigation progresses
-- **Markdown** (`.md`) — full structured text report, suitable for documentation
-- **CSV** — tabular data, one row per finding, suitable for spreadsheet analysis
-- **HTML** — self-contained printable HTML version (wraps the Markdown)
+Every finding carries a confidence level:
 
-Report sections: Demographics, Phone, Emails, Breach details, Academic records, Business registries, Social platforms, Instagram, Cross-platform (maigret), Activity timeline, Annuaires, LLM summary.
+| Level | Meaning |
+|---|---|
+| `confirmed` | Multiple independent sources agree, or primary source directly states it |
+| `probable` | One strong source or multiple weak signals pointing the same direction |
+| `low` | Single weak signal, indirect inference, or unverifiable claim |
+| `rejected` | Contradicted by evidence or logic |
 
 ---
 
 ## LLM Backend Support
 
-PAW supports any OpenAI-compatible API:
-
-| Provider | Config key | Notes |
+| Provider | Config | Notes |
 |---|---|---|
-| OpenAI | `OPENAI_API_KEY` | GPT-4o recommended |
-| Anthropic | `ANTHROPIC_API_KEY` | Claude 3.5+ |
-| Ollama | `OLLAMA_URL` | Local, free, offline |
-| Groq | `GROQ_API_KEY` | Fast inference |
-| OpenRouter | `OPENROUTER_API_KEY` | Multi-model routing |
-| LM Studio | custom URL | Local OpenAI-compat |
+| Ollama (local) | `LLM_BACKEND=ollama/model` | Free, private, offline |
+| Groq | `GROQ_API_KEY=gsk_...` | Fast inference, free tier |
+| Google Gemini | `GEMINI_API_KEY=AIza...` | 1M tokens/day free |
+| Anthropic Claude | `ANTHROPIC_API_KEY=sk-ant-...` | Best quality |
+| OpenAI | `OPENAI_API_KEY=sk-...` | GPT-4o |
 
-If no LLM is configured, PAW falls back to the **direct pipeline** (no LLM, all modules run sequentially).
+Two separate models can be configured:
+- `LLM_BACKEND` — pipeline synthesis (quality matters, can be slow)
+- `WATSON_LLM_BACKEND` — Watson chat (speed matters, should respond in < 5s)
 
 ---
 
 ## Configuration
 
-All secrets are stored in `.env` at the project root. The web UI at `/config` provides a form to manage all keys without editing the file manually.
+All secrets in `.env`. Web UI at `/config` manages all keys.
 
-| Variable | Module | Required |
+| Variable | Purpose | Required |
 |---|---|---|
-| `HIBP_API_KEY` | email (breaches) | Optional but strongly recommended |
-| `OPENAI_API_KEY` | LLM orchestration | One LLM key is recommended |
-| `ANTHROPIC_API_KEY` | LLM orchestration | Alternative to OpenAI |
-| `OLLAMA_URL` | LLM orchestration | Default: `http://localhost:11434` |
-| `FLASK_SECRET` | session security | Auto-generated if missing |
-
-GHunt authentication is managed separately via `ghunt login` (browser OAuth flow, persists to `~/.ghunt`).
+| `LLM_BACKEND` | Pipeline LLM synthesis | Recommended |
+| `WATSON_LLM_BACKEND` | Watson chat model (lighter) | Optional (falls back to LLM_BACKEND) |
+| `OLLAMA_API_BASE` | Ollama host URL | Default: `http://localhost:11434` |
+| `HIBP_API_KEY` | HIBP breach data | Optional but strongly recommended |
+| `PAPPERS_API_KEY` | Business registry (free tier) | Optional |
+| `TRUECALLER_TOKEN` | Caller ID for French numbers | Optional |
+| `FLASK_SECRET` | Session security | Auto-generated if missing |
 
 ---
 
 ## Technical Stack
 
 - **Backend**: Python 3.12, Flask, asyncio, threading
-- **LLM integration**: MCP (Model Context Protocol) client/server via `mcp` library
-- **HTTP**: `requests` (sync, in executors), `aiohttp` not used (simplicity)
+- **LLM**: litellm (direct, no MCP subprocess) — supports Ollama, OpenAI, Anthropic, Groq, Gemini
+- **HTTP**: `requests` (sync, in executors)
 - **Parallelism**: `concurrent.futures.ThreadPoolExecutor` for platform checks
-- **Frontend**: Vanilla JS + CSS, SSE for real-time streaming, marked.js for Markdown rendering
-- **No database**: all state is in-memory per investigation session
-- **External CLI tools**: `maigret` (pip), `ghunt` (pip), `phoneinfoga` (binary, bundled)
-
----
-
-## Current Direction & Roadmap
-
-### Done
-- [x] Full two-phase investigation pipeline (passive → confirmation → active)
-- [x] Instagram username detection — `facebookexternalhit/1.1` UA to bypass login wall; og:title contains `(@username)` for real profiles
-- [x] Multi-platform detection (Twitter/X, TikTok, Snapchat, Telegram, LinkedIn, BeReal) in parallel
-- [x] BeReal added back: `bere.al/@{}`, HTTP 404 = not found
-- [x] Telegram detection (personal accounts + channels/bots)
-- [x] maigret cross-platform scan with categorisation
-- [x] Reddit + GitHub activity signal enrichment
-- [x] LLM timeline synthesis at confirmation checkpoint (IDENTITY / TIMELINE / LOCATIONS)
-- [x] Keyword-first username generation (e.g. `mchl` → `tristan.mchl` at position 2)
-- [x] Keyword relevance scoring in username/bio detection
-- [x] Strict firstname + lastname matching for academic records
-- [x] Report export (Markdown, CSV, HTML)
-- [x] Live SSE streaming terminal with reconnect support
-- [x] Investigation history (auto-save JSON + `/history` page)
-- [x] Dossier system — persistent case files, reactive OSINT per fact, LLM link synthesis
-- [x] **Skills system** — modular OSINT skills in `skills/` (standalone CLI + importable)
-- [x] **Instagram username lookup** (`skills/social_media/ig_lookup.py`) — Phase 2: obfuscated email/phone from `i.instagram.com/api/v1/users/lookup/` using username as query
-
-### Next priorities
-- [ ] **Steam profile enrichment** — last online timestamp from public Steam profiles
-- [ ] **Image analysis module** — facial recognition / reverse image search integration
-- [ ] **PDF report export** — printable formatted report for law enforcement / families
-- [ ] **Batch mode** — investigate multiple targets in sequence
-- [ ] **More skills** — add `skills/identity/etymology.py`, `skills/identity/demographics.py`, `skills/email/hibp.py`, `skills/email/smtp.py`, `skills/email/ghunt.py`
-- [ ] **Refactor agent.py** — migrate inline functions to `skills/` modules (agent.py imports from skills)
+- **Frontend**: Vanilla JS + CSS, SSE for real-time streaming (investigation log + Watson streaming), marked.js for Markdown
+- **No database**: all state is in-memory per investigation session; history auto-saved to `history/*.json`
+- **External CLI tools**: `maigret`, `sherlock-project`, `ghunt`, `ignorant` (all via pip)
 
 ---
 
@@ -289,7 +310,6 @@ PAW is intended for **authorised use only**:
 - Attempt authentication on any platform
 - Perform credential stuffing or brute-force
 - Scrape private or login-gated content
-- Circumvent CAPTCHA or anti-bot measures
 - Store or transmit personal data beyond the local session
 
-All data collected is publicly accessible. Investigators are responsible for compliance with applicable laws (GDPR, CCPA, local privacy regulations) and platform terms of service.
+All data collected is publicly accessible. Investigators are responsible for compliance with applicable laws (GDPR, local privacy regulations) and platform terms of service.
