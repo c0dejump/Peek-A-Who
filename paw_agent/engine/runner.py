@@ -77,6 +77,7 @@ class Investigation:
         self.inv_id = inv_id
         self.target = target
         self.log: list[dict] = []   # all events, buffered forever
+        self.created_at = time.monotonic()
         self.done   = False
         self.report: dict = {}      # last completed report (for "Save as Case")
         self._lock = threading.Lock()
@@ -171,15 +172,47 @@ class Investigation:
 
 # ── Global store ──────────────────────────────────────────────
 _active: dict[str, Investigation] = {}
+_store_lock = threading.Lock()
+
+# Keep completed investigations around long enough for SSE reconnects and the
+# report/chat/case flows, but evict them so a long-running server doesn't
+# accumulate every investigation's buffered log forever.
+_MAX_ACTIVE   = 50            # hard cap on retained investigations
+_DONE_MAX_AGE = 60 * 60       # evict finished investigations older than 1h
+
+
+def _evict_stale() -> None:
+    """Drop old finished investigations. Caller must hold _store_lock."""
+    now = time.monotonic()
+    # Age-based eviction (finished only — never drop a running one)
+    for inv_id in [
+        i for i, inv in _active.items()
+        if inv.done and (now - inv.created_at) > _DONE_MAX_AGE
+    ]:
+        _active.pop(inv_id, None)
+
+    # Size-based eviction: if still over cap, drop the oldest finished ones
+    if len(_active) > _MAX_ACTIVE:
+        finished = sorted(
+            (inv for inv in _active.values() if inv.done),
+            key=lambda inv: inv.created_at,
+        )
+        for inv in finished:
+            if len(_active) <= _MAX_ACTIVE:
+                break
+            _active.pop(inv.inv_id, None)
 
 
 def start_investigation(target: dict) -> str:
-    inv_id        = uuid.uuid4().hex[:8]
-    inv           = Investigation(inv_id, target)
-    _active[inv_id] = inv
+    inv_id = uuid.uuid4().hex[:8]
+    inv    = Investigation(inv_id, target)
+    with _store_lock:
+        _evict_stale()
+        _active[inv_id] = inv
     inv.start()
     return inv_id
 
 
 def get_investigation(inv_id: str) -> Optional[Investigation]:
-    return _active.get(inv_id)
+    with _store_lock:
+        return _active.get(inv_id)
