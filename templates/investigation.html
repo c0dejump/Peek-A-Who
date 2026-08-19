@@ -1651,6 +1651,10 @@
         if (act.github.location) lines.push(`  Location: ${act.github.location}`);
         if (act.github.bio)      lines.push(`  Bio: ${act.github.bio}`);
       }
+      if (act.steam) {
+        lines.push(`\n**Steam** @${act.steam.username||'?'} — last online: ${act.steam.last_active||act.steam.status_message||act.steam.status||'?'}`);
+        if (act.steam.country) lines.push(`  Location: ${act.steam.country}`);
+      }
     }
 
     // Timeline (LLM synthesis)
@@ -1811,6 +1815,11 @@ ${body}
       add('maigret', 'github', actCSV.github.username||'?',
           `last_active: ${actCSV.github.last_active||'?'} — location: ${actCSV.github.location||''}`,
           `https://github.com/${actCSV.github.username||''}`);
+    }
+    if (actCSV.steam) {
+      add('maigret', 'steam', actCSV.steam.username||'?',
+          `last_online: ${actCSV.steam.last_active||actCSV.steam.status_message||actCSV.steam.status||'?'} — location: ${actCSV.steam.country||''}`,
+          `https://steamcommunity.com/id/${actCSV.steam.username||''}`);
     }
 
     // Timeline
@@ -2248,7 +2257,7 @@ ${body}
 
       // Activity signals banner
       const act = mg.activity_signals || {};
-      if (act.reddit || act.github) {
+      if (act.reddit || act.github || act.steam) {
         mgHtml += `<div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem">`;
         if (act.reddit) {
           const subs = (act.reddit.subreddits||[]).slice(0,5).map(s=>`<span style="color:var(--accent);font-size:.7rem">r/${esc(s)}</span>`).join(' ');
@@ -2263,6 +2272,15 @@ ${body}
             <div style="color:var(--accent);font-weight:600;margin-bottom:.2rem">GitHub @${esc(act.github.username||'?')}</div>
             ${act.github.location ? `<div style="color:var(--muted)">Location: <span style="color:var(--text)">${esc(act.github.location)}</span></div>` : ''}
             <div style="color:var(--muted)">Last activity: <span style="color:var(--text)">${esc(act.github.last_active||'?')}</span></div>
+          </div>`;
+        }
+        if (act.steam) {
+          const when = act.steam.last_active || act.steam.status_message || act.steam.status || '?';
+          const ctry = act.steam.country ? `<div style="color:var(--muted)">Location: <span style="color:var(--text)">${esc(act.steam.country)}</span></div>` : '';
+          mgHtml += `<div style="background:rgba(102,192,244,.07);border:1px solid rgba(102,192,244,.25);border-radius:7px;padding:.5rem .8rem;font-size:.78rem">
+            <div style="color:#66c0f4;font-weight:600;margin-bottom:.2rem">🎮 Steam @${esc(act.steam.username||'?')}</div>
+            <div style="color:var(--muted)">Last online: <span style="color:var(--text)">${esc(when)}</span></div>
+            ${ctry}
           </div>`;
         }
         mgHtml += `</div>`;

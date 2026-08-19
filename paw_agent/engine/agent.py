@@ -678,37 +678,17 @@ def _fetch_caller_name(e164: str, e164_no_plus: str, national_clean: str) -> str
 
 def _check_dork_hit(query: str) -> tuple[bool, str]:
     """
-    Check DDG HTML for real results.
-    Returns (hit: bool, ddg_url: str) — the URL points to the same DDG engine we checked,
-    so the link shown to the user is guaranteed to be consistent with the check.
+    Check whether a dork query returns real results, via the resilient
+    multi-engine search core (DDG → DDG-lite → Bing, with caching).
+    Returns (hit: bool, ddg_url: str) — the URL points to a DDG search for the
+    same query so the link shown to the user stays human-clickable.
     """
     from urllib.parse import quote_plus
     ddg_url = "https://duckduckgo.com/?q=" + quote_plus(query) + "&kl=fr-fr"
     try:
-        import requests as _rq
-        r = _rq.get(
-            "https://html.duckduckgo.com/html/",
-            params={"q": query, "kl": "fr-fr"},
-            timeout=6,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept-Language": "fr-FR,fr;q=0.9",
-            },
-        )
-        if r.status_code != 200:
-            return False, ddg_url
-        html = r.text
-        # Explicit no-results indicators from DDG
-        if any(s in html for s in [
-            "No results.",
-            "Aucun résultat",
-            "no results",
-            "did not match",
-        ]):
-            return False, ddg_url
-        # At least one real result div must be present
-        has_results = bool(re.search(r'class="result(?:__|s\b| links)', html, re.I))
-        return has_results, ddg_url
+        from skills.utils.search import web_search
+        res = web_search(query, num_results=5, region="fr-fr", timeout=8)
+        return bool(res.get("results")), ddg_url
     except Exception:
         return False, ddg_url
 
@@ -1441,6 +1421,23 @@ async def _prevalidate_usernames(
         # Sort validated by hit count desc, then original order
         validated.sort(key=lambda u: (-len(hits_map.get(u, [])), orig_order.get(u, 999)))
 
+        # ── User-provided pseudo → high-confidence identity ──────
+        # If the analyst explicitly supplied a pseudo, any validated hit whose
+        # username matches it (leet-insensitive: codejump ≡ c0dejump) is a
+        # CONFIRMED identity signal, not just one candidate among many.
+        pseudo_confirmed: dict[str, list[str]] = {}
+        if pseudo:
+            def _deleet(s: str) -> str:
+                return re.sub(r"[^a-z0-9]", "", s.lower()).translate(
+                    str.maketrans("013457", "oieast"))
+            target = _deleet(pseudo)
+            if target:
+                for un in validated:
+                    if _deleet(un) == target:
+                        sites = sorted({h["site"] for h in hits_map.get(un, [])})
+                        if sites:
+                            pseudo_confirmed[un] = sites
+
         return {
             "validated":        validated,
             "not_found":        not_found,
@@ -1450,6 +1447,7 @@ async def _prevalidate_usernames(
             "gaming":           gaming,
             "social":           social,
             "total_found":      total_found,
+            "pseudo_confirmed": pseudo_confirmed,
             "maigret_ok":       maigret_ok,
             "sherlock_ok":      sherlock_ok,
         }
@@ -2184,6 +2182,113 @@ async def _enrich_activity_signals(maigret_found: dict) -> dict:
                     }
             except Exception:
                 pass
+
+        # ── Steam (gaming — last online timestamp) ─────────────
+        # The exact `lastlogoff` is the single most valuable signal for a
+        # missing-person case. Uses the official Web API when STEAM_API_KEY
+        # is set, otherwise falls back to the public community XML endpoint.
+        def _steam_summary(vanity: str) -> dict | None:
+            api_key = os.environ.get("STEAM_API_KEY", "").strip()
+            _STATE = {0: "offline", 1: "online", 2: "busy", 3: "away",
+                      4: "snooze", 5: "looking to trade", 6: "looking to play"}
+            steamid: str | None = None
+            profile_url = f"https://steamcommunity.com/id/{vanity}"
+
+            # A 17-digit vanity is already a SteamID64 (/profiles/ URL).
+            if vanity.isdigit() and len(vanity) == 17:
+                steamid = vanity
+                profile_url = f"https://steamcommunity.com/profiles/{vanity}"
+            elif api_key:
+                try:
+                    rv = _req.get(
+                        "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/",
+                        params={"key": api_key, "vanityurl": vanity},
+                        timeout=8,
+                    )
+                    if rv.ok:
+                        jr = rv.json().get("response", {})
+                        if jr.get("success") == 1:
+                            steamid = jr.get("steamid")
+                except Exception:
+                    pass
+
+            # ── API path — exact lastlogoff ──
+            if api_key and steamid:
+                try:
+                    rs = _req.get(
+                        "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/",
+                        params={"key": api_key, "steamids": steamid},
+                        timeout=8,
+                    )
+                    if rs.ok:
+                        players = rs.json().get("response", {}).get("players", [])
+                        if players:
+                            p = players[0]
+                            out = {
+                                "username": vanity,
+                                "steamid":  steamid,
+                                "persona":  p.get("personaname", ""),
+                                "status":   _STATE.get(p.get("personastate", 0), "offline"),
+                                "url":      p.get("profileurl", profile_url),
+                                "source":   "api",
+                            }
+                            if p.get("lastlogoff"):
+                                ts = int(p["lastlogoff"])
+                                out["last_ts"]     = ts
+                                out["last_active"] = datetime.fromtimestamp(
+                                    ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                            if p.get("loccountrycode"):
+                                out["country"] = p["loccountrycode"]
+                            if p.get("timecreated"):
+                                out["member_since"] = datetime.fromtimestamp(
+                                    int(p["timecreated"]), tz=timezone.utc).strftime("%Y-%m-%d")
+                            if p.get("gameextrainfo"):
+                                out["in_game"] = p["gameextrainfo"]
+                            return out
+                except Exception:
+                    pass
+
+            # ── Fallback — public community XML (no key needed) ──
+            try:
+                rx = _req.get(profile_url, params={"xml": 1},
+                              headers={"User-Agent": _UA}, timeout=8)
+                if rx.ok and "<profile>" in rx.text:
+                    def _x(tag: str) -> str:
+                        m = re.search(
+                            rf"<{tag}>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?</{tag}>",
+                            rx.text, re.S,
+                        )
+                        return re.sub(r"<[^>]+>", " ", m.group(1)).strip() if m else ""
+                    sid       = _x("steamID64")
+                    persona   = _x("steamID")
+                    state     = _x("onlineState")     # online / offline / in-game
+                    state_msg = _x("stateMessage")    # e.g. "Last Online 5 days ago"
+                    location  = _x("location")
+                    member    = _x("memberSince")
+                    if sid or persona:
+                        out = {
+                            "username": vanity,
+                            "steamid":  sid,
+                            "persona":  persona,
+                            "status":   state or "offline",
+                            "url":      profile_url,
+                            "source":   "scrape",
+                        }
+                        if state_msg:
+                            out["status_message"] = state_msg
+                        if location:
+                            out["country"] = location
+                        if member:
+                            out["member_since"] = member
+                        return out
+            except Exception:
+                pass
+            return None
+
+        if "steam" in site_map:
+            steam_data = _steam_summary(site_map["steam"])
+            if steam_data:
+                enriched["steam"] = steam_data
 
         # ── Twitter/X quick existence + bio location ──────────
         if "twitter" in site_map:

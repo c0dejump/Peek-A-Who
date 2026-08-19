@@ -18,7 +18,6 @@ from __future__ import annotations
 import re
 from collections import Counter
 from datetime import datetime, timezone
-from typing import Any
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -51,6 +50,9 @@ def _extract_locations(report: dict) -> list[tuple[str, str, str]]:
     gh  = act.get("github", {})
     if gh.get("location"):
         locs.append((gh["location"], "GitHub profile", "probable"))
+    stg = act.get("steam", {})
+    if stg.get("country"):
+        locs.append((stg["country"], "Steam profile", "low"))
     for li in sm.get("linkedin", {}).get("serp_found", [])[:2]:
         if li.get("location"):
             locs.append((li["location"], f"LinkedIn — {li.get('title','')}", "probable"))
@@ -89,6 +91,10 @@ def run_identity_agent(report: dict) -> dict:
     confirmed: list[str] = []
     probable:  list[str] = []
     rejected:  list[str] = []
+
+    # Analyst-provided pseudo confirmed on real sites → strongest identity anchor
+    for _un, _sites in (sm.get("maigret", {}).get("pseudo_confirmed") or {}).items():
+        confirmed.append(f"User-provided pseudo @{_un} confirmed on: {', '.join(_sites)}")
 
     # Name confirmed if appears in multiple data sources
     name_sources: list[str] = []
@@ -189,6 +195,13 @@ def run_social_agent(report: dict) -> dict:
     inactive_platforms: list[dict] = []
     username_variants: list[str] = []
 
+    # Analyst-provided pseudo confirmed on real sites → active by definition
+    for _un, _sites in (mg.get("pseudo_confirmed") or {}).items():
+        for _site in _sites:
+            active_platforms.append({"platform": _site, "username": _un,
+                                     "relevance": 10, "source": "user_pseudo"})
+        username_variants.append(_un)
+
     # Instagram
     for ig in sm.get("instagram", {}).get("found", [])[:5]:
         entry = {
@@ -244,6 +257,11 @@ def run_social_agent(report: dict) -> dict:
     if gh.get("last_active"):
         loc = f" — location: {gh['location']}" if gh.get("location") else ""
         activity.append(f"GitHub @{gh.get('username','?')} — last activity {gh['last_active']}{loc}")
+    st = act.get("steam", {})
+    if st.get("last_active") or st.get("status_message"):
+        when = st.get("last_active") or st.get("status_message")
+        ctry = f" — location: {st['country']}" if st.get("country") else ""
+        activity.append(f"Steam @{st.get('username','?')} — last online {when}{ctry}")
 
     # Username pattern analysis
     username_pattern = _analyse_username_pattern(username_variants)
