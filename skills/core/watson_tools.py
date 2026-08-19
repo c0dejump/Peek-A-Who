@@ -8,11 +8,7 @@ The tool loop in app.py calls execute_tool() to dispatch from LLM tool_calls.
 """
 from __future__ import annotations
 
-import json
-import re
-import time
 import socket
-import threading
 from typing import Any
 
 # ── Tool schema definitions (OpenAI function-calling format) ──────────────────
@@ -265,38 +261,12 @@ WATSON_TOOLS: list[dict] = [
 # ── Tool execution functions ───────────────────────────────────────────────────
 
 def _exec_web_search(query: str, num_results: int = 8) -> dict:
-    import requests
-    from urllib.parse import quote
+    """Resilient multi-engine search (DDG → DDG-lite → Bing) with caching."""
     try:
-        from bs4 import BeautifulSoup
-    except ImportError:
-        return {"error": "BeautifulSoup not installed"}
-
-    num_results = min(max(int(num_results), 1), 15)
-    url = f"https://html.duckduckgo.com/html/?q={quote(query)}&kl=fr-fr"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-    }
-    try:
-        r = requests.get(url, headers=headers, timeout=12)
-        r.raise_for_status()
-    except Exception as exc:
-        return {"error": f"Search request failed: {exc}", "query": query}
-
-    soup = BeautifulSoup(r.text, "html.parser")
-    results = []
-    for el in soup.select(".result")[:num_results]:
-        title_el   = el.select_one(".result__title")
-        snippet_el = el.select_one(".result__snippet")
-        url_el     = el.select_one(".result__url")
-        title   = title_el.get_text(strip=True)   if title_el   else ""
-        snippet = snippet_el.get_text(strip=True) if snippet_el else ""
-        result_url = url_el.get_text(strip=True)  if url_el     else ""
-        if title or snippet:
-            results.append({"title": title, "snippet": snippet, "url": result_url})
-
-    return {"query": query, "results": results, "total_found": len(results)}
+        from skills.utils.search import web_search
+    except ImportError as exc:
+        return {"error": f"search core unavailable: {exc}", "query": query}
+    return web_search(query, num_results=num_results)
 
 
 def _exec_instagram_lookup(username: str) -> dict:
@@ -407,51 +377,42 @@ def _exec_web_archive(url: str) -> dict:
     # CDX API — no snapshots yet?
     try:
         api = "https://web.archive.org/cdx/search/cdx"
-        params = {
+        base = {
             "url": url, "output": "json",
-            "limit": 1, "from": "", "to": "",
             "fl": "timestamp,statuscode",
             "filter": "statuscode:200",
         }
-        # First snapshot
-        params["limit"] = 1
-        r = requests.get(api, params=params, timeout=12)
+
+        # First snapshot — limit=1 returns the earliest capture
+        r = requests.get(api, params={**base, "limit": 1}, timeout=12)
         first = None
         if r.ok:
             data = r.json()
             if len(data) > 1:  # row 0 is header
                 first = data[1][0]  # timestamp
 
-        # Last snapshot
-        params_last = dict(params)
-        params_last["limit"] = 1
-        params_last["limit"] = 1
-        r2 = requests.get(api, {**params, "limit": 1, "from": first or ""},
-                          timeout=12)
+        # Most recent snapshot — negative limit returns the last N captures
+        r2 = requests.get(api, params={**base, "limit": -1}, timeout=12)
+        last = None
+        if r2.ok:
+            data2 = r2.json()
+            if len(data2) > 1:
+                last = data2[-1][0]
 
-        # Total count
-        count_params = {
-            "url": url, "output": "json",
-            "limit": 1, "showNumPages": True, "filter": "statuscode:200",
-        }
-        r3 = requests.get(api, count_params, timeout=12)
-        total = "?"
+        # Rough volume proxy — showNumPages returns the number of CDX index
+        # pages the query spans (not the exact capture count, which would
+        # require paging through every row).
+        r3 = requests.get(
+            api,
+            params={"url": url, "filter": "statuscode:200", "showNumPages": "true"},
+            timeout=12,
+        )
+        index_pages = None
         if r3.ok:
             try:
-                total = r3.json()
-            except Exception:
+                index_pages = int(r3.text.strip())
+            except (ValueError, TypeError):
                 pass
-
-        # Most recent snapshot
-        r4 = requests.get(api, {
-            "url": url, "output": "json", "limit": 1,
-            "filter": "statuscode:200", "fl": "timestamp",
-        }, timeout=12)
-        last = None
-        if r4.ok:
-            data4 = r4.json()
-            if len(data4) > 1:
-                last = data4[-1][0]
 
         def _fmt(ts: str | None) -> str | None:
             if not ts or len(ts) < 8:
@@ -462,7 +423,7 @@ def _exec_web_archive(url: str) -> dict:
             "url": url,
             "first_snapshot": _fmt(first),
             "last_snapshot":  _fmt(last),
-            "total_pages":    total,
+            "cdx_index_pages": index_pages,
             "archive_url":    f"https://web.archive.org/web/*/{url}" if first else None,
         }
     except Exception as exc:

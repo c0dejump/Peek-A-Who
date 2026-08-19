@@ -159,28 +159,11 @@ def _check_serp_hit(email: str) -> dict:
     Returns {"hit": bool, "count": int}
     """
     try:
-        import requests
-        from bs4 import BeautifulSoup
+        from skills.utils.search import web_search
 
-        headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0",
-            "Accept": "text/html,application/xhtml+xml",
-            "Accept-Language": "en-US,en;q=0.9",
-        }
-        resp = requests.get(
-            "https://html.duckduckgo.com/html/",
-            params={"q": f'"{email}"'},
-            headers=headers,
-            timeout=8,
-        )
-        if resp.status_code != 200:
-            return {"hit": False, "count": 0}
-
-        soup = BeautifulSoup(resp.text, "html.parser")
-        results = soup.select(".result")
-        # Filter out "no results" page
-        no_res_el = soup.find(string=re.compile(r"no results", re.I))
-        if no_res_el or not results:
+        res = web_search(f'"{email}"', num_results=10, region="us-en")
+        results = res.get("results", [])
+        if not results:
             return {"hit": False, "count": 0}
         return {"hit": True, "count": len(results)}
     except Exception:
