@@ -1130,90 +1130,6 @@ def _watson_build_context(inv_id: str) -> tuple[dict, str, str, dict]:
     return ctx, target_name, system_content, report
 
 
-def _watson_tool_loop(
-    messages: list, backend: str, timeout: int,
-    llm_completion, inv_id: str = "", case_id: str = "",
-) -> tuple[list, list]:
-    """
-    Run the tool-use loop (non-streaming).
-    Returns (updated_messages, tools_used).
-
-    Stops when the model produces a non-tool-call response, after 6 tool
-    rounds, or when the model keeps requesting tool calls it has already made.
-    Identical (tool, args) calls are executed once and cached for the rest of
-    the request, so a looping model doesn't re-hit the network needlessly.
-    """
-    try:
-        from skills.core.watson_tools import WATSON_TOOLS, execute_tool
-    except ImportError:
-        return messages, []
-
-    tools_used: list[dict] = []
-    call_cache: dict[str, dict] = {}   # (fn+args) → result, deduped per request
-
-    def _cache_key(fn_name: str, fn_args: dict) -> str:
-        try:
-            return fn_name + ":" + json.dumps(fn_args, sort_keys=True, default=str)
-        except Exception:
-            return fn_name + ":" + str(fn_args)
-
-    for _round in range(6):
-        call_kwargs: dict = {
-            "model": backend, "messages": messages,
-            "max_tokens": 600, "timeout": timeout,
-            "tools": WATSON_TOOLS, "tool_choice": "auto",
-        }
-        try:
-            resp = llm_completion(**call_kwargs)
-        except Exception:
-            # Model doesn't support tools — stop the loop, let caller handle final gen
-            break
-
-        msg = resp.choices[0].message
-        if not getattr(msg, "tool_calls", None):
-            break  # No more tools — caller will handle the answer
-
-        # Record assistant's tool decision
-        messages.append({
-            "role": "assistant",
-            "content": msg.content or "",
-            "tool_calls": [
-                {"id": tc.id, "type": "function",
-                 "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
-                for tc in msg.tool_calls
-            ],
-        })
-        # Execute tools — pass inv_id so record_to_case can write to the case store
-        all_repeat = True
-        for tc in msg.tool_calls:
-            fn_name = tc.function.name
-            try:
-                fn_args = json.loads(tc.function.arguments or "{}")
-            except json.JSONDecodeError:
-                fn_args = {}
-
-            key = _cache_key(fn_name, fn_args)
-            if key in call_cache:
-                result = {**call_cache[key], "_cached": True}
-            else:
-                all_repeat = False
-                result = execute_tool(fn_name, fn_args, case_id=case_id or None)
-                call_cache[key] = result
-                tools_used.append({"tool": fn_name, "params": fn_args})
-
-            messages.append({
-                "role": "tool", "tool_call_id": tc.id, "name": fn_name,
-                "content": json.dumps(result, ensure_ascii=False, default=str),
-            })
-
-        # Anti-loop: if every tool call this round was a repeat, the model is
-        # stuck — stop and let it answer from what it already has.
-        if all_repeat:
-            break
-
-    return messages, tools_used
-
-
 def _load_watson_report(inv_id: str) -> dict:
     """Load the live investigation report, else the most recent history one."""
     inv = get_investigation(inv_id) if inv_id else None
@@ -1259,6 +1175,138 @@ def _watson_intent_response(question: str, inv_id: str, case_id: str):
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+# ── Watson JSON-plan agent (robust alternative to native tool-calling) ────────
+# gpt-oss / Groq native function-calling can crash mid-stream (tool_use_failed),
+# so instead of the `tools=` API we ask the model for a JSON plan of actions via
+# response_format=json_object (rock solid), execute them ourselves, then have the
+# model synthesise a final answer from the results. This is what makes Watson a
+# real assistant: it both ACTS (mutations on the case/graph) and INVESTIGATES.
+
+_WATSON_ACTION_CATALOG = """\
+MUTATIONS (persist to the case / graph — use when the user asks to add/save/record something):
+  add_keyword(keyword)            Add a keyword (or several, comma-separated).
+  add_note(text)                  Add a free-text note node to the graph.
+  record_to_case(platform, username)  Save a found social profile.
+  rerun_email()                   Regenerate email candidates from current keywords.
+INVESTIGATION (gather data — use when the user asks to check/verify/look up something):
+  web_search(query)               Search the web (supports site:, "exact", etc.).
+  sherlock_check(username)        Check a username across platforms.
+  enrich_profile(platform, username)  Pull bio/followers/links from a profile.
+  email_osint(email)              SMTP + HIBP + GHunt + SERP on an email.
+  phone_lookup(phone)             Carrier/region/linked accounts for a phone.
+  web_archive(url)                Wayback first/last snapshot of a URL.
+  whois_lookup(domain)            Registrar/dates/org for a domain.
+  instagram_lookup(username)      Obfuscated email/phone hints for an IG account."""
+
+_WATSON_MUTATIONS = {"add_keyword", "add_note", "record_to_case", "rerun_email"}
+_WATSON_INVESTIGATE = {"web_search", "sherlock_check", "enrich_profile", "email_osint",
+                       "phone_lookup", "web_archive", "whois_lookup", "instagram_lookup",
+                       "validate_email_batch"}
+
+
+def _watson_agent_run(question, system_content, history, backend, timeout,
+                      llm_completion, inv_id="", case_id=""):
+    """
+    Plan → execute → synthesise. Returns (final_text, actions_taken).
+    actions_taken is a list of {"tool","params"} for the UI.
+    """
+    from skills.core.watson_tools import execute_tool
+
+    plan_system = (
+        system_content
+        + "\n\n## AVAILABLE ACTIONS\n" + _WATSON_ACTION_CATALOG
+        + "\n\n## HOW TO RESPOND\n"
+          "Decide what the user wants. If they ask you to ADD/SAVE something, emit the matching "
+          "mutation action(s). If they ask you to CHECK/VERIFY/look up something or want a briefing, "
+          "emit investigation action(s). If it's a plain question you can answer from the data above, "
+          "emit no actions. Respond ONLY with JSON:\n"
+          '{"actions":[{"tool":"<name>","params":{...}}],"reply":"<short natural-language reply; '
+          'for a plain question put the full answer here>"}'
+    )
+    messages = [{"role": "system", "content": plan_system}]
+    for turn in (history or [])[-6:]:
+        if turn.get("role") in ("user", "assistant"):
+            messages.append({"role": turn["role"], "content": turn.get("content", "")})
+    messages.append({"role": "user", "content": question})
+
+    def _json_call(msgs, max_tokens=700):
+        kwargs = {"model": backend, "messages": msgs, "max_tokens": max_tokens, "timeout": timeout}
+        if not backend.startswith("ollama/"):
+            kwargs["response_format"] = {"type": "json_object"}
+        resp = llm_completion(**kwargs)
+        raw = (resp.choices[0].message.content or "").strip()
+        raw = _re_global.sub(r"^```(?:json)?\s*|\s*```$", "", raw)
+        return json.loads(raw)
+
+    # ── Phase 1: plan ────────────────────────────────────────────
+    try:
+        plan = _json_call(messages, max_tokens=600)
+    except Exception:
+        return None, []   # signal caller to fall back
+
+    actions = plan.get("actions") or []
+    reply   = (plan.get("reply") or "").strip()
+    if not isinstance(actions, list):
+        actions = []
+
+    # ── Phase 2: execute ─────────────────────────────────────────
+    actions_taken, results, did_investigate = [], [], False
+    for act in actions[:6]:
+        if not isinstance(act, dict):
+            continue
+        name = act.get("tool", "")
+        params = act.get("params") if isinstance(act.get("params"), dict) else {}
+        if name not in _WATSON_MUTATIONS and name not in _WATSON_INVESTIGATE:
+            continue
+        res = execute_tool(name, params, case_id=case_id or None)
+        actions_taken.append({"tool": name, "params": params})
+        results.append({"tool": name, "params": params, "result": res})
+        if name in _WATSON_INVESTIGATE:
+            did_investigate = True
+
+    # ── Phase 3: answer ──────────────────────────────────────────
+    if not results:
+        return (reply or "…"), actions_taken
+
+    if did_investigate:
+        # Synthesise a briefing ("topo") from the gathered data
+        synth_msgs = [
+            {"role": "system", "content": system_content
+                + "\n\nYou just ran tools for the analyst. Write a clear, concise briefing "
+                  "in the user's language: what you checked, what you found, and what it means. "
+                  "Cite which tool/source each finding came from. Be honest about negatives."},
+            {"role": "user", "content": f"Original request: {question}\n\n"
+                f"Tool results (JSON):\n{json.dumps(results, ensure_ascii=False, default=str)[:6000]}"},
+        ]
+        try:
+            kwargs = {"model": backend, "messages": synth_msgs, "max_tokens": 900, "timeout": timeout}
+            fr = llm_completion(**kwargs)
+            final = (fr.choices[0].message.content or "").strip()
+        except Exception:
+            final = reply or "Done — see results above."
+        return final, actions_taken
+
+    # Pure mutations → confirm what was persisted
+    lines = []
+    for r in results:
+        res = r["result"]
+        if res.get("error"):
+            lines.append(f"⚠ {r['tool']}: {res['error']}")
+        elif res.get("status") == "not_linked":
+            lines.append(f"⚠ {res.get('note','No case linked — click «Save as Case» first.')}")
+        elif r["tool"] == "add_keyword":
+            a = res.get("added", []); lines.append(f"✓ Added keyword(s): {', '.join(a)}" if a else "Keyword(s) already present.")
+        elif r["tool"] == "add_note":
+            lines.append(f"✓ Note added: {res.get('added','')[:80]}")
+        elif r["tool"] == "record_to_case":
+            lines.append(f"✓ Saved {r['params'].get('platform','')} @{r['params'].get('username','')}")
+        elif r["tool"] == "rerun_email":
+            lines.append(f"✓ Regenerated {res.get('total_candidates',0)} email candidates.")
+        else:
+            lines.append(f"✓ {r['tool']} done.")
+    return (reply + ("\n\n" if reply else "") + "\n".join(lines)).strip(), actions_taken
+
+
 @app.route("/api/investigation/chat", methods=["POST"])
 def api_investigation_chat():
     """
@@ -1273,7 +1321,6 @@ def api_investigation_chat():
     Returns (non-stream): { answer, sources, confidence, followup_questions, tools_used[] }
     Returns (stream):     SSE: data: {type, content|error|tools_used}
     """
-    import re as _re
 
     body      = request.get_json(force=True, silent=True) or {}
     question  = (body.get("question") or "").strip()
@@ -1428,107 +1475,43 @@ def api_investigation_chat():
     raw_timeout = os.environ.get("LLM_TIMEOUT", "").strip()
     timeout = int(raw_timeout) if raw_timeout.isdigit() else (120 if backend.startswith("ollama/") else 60)
 
-    # ── Build messages ───────────────────────────────────────────
-    messages: list = [{"role": "system", "content": system_content}]
-    for turn in history[-6:]:
-        if turn.get("role") in ("user", "assistant"):
-            messages.append({"role": turn["role"], "content": turn.get("content", "")})
-    messages.append({"role": "user", "content": question})
-
-    # ── Tool loop (always non-streaming) ─────────────────────────
+    # ── Watson agent: plan → execute → answer (robust JSON-plan flow) ──
+    final_text, tools_used = None, []
     try:
-        messages, tools_used = _watson_tool_loop(messages, backend, timeout, llm_completion, inv_id=inv_id, case_id=case_id)
-    except Exception:
-        tools_used = []
+        final_text, tools_used = _watson_agent_run(
+            question, system_content, history, backend, timeout,
+            llm_completion, inv_id=inv_id, case_id=case_id)
+    except Exception as exc:
+        _exc_low = str(exc).lower()
+        if "model_not_found" in _exc_low or "does not exist" in _exc_low:
+            return _watson_llm_error(exc), 503
+        final_text = None
 
-    # ── Final answer ─────────────────────────────────────────────
-    final_kwargs: dict = {
-        "model": backend, "messages": messages,
-        "max_tokens": 700, "timeout": timeout,
-    }
+    # Agent failed to produce a plan → deterministic router, else a clear message
+    if final_text is None:
+        routed = _watson_route(question, inv_id, case_id)
+        if routed and routed.get("answer"):
+            final_text, tools_used = routed["answer"], routed.get("tools_used", [])
+        else:
+            final_text = ("I couldn't process that with the current model — try rephrasing, "
+                          "ask for a “résumé”, or a specific action like “ajoute … en keyword” "
+                          "or “vérifie …”.")
 
     if do_stream:
-        # ── Streaming path — SSE ──────────────────────────────────
         def generate():
-            # First, announce any tools used
             if tools_used:
                 yield f"data: {json.dumps({'type': 'tools', 'tools_used': tools_used})}\n\n"
-
-            full_text = ""
-            try:
-                stream_resp = llm_completion(**{**final_kwargs, "stream": True})
-                for chunk in stream_resp:
-                    delta = (chunk.choices[0].delta.content or "") if chunk.choices else ""
-                    if delta:
-                        full_text += delta
-                        yield f"data: {json.dumps({'type': 'token', 'content': delta})}\n\n"
-            except Exception as exc:
-                exc_str = str(exc).lower()
-                # gpt-oss/Groq tool-calling can crash mid-stream (e.g.
-                # 'tool_use_failed'); rather than surface a raw error, fall back
-                # to the deterministic router so the user still gets an answer.
-                if not full_text:
-                    routed = _watson_route(question, inv_id, case_id)
-                    if routed and routed.get("answer"):
-                        rtools = routed.get("tools_used", [])
-                        if rtools:
-                            yield f"data: {json.dumps({'type': 'tools', 'tools_used': rtools})}\n\n"
-                        yield f"data: {json.dumps({'type': 'token', 'content': routed['answer']})}\n\n"
-                        yield f"data: {json.dumps({'type': 'done', 'tools_used': rtools, 'engine': 'deterministic'})}\n\n"
-                        yield "data: [DONE]\n\n"
-                        return
-                if "model_not_found" in exc_str or "does not exist" in exc_str:
-                    err = _watson_llm_error(exc)["error"]
-                elif "timeout" in exc_str or "timed out" in exc_str:
-                    err = _watson_llm_error(exc, kind="timeout")["error"]
-                elif "connection" in exc_str:
-                    err = _watson_llm_error(exc, kind="connection")["error"]
-                elif "tool_use_failed" in exc_str or "invalid literal" in exc_str:
-                    err = ("Watson's model failed a tool call (gpt-oss + Groq can be flaky here). "
-                           "Try rephrasing, or ask for a summary / search directly.")
-                else:
-                    err = f"Watson error: {exc}"
-                yield f"data: {json.dumps({'type': 'error', 'error': err})}\n\n"
-                return
-
+            # Emit in chunks for a progressive feel
+            for i in range(0, len(final_text), 120):
+                yield f"data: {json.dumps({'type': 'token', 'content': final_text[i:i+120]})}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'tools_used': tools_used})}\n\n"
             yield "data: [DONE]\n\n"
 
-        return Response(
-            generate(),
-            content_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        )
+        return Response(generate(), content_type="text/event-stream",
+                        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
-    else:
-        # ── Non-streaming path (legacy) ───────────────────────────
-        try:
-            resp = llm_completion(**final_kwargs)
-            raw_text = (resp.choices[0].message.content or "").strip()
-        except Exception as exc:
-            exc_str = str(exc)
-            if "timeout" in exc_str.lower() or "timed out" in exc_str.lower():
-                return _watson_llm_error(exc, kind="timeout"), 503
-            if "connection" in exc_str.lower():
-                return _watson_llm_error(exc, kind="connection"), 503
-            return _watson_llm_error(exc), 500
-
-        clean = _re.sub(r'^```(?:json)?\s*', '', raw_text)
-        clean = _re.sub(r'\s*```$', '', clean.strip())
-        try:
-            parsed = json.loads(clean)
-            return {
-                "answer":             parsed.get("answer", raw_text),
-                "sources":            parsed.get("sources", []),
-                "confidence":         parsed.get("confidence", "unknown"),
-                "followup_questions": parsed.get("followup_questions", []),
-                "tools_used":         tools_used,
-            }
-        except json.JSONDecodeError:
-            return {
-                "answer": raw_text, "sources": [], "confidence": "unknown",
-                "followup_questions": [], "tools_used": tools_used,
-            }
+    return {"answer": final_text, "sources": [], "confidence": "unknown",
+            "followup_questions": [], "tools_used": tools_used}
 
 
 # ── Ollama pre-warm ────────────────────────────────────────────────────────────

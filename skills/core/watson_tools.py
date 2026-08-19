@@ -638,6 +638,23 @@ def _exec_add_keyword(keyword: str = "", keywords=None, case_id: str | None = No
     return result
 
 
+def _exec_add_note(text: str = "", case_id: str | None = None) -> dict:
+    """Add a free-text note to the case (rendered as a note node on the graph)."""
+    text = (text or "").strip()
+    if not text:
+        return {"error": "Empty note."}
+    if not case_id:
+        return {"status": "not_linked", "note": "No case linked — click «Save as Case» first.", "text": text}
+    try:
+        from paw_agent.case_store import get_store
+        fact = get_store().add_fact(case_id, "note", text)
+        if fact is None:
+            return {"error": f"Case '{case_id}' not found."}
+        return {"status": "ok", "added": text, "case_id": case_id}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 def _exec_rerun_email(case_id: str | None = None, limit: int = 40) -> dict:
     """
     Regenerate email candidates from the case's current facts (name, keywords,
@@ -726,6 +743,8 @@ def execute_tool(name: str, params: dict, case_id: str | None = None) -> dict:
         return _exec_add_keyword(case_id=case_id, **params)
     if name == "rerun_email":
         return _exec_rerun_email(case_id=case_id, **params)
+    if name == "add_note":
+        return _exec_add_note(case_id=case_id, **params)
     fn = _EXECUTORS.get(name)
     if fn is None:
         return {"error": f"Unknown tool: {name}"}
