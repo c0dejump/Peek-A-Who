@@ -8,6 +8,7 @@ The tool loop in app.py calls execute_tool() to dispatch from LLM tool_calls.
 """
 from __future__ import annotations
 
+import re
 import socket
 from typing import Any
 
@@ -253,6 +254,44 @@ WATSON_TOOLS: list[dict] = [
                 },
                 "required": ["platform", "username"]
             }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_keyword",
+            "description": (
+                "Add one or more keywords to the current investigation case (stored as "
+                "'keyword' facts). Call this whenever the user asks to add/register a keyword, "
+                "alias, or term — e.g. 'ajoute \"sen\" et \"game\" en keyword', 'add keyword ubx'. "
+                "Keywords feed username and email-pattern generation on the NEXT run. "
+                "Do NOT just echo the data back — you must call this tool to actually persist it."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "keyword": {
+                        "type": "string",
+                        "description": "One keyword, or several separated by commas (e.g. \"sen, game\")"
+                    }
+                },
+                "required": ["keyword"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "rerun_email",
+            "description": (
+                "Regenerate email candidates for the case using its current facts "
+                "(name + all keywords, including ones just added). Call this when the user "
+                "asks to re-run / regenerate / relaunch the email part, or wants email "
+                "patterns with the new keywords. Returns the ranked candidate list."
+            ),
+            "parameters": {"type": "object", "properties": {
+                "limit": {"type": "integer", "description": "Max candidates to return (default 40)"}
+            }}
         }
     },
 ]
@@ -547,6 +586,120 @@ def _exec_record_to_case(platform: str, username: str, notes: str = "",
     return result
 
 
+def _exec_add_keyword(keyword: str = "", keywords=None, case_id: str | None = None) -> dict:
+    """
+    Add one or more keywords to a case as 'keyword' facts (deduplicated,
+    case-insensitive). Accepts either `keyword` (a string, comma-separated OK)
+    or `keywords` (a list). These keywords feed username/email generation on the
+    NEXT investigation run.
+    """
+    # Normalise input into a clean list
+    raw: list[str] = []
+    if isinstance(keywords, list):
+        raw += [str(k) for k in keywords]
+    if keyword:
+        raw += re.split(r"[,\n;]+", str(keyword))
+    kws = [k.strip().lstrip("#@").lower() for k in raw]
+    kws = [k for k in kws if k]
+    # de-dup within the request, preserve order
+    seen: set[str] = set()
+    kws = [k for k in kws if not (k in seen or seen.add(k))]
+
+    result: dict = {"status": "ok", "requested": kws}
+    if not kws:
+        return {"error": "No keyword provided."}
+    if not case_id:
+        result["status"] = "not_linked"
+        result["note"] = ("No case linked — click «Save as Case» first, then I can "
+                          "persist keywords. (Re-run the investigation to use them.)")
+        return result
+
+    try:
+        from paw_agent.case_store import get_store
+        store = get_store()
+        case = store.get(case_id)
+        if case is None:
+            return {"error": f"Case '{case_id}' not found."}
+        existing = {str(f.get("value", "")).lower()
+                    for f in case.get("facts", {}).values()
+                    if f.get("type") == "keyword"}
+        added, skipped = [], []
+        for k in kws:
+            if k in existing:
+                skipped.append(k)
+                continue
+            if store.add_fact(case_id, "keyword", k):
+                added.append(k)
+                existing.add(k)
+        result.update({"added": added, "already_present": skipped, "case_id": case_id,
+                       "hint": "Re-run the investigation to regenerate emails/usernames with these keywords."})
+    except Exception as exc:
+        return {"error": str(exc)}
+    return result
+
+
+def _exec_rerun_email(case_id: str | None = None, limit: int = 40) -> dict:
+    """
+    Regenerate email candidates from the case's current facts (name, keywords,
+    alias, birth year) — including any keywords just added. Pure permutation, no
+    network; SMTP validation stays a separate step.
+    """
+    if not case_id:
+        return {"error": "No case linked — click «Save as Case» first."}
+    try:
+        from paw_agent.case_store import get_store
+        from paw_agent.engine.permuter import generate as _gen
+        case = get_store().get(case_id)
+        if case is None:
+            return {"error": f"Case '{case_id}' not found."}
+
+        firstname = lastname = birth_year = ""
+        keywords: list[str] = []
+        for f in case.get("facts", {}).values():
+            t, v = f.get("type"), f.get("value")
+            if t == "name" and isinstance(v, dict):
+                firstname = v.get("firstname", "") or firstname
+                lastname  = v.get("lastname", "") or lastname
+            elif t == "keyword" and v:
+                keywords.append(str(v))
+            elif t == "alias" and v:
+                keywords.append(str(v))
+            elif t == "birth_year" and v:
+                birth_year = str(v)
+
+        if not firstname or not lastname:
+            return {"error": "Case has no name fact — cannot generate emails."}
+
+        # de-dup keywords, preserve order
+        seen: set[str] = set()
+        keywords = [k for k in keywords if not (k.lower() in seen or seen.add(k.lower()))]
+
+        candidates = _gen(firstname=firstname, lastname=lastname,
+                          birth_year=birth_year or None, keywords=keywords or None)
+
+        # Per-keyword samples so keywords added late (ranked lower) stay visible
+        samples_by_keyword: dict[str, list] = {}
+        for kw in keywords:
+            kwl = kw.lower()
+            hits = [c for c in candidates if kwl in c.split("@", 1)[0]]
+            if hits:
+                samples_by_keyword[kw] = hits[:6]
+
+        return {
+            "status": "ok",
+            "case_id": case_id,
+            "name": f"{firstname} {lastname}",
+            "keywords_used": keywords,
+            "total_candidates": len(candidates),
+            "candidates": candidates[:max(1, int(limit))],
+            "samples_by_keyword": samples_by_keyword,
+            "note": "Permutations only. Ask me to validate a batch, or re-run the full "
+                    "investigation for SMTP + GHunt + HIBP.",
+        }
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 # ── Dispatch table ────────────────────────────────────────────────────────────
 
 _EXECUTORS: dict[str, Any] = {
@@ -569,6 +722,10 @@ def execute_tool(name: str, params: dict, case_id: str | None = None) -> dict:
     """
     if name == "record_to_case":
         return _exec_record_to_case(case_id=case_id, **params)
+    if name == "add_keyword":
+        return _exec_add_keyword(case_id=case_id, **params)
+    if name == "rerun_email":
+        return _exec_rerun_email(case_id=case_id, **params)
     fn = _EXECUTORS.get(name)
     if fn is None:
         return {"error": f"Unknown tool: {name}"}

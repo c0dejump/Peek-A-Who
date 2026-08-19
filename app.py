@@ -91,6 +91,68 @@ def _instant_record_to_case(question: str, inv_id: str, case_id: str = "") -> di
                                             case_id=case_id or None)
     return None
 
+# ── Instant "add keyword" action (no LLM) ─────────────────────────────────────
+_KW_VERB     = r"(?:ajout\w*|add|enregistr\w*|register|met[sz]?\w*|rajout\w*)"
+_KW_NOUN     = r"(?:keywords?|mots?[-\s]?cl[ée]s?|kw)"
+_KW_INTENT_RE = _re_global.compile(
+    rf"\b{_KW_VERB}\b.*\b{_KW_NOUN}\b|\b{_KW_NOUN}\b.*\b{_KW_VERB}\b",
+    _re_global.I | _re_global.S,
+)
+_KW_QUOTED_RE = _re_global.compile(r"[\"'“”«»]\s*([\w.\-]{1,30})\s*[\"'“”«»]")
+_KW_NOISE = frozenset(
+    "keyword keywords mot mots cle cles clé clés kw pour les des une le la et ainsi "
+    "que surtout email emails mail mails adresse adresses de du au aux en and ou or "
+    "comme as to dans in".split()
+)
+
+
+def _instant_add_keyword(question: str, case_id: str = "") -> dict | None:
+    """Detect 'add keyword(s) X, Y' without an LLM. Returns a result dict or None."""
+    if not _KW_INTENT_RE.search(question):
+        return None
+    # Prefer quoted tokens (most explicit); else bare words after the keyword noun
+    kws = _KW_QUOTED_RE.findall(question)
+    if not kws:
+        # bare words AFTER the noun: "keyword: X, Y"
+        seg = ""
+        m = _re_global.search(rf"{_KW_NOUN}\s*[:=]?\s+(.+)$", question, _re_global.I)
+        if m:
+            seg = m.group(1)
+        # or bare words BETWEEN verb and noun: "ajoute X et Y comme keyword"
+        if not seg.strip():
+            m2 = _re_global.search(
+                rf"{_KW_VERB}\s+(.+?)\s+(?:comme|en|as|to|dans|in)\s+{_KW_NOUN}",
+                question, _re_global.I)
+            if m2:
+                seg = m2.group(1)
+        if seg:
+            tail = _re_global.split(r"\b(?:pour|surtout|afin|because|parce)\b", seg, 1)[0]
+            kws = [w for w in _re_global.split(r"[,\s;/]+", tail) if w]
+    kws = [k.strip().lstrip("#@").lower() for k in kws]
+    kws = [k for k in kws if k and k.lower() not in _KW_NOISE and len(k) >= 2]
+    if not kws:
+        return None
+    from skills.core.watson_tools import _exec_add_keyword
+    return _exec_add_keyword(keyword=",".join(kws), case_id=case_id or None)
+
+
+# ── Instant "re-run email" action (no LLM) ────────────────────────────────────
+_RERUN_EMAIL_RE = _re_global.compile(
+    r"\b(relanc\w*|re[-\s]?run|r[eé]g[eé]n\w*|g[eé]n[eè]r\w*|refai[st]?\w*|redo)\b"
+    r".*\b(e?[-\s]?mails?|adresses?|courriels?)\b"
+    r"|\b(e?[-\s]?mails?|adresses?)\b.*\b(keywords?|mots?[-\s]?cl[ée]s?)\b",
+    _re_global.I | _re_global.S,
+)
+
+
+def _instant_rerun_email(question: str, case_id: str = "") -> dict | None:
+    """Detect 'relance/regenerate the email part' without an LLM."""
+    if not _RERUN_EMAIL_RE.search(question):
+        return None
+    from skills.core.watson_tools import _exec_rerun_email
+    return _exec_rerun_email(case_id=case_id or None)
+
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET", "paw-dev-secret-change-me")
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
@@ -1161,20 +1223,25 @@ def _load_watson_report(inv_id: str) -> dict:
     return report
 
 
-def _watson_intent_response(question: str, inv_id: str, case_id: str):
-    """
-    Try the zero-LLM intent router. Returns a Flask SSE Response when an intent
-    matched, else None (so the caller can fall through / show a help message).
-    """
+def _watson_route(question: str, inv_id: str, case_id: str) -> dict | None:
+    """Run the zero-LLM intent router, returning its raw result dict or None."""
     try:
         from skills.core.watson_intent import route as _intent_route
     except Exception:
         return None
     report = _load_watson_report(inv_id)
     try:
-        result = _intent_route(question, report=report, case_id=case_id or None)
+        return _intent_route(question, report=report, case_id=case_id or None)
     except Exception:
-        result = None
+        return None
+
+
+def _watson_intent_response(question: str, inv_id: str, case_id: str):
+    """
+    Try the zero-LLM intent router. Returns a Flask SSE Response when an intent
+    matched, else None (so the caller can fall through / show a help message).
+    """
+    result = _watson_route(question, inv_id, case_id)
     if not result:
         return None
 
@@ -1248,6 +1315,62 @@ def api_investigation_chat():
             content_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
+
+    # Instant "add keyword(s)" — runs before the LLM so it always persists
+    kw_res = _instant_add_keyword(question, case_id=case_id)
+    if kw_res is not None:
+        added   = kw_res.get("added", [])
+        present = kw_res.get("already_present", [])
+        if kw_res.get("status") == "not_linked":
+            msg = ("⚠ No case linked yet — click «Save as Case» first, then I can add "
+                   f"keyword(s): {', '.join(kw_res.get('requested', []))}.")
+        elif kw_res.get("error"):
+            msg = f"⚠ {kw_res['error']}"
+        else:
+            bits = []
+            if added:   bits.append(f"Added keyword(s): {', '.join(added)} ✓")
+            if present: bits.append(f"already present: {', '.join(present)}")
+            msg = " — ".join(bits) if bits else "No new keyword to add."
+            if added:
+                msg += "\nℹ Re-run the investigation to regenerate emails/usernames with these keywords."
+        kw_tool = [{"tool": "add_keyword", "params": {"keyword": ", ".join(kw_res.get("requested", []))}}]
+
+        def _kw_sse():
+            yield f"data: {json.dumps({'type': 'tools', 'tools_used': kw_tool})}\n\n"
+            yield f"data: {json.dumps({'type': 'token', 'content': msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'tools_used': kw_tool})}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return Response(_kw_sse(), content_type="text/event-stream",
+                        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    # Instant "re-run email generation" — deterministic, runs before the LLM
+    em_res = _instant_rerun_email(question, case_id=case_id)
+    if em_res is not None:
+        if em_res.get("error"):
+            msg = f"⚠ {em_res['error']}"
+        else:
+            kws = em_res.get("keywords_used", [])
+            by_kw = em_res.get("samples_by_keyword", {})
+            msg = (f"Regenerated {em_res.get('total_candidates', 0)} email candidate(s) for "
+                   f"{em_res.get('name','')} using keywords: {', '.join(kws) or '(none)'}.")
+            if by_kw:
+                msg += "\n\n**Samples per keyword:**"
+                for kw, ex in by_kw.items():
+                    msg += f"\n• _{kw}_ → " + ", ".join(ex[:4])
+            else:
+                msg += "\n\n" + "\n".join(f"• {c}" for c in em_res.get("candidates", [])[:20])
+            msg += "\n\nℹ " + em_res.get("note", "")
+        em_tool = [{"tool": "rerun_email", "params": {}}]
+
+        def _em_sse():
+            yield f"data: {json.dumps({'type': 'tools', 'tools_used': em_tool})}\n\n"
+            yield f"data: {json.dumps({'type': 'token', 'content': msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'tools_used': em_tool})}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return Response(_em_sse(), content_type="text/event-stream",
+                        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     backend = _watson_backend()
     if not backend:
@@ -1341,12 +1464,28 @@ def api_investigation_chat():
                         yield f"data: {json.dumps({'type': 'token', 'content': delta})}\n\n"
             except Exception as exc:
                 exc_str = str(exc).lower()
+                # gpt-oss/Groq tool-calling can crash mid-stream (e.g.
+                # 'tool_use_failed'); rather than surface a raw error, fall back
+                # to the deterministic router so the user still gets an answer.
+                if not full_text:
+                    routed = _watson_route(question, inv_id, case_id)
+                    if routed and routed.get("answer"):
+                        rtools = routed.get("tools_used", [])
+                        if rtools:
+                            yield f"data: {json.dumps({'type': 'tools', 'tools_used': rtools})}\n\n"
+                        yield f"data: {json.dumps({'type': 'token', 'content': routed['answer']})}\n\n"
+                        yield f"data: {json.dumps({'type': 'done', 'tools_used': rtools, 'engine': 'deterministic'})}\n\n"
+                        yield "data: [DONE]\n\n"
+                        return
                 if "model_not_found" in exc_str or "does not exist" in exc_str:
                     err = _watson_llm_error(exc)["error"]
                 elif "timeout" in exc_str or "timed out" in exc_str:
                     err = _watson_llm_error(exc, kind="timeout")["error"]
                 elif "connection" in exc_str:
                     err = _watson_llm_error(exc, kind="connection")["error"]
+                elif "tool_use_failed" in exc_str or "invalid literal" in exc_str:
+                    err = ("Watson's model failed a tool call (gpt-oss + Groq can be flaky here). "
+                           "Try rephrasing, or ask for a summary / search directly.")
                 else:
                     err = f"Watson error: {exc}"
                 yield f"data: {json.dumps({'type': 'error', 'error': err})}\n\n"

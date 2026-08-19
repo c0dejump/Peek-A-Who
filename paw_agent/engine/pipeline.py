@@ -1124,14 +1124,32 @@ async def run_investigation(
             f"Respond ONLY with valid JSON matching this exact schema (no markdown, no extra text):\n{_schema}"
         )
 
+        # Force valid JSON output on providers that support it (Groq, OpenAI…).
+        # Ollama's response_format support is uneven, so we skip it there and rely
+        # on the prompt + the deterministic fallback instead.
+        _final_kwargs: dict = {
+            "model": backend,
+            "messages": [{"role": "user", "content": _analysis_prompt}],
+            "max_tokens": 1600,
+            "timeout": llm_timeout,
+        }
+        if not backend.startswith("ollama/"):
+            _final_kwargs["response_format"] = {"type": "json_object"}
+
         for _fattempt in range(2):
             try:
-                final_resp = llm_completion(
-                    model=backend,
-                    messages=[{"role": "user", "content": _analysis_prompt}],
-                    max_tokens=1600,
-                    timeout=llm_timeout,
-                )
+                try:
+                    final_resp = llm_completion(**_final_kwargs)
+                except Exception as _rf_exc:
+                    # Model/provider rejected response_format → retry without it once
+                    if "response_format" in _final_kwargs and (
+                        "response_format" in str(_rf_exc).lower()
+                        or "json" in str(_rf_exc).lower()
+                    ):
+                        _final_kwargs.pop("response_format", None)
+                        final_resp = llm_completion(**_final_kwargs)
+                    else:
+                        raise
                 raw_analysis = final_resp.choices[0].message.content or ""
                 _emit_tokens(final_resp)
 
