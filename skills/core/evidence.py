@@ -117,8 +117,8 @@ def build_context_summary(report: dict) -> dict:
     ]
     tt_found = [
         {"username": p.get("username"), "display_name": p.get("display_name"),
-         "relevance": p.get("relevance")}
-        for p in sm.get("tiktok", {}).get("found", [])[:4]
+         "relevance": p.get("relevance"), "url": p.get("url")}
+        for p in sm.get("tiktok", {}).get("found", [])[:10]
     ]
     li_found = sm.get("linkedin", {}).get("serp_found", [])[:3]
     maigret_cats = {
@@ -162,6 +162,8 @@ def build_context_summary(report: dict) -> dict:
                              "location": p.get("location")} for p in li_found],
             "maigret":     {"total": mg.get("total_found", 0), "by_category": maigret_cats},
             "platforms":   platforms,
+            # Analyst-provided pseudo confirmed on real sites — the strongest lead.
+            "confirmed_pseudo": mg.get("pseudo_confirmed") or {},
         },
         "activity": {
             "reddit": act.get("reddit", {}),

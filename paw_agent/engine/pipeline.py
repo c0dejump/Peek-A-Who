@@ -499,7 +499,10 @@ async def run_investigation(
                     emit("  ⚠  Instagram: rate-limited or login wall — checked fewer candidates")
                 else:
                     emit("  ℹ  No Instagram profiles found")
-            report["social_media"] = {"instagram": ig}
+            # NOTE: assign the key, don't replace the whole dict — otherwise the
+            # maigret pre-validation (validated_profiles, pseudo_confirmed…) set
+            # earlier gets wiped, which zeroes the social agent and hides the ⭐ panel.
+            report.setdefault("social_media", {})["instagram"] = ig
 
             # ── Step 0.95b: ig_lookup — obfuscated email + phone ─────
             if found:

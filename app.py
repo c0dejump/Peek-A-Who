@@ -1266,8 +1266,15 @@ def _watson_agent_run(question, system_content, history, backend, timeout,
             kwargs["response_format"] = {"type": "json_object"}
         resp = llm_completion(**kwargs)
         raw = (resp.choices[0].message.content or "").strip()
-        raw = _re_global.sub(r"^```(?:json)?\s*|\s*```$", "", raw)
-        return json.loads(raw)
+        raw = _re_global.sub(r"^```(?:json)?\s*|\s*```$", "", raw).strip()
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            # Model added prose around the JSON — extract the first {...} block
+            m = _re_global.search(r"\{.*\}", raw, _re_global.S)
+            if m:
+                return json.loads(m.group(0))
+            raise
 
     # ── Phase 1: plan ────────────────────────────────────────────
     try:
