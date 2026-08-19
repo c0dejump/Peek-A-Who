@@ -1184,9 +1184,12 @@ def _watson_intent_response(question: str, inv_id: str, case_id: str):
 
 _WATSON_ACTION_CATALOG = """\
 MUTATIONS (persist to the case / graph — use when the user asks to add/save/record something):
-  add_keyword(keyword)            Add a keyword (or several, comma-separated).
-  add_note(text)                  Add a free-text note node to the graph.
-  record_to_case(platform, username)  Save a found social profile.
+  add_fact(fact_type, value)      Add a TYPED fact. USE THIS for a found email/phone/city/name.
+                                  fact_type must be one of: email, phone, city, name, alias, birth_year.
+                                  e.g. a found email → add_fact(fact_type="email", value="x@gmail.com").
+  add_keyword(keyword)            Add a keyword/search term (or several, comma-separated).
+  add_note(text)                  Add a FREE-TEXT note only when no typed fact fits.
+  record_to_case(platform, username)  Save a found social profile (with its platform).
   rerun_email()                   Regenerate email candidates from current keywords.
 INVESTIGATION (gather data — use when the user asks to check/verify/look up something):
   web_search(query)               Search the web (supports site:, "exact", etc.).
@@ -1198,7 +1201,7 @@ INVESTIGATION (gather data — use when the user asks to check/verify/look up so
   whois_lookup(domain)            Registrar/dates/org for a domain.
   instagram_lookup(username)      Obfuscated email/phone hints for an IG account."""
 
-_WATSON_MUTATIONS = {"add_keyword", "add_note", "record_to_case", "rerun_email"}
+_WATSON_MUTATIONS = {"add_fact", "add_keyword", "add_note", "record_to_case", "rerun_email"}
 _WATSON_INVESTIGATE = {"web_search", "sherlock_check", "enrich_profile", "email_osint",
                        "phone_lookup", "web_archive", "whois_lookup", "instagram_lookup",
                        "validate_email_batch"}
@@ -1217,9 +1220,15 @@ def _watson_agent_run(question, system_content, history, backend, timeout,
         + "\n\n## AVAILABLE ACTIONS\n" + _WATSON_ACTION_CATALOG
         + "\n\n## HOW TO RESPOND\n"
           "Decide what the user wants. If they ask you to ADD/SAVE something, emit the matching "
-          "mutation action(s). If they ask you to CHECK/VERIFY/look up something or want a briefing, "
-          "emit investigation action(s). If it's a plain question you can answer from the data above, "
-          "emit no actions. Respond ONLY with JSON:\n"
+          "mutation action(s) — use add_fact with the right fact_type for an email/phone/city/name, "
+          "add_keyword for search terms, add_note only for free text. If they ask you to "
+          "CHECK/VERIFY/look up something or want a briefing, emit investigation action(s). "
+          "If it's a plain question you can answer from the data above, emit no actions.\n"
+          "IMPORTANT for web_search/sherlock/etc.: build the query from the ACTUAL investigation "
+          "data (the target's real name, aliases, cities, keywords shown above) — NEVER from the "
+          "user's sentence words. E.g. for 'cherche le nom avec les villes' use the target's full "
+          "name + those cities (e.g. '\"Nathan Dupont\" Angers Rennes'), not words like 'peux-tu'.\n"
+          "Respond ONLY with JSON:\n"
           '{"actions":[{"tool":"<name>","params":{...}}],"reply":"<short natural-language reply; '
           'for a plain question put the full answer here>"}'
     )
@@ -1294,6 +1303,12 @@ def _watson_agent_run(question, system_content, history, backend, timeout,
             lines.append(f"⚠ {r['tool']}: {res['error']}")
         elif res.get("status") == "not_linked":
             lines.append(f"⚠ {res.get('note','No case linked — click «Save as Case» first.')}")
+        elif r["tool"] == "add_fact":
+            if res.get("status") == "already_present":
+                lines.append(f"• {res.get('fact_type')} already in case: {res.get('value')}")
+            else:
+                v = res.get("value"); v = f"{v.get('firstname','')} {v.get('lastname','')}".strip() if isinstance(v, dict) else v
+                lines.append(f"✓ Added {res.get('fact_type','fact')}: {v}")
         elif r["tool"] == "add_keyword":
             a = res.get("added", []); lines.append(f"✓ Added keyword(s): {', '.join(a)}" if a else "Keyword(s) already present.")
         elif r["tool"] == "add_note":

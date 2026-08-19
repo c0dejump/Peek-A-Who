@@ -638,6 +638,55 @@ def _exec_add_keyword(keyword: str = "", keywords=None, case_id: str | None = No
     return result
 
 
+_FACT_TYPES = {"email", "phone", "city", "alias", "birth_year", "keyword", "name", "note"}
+
+
+def _exec_add_fact(fact_type: str = "", value: str = "", case_id: str | None = None) -> dict:
+    """
+    Add a TYPED fact to the case graph (email, phone, city, alias, name, …) so it
+    renders with the right icon and colour — not a generic note. Use this for a
+    found email/phone/city rather than add_note.
+    """
+    ftype = (fact_type or "").strip().lower()
+    if ftype in ("mail", "e-mail", "adresse", "adresse mail", "courriel"):
+        ftype = "email"
+    if ftype in ("ville", "location", "lieu"):
+        ftype = "city"
+    if ftype in ("pseudo", "username", "handle"):
+        ftype = "alias"
+    if ftype not in _FACT_TYPES:
+        return {"error": f"Unknown fact type '{fact_type}'. Use one of: {', '.join(sorted(_FACT_TYPES))}."}
+
+    val = value.strip() if isinstance(value, str) else value
+    if not val:
+        return {"error": "Empty value."}
+
+    # name → {firstname, lastname}
+    if ftype == "name" and isinstance(val, str):
+        parts = val.split(None, 1)
+        val = {"firstname": parts[0], "lastname": parts[1] if len(parts) > 1 else ""}
+
+    if not case_id:
+        return {"status": "not_linked", "note": "No case linked — click «Save as Case» first.",
+                "fact_type": ftype, "value": val}
+    try:
+        from paw_agent.case_store import get_store
+        store = get_store()
+        case = store.get(case_id)
+        if case is None:
+            return {"error": f"Case '{case_id}' not found."}
+        # de-dup identical typed facts
+        for f in case.get("facts", {}).values():
+            if f.get("type") == ftype and str(f.get("value")).lower() == str(val).lower():
+                return {"status": "already_present", "fact_type": ftype, "value": val, "case_id": case_id}
+        fact = store.add_fact(case_id, ftype, val)
+        if fact is None:
+            return {"error": f"Case '{case_id}' not found."}
+        return {"status": "ok", "fact_type": ftype, "value": val, "case_id": case_id}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 def _exec_add_note(text: str = "", case_id: str | None = None) -> dict:
     """Add a free-text note to the case (rendered as a note node on the graph)."""
     text = (text or "").strip()
@@ -745,6 +794,8 @@ def execute_tool(name: str, params: dict, case_id: str | None = None) -> dict:
         return _exec_rerun_email(case_id=case_id, **params)
     if name == "add_note":
         return _exec_add_note(case_id=case_id, **params)
+    if name == "add_fact":
+        return _exec_add_fact(case_id=case_id, **params)
     fn = _EXECUTORS.get(name)
     if fn is None:
         return {"error": f"Unknown tool: {name}"}

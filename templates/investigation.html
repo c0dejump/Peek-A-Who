@@ -2237,6 +2237,27 @@ ${body}
       const validProfiles = mg.validated_profiles || [];
       let mgHtml = `<div style="font-size:.75rem;color:var(--muted);margin-bottom:.85rem">${mg.total_found || 0} profile(s) found across <strong style="color:var(--text)">${validProfiles.length} validated username(s)</strong></div>`;
 
+      // ── ⭐ Confirmed pseudo (analyst-provided) → one-click add to case ──
+      const pc = mg.pseudo_confirmed || {};
+      const pcNames = Object.keys(pc);
+      if (pcNames.length > 0) {
+        mgHtml += `<div style="margin-bottom:1.1rem;padding:.7rem .8rem;background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.28);border-radius:8px">
+          <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e3b341;margin-bottom:.5rem">⭐ Confirmed — your pseudo on real sites</div>`;
+        pcNames.forEach(un => {
+          (pc[un] || []).forEach(site => {
+            const platform = String(site).toLowerCase().replace(/\s*\(group\).*/,'').trim();
+            mgHtml += `<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;font-size:.8rem">
+              <span style="color:var(--text);font-weight:600">@${esc(un)}</span>
+              <span style="color:var(--muted)">→ ${esc(site)}</span>
+              <button class="pivot-ask-btn" style="margin-left:auto"
+                onclick="addConfirmedProfile('${esc(un)}','${esc(platform)}',this)"
+                title="Add this profile to the case">➕ case</button>
+            </div>`;
+          });
+        });
+        mgHtml += `</div>`;
+      }
+
       // ── Validated usernames with clickable links ──
       if (validProfiles.length > 0) {
         mgHtml += `<div style="margin-bottom:1.1rem">
@@ -2666,7 +2687,7 @@ ${body}
           <span class="pivot-pri pri-${esc(pri)}">${esc(pri)}</span>
           <div class="pivot-body">
             <div class="pivot-action">${esc(p.action || '')}
-              <button class="pivot-ask-btn" onclick="askPivot(${JSON.stringify(p.action||'').replace(/'/g,"\\'")})" title="Ask AI about this pivot">Ask ↗</button>
+              <button class="pivot-ask-btn" data-q="${esc(p.action||'')}" onclick="askPivot(this.getAttribute('data-q'))" title="Ask AI about this pivot">Ask ↗</button>
             </div>
             ${p.rationale ? `<div class="pivot-why">${esc(p.rationale)}</div>` : ''}
           </div>
@@ -3196,6 +3217,28 @@ ${body}
 
   // ── used from pivot cards ──────────────────────────────────────
   function askPivot(question) { watsonAsk(question); }
+
+  // ── add a confirmed profile to the case (from the ⭐ panel) ──────
+  async function addConfirmedProfile(username, platform, btn) {
+    const caseId = (typeof _resolveCaseId === 'function') ? _resolveCaseId() : null;
+    if (!caseId) {
+      alert('No active case yet — click «Save as Case» first, then add confirmed profiles.');
+      return;
+    }
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '…';
+    try {
+      const resp = await fetch('/api/validate_profile', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ platform, username, url:'', relevance: 9, case_id: caseId }),
+      });
+      const data = await resp.json();
+      if (data.ok) { btn.textContent = '✓ added'; btn.style.opacity = '.6'; }
+      else { btn.textContent = orig; btn.disabled = false; alert('Could not add: ' + (data.error || 'unknown')); }
+    } catch(e) {
+      btn.textContent = orig; btn.disabled = false; alert('Request failed: ' + e);
+    }
+  }
   function populateChatSuggestions() {}  // no-op, now handled by watsonOnReport
 
   // ── send ──────────────────────────────────────────────────────
