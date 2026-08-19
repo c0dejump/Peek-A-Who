@@ -14,14 +14,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import re
-import sys
 from typing import Callable, Optional
 
 # ── Phase 1 helpers (transitional — will move to skills/ later) ────────────
 from paw_agent.engine.agent import (
-    _ACCENT_MAP,
     USE_LLM,
     _get_backend,
     _make_emit,
@@ -57,6 +54,44 @@ try:
     _HAS_LLM = True
 except ImportError:
     _HAS_LLM = False
+
+
+def _llm_hint(exc: Exception) -> str:
+    """Return an actionable hint suffix for common LLM config errors, else ''."""
+    s = str(exc).lower()
+    import os
+    backend = os.environ.get("LLM_BACKEND", "")
+    if "model_not_found" in s or "does not exist" in s or "notfounderror" in type(exc).__name__.lower():
+        prov = backend.split("/", 1)[0] if "/" in backend else backend
+        hint = f"  → The model '{backend}' is unavailable"
+        if prov == "groq":
+            hint += " (Groq deprecated the Llama-3.x models). Try groq/openai/gpt-oss-120b"
+        hint += ". Update it in Settings (/config)."
+        return hint
+    if "401" in s or "invalid api key" in s or "authenticationerror" in type(exc).__name__.lower():
+        return "  → Invalid or missing API key. Check it in Settings (/config)."
+    return ""
+
+
+def _deterministic_analysis(report: dict, pre_analysis: dict, emit=None) -> dict:
+    """Zero-LLM Phase-3 synthesis via the deterministic OSINT reasoner."""
+    try:
+        from skills.core.osint_reasoner import synthesize
+        analysis = synthesize(report, pre_analysis)
+        if emit:
+            gc = analysis.get("global_confidence", 0.0)
+            emit(f"  🧭  Deterministic synthesis — confidence {gc:.0%} — "
+                 f"{len(analysis.get('hypotheses',[]))} hypothesis(-es) — "
+                 f"{len(analysis.get('pivot_suggestions',[]))} pivot(s)")
+        return analysis
+    except Exception as exc:
+        if emit:
+            emit(f"  ⚠  Deterministic synthesis failed: {exc}")
+        return {
+            "executive_summary": "",
+            "global_confidence": pre_analysis.get("identity", {}).get("confidence_score", 0.0),
+            "hypotheses": [], "pivot_suggestions": [], "timeline": [],
+        }
 
 
 def _get_llm_timeout() -> int:
@@ -394,6 +429,13 @@ async def run_investigation(
             if prevalidated.get("social"):
                 emit(f"  💬  Social: {', '.join(p['site'] for p in prevalidated['social'][:8])}")
 
+            # User-provided pseudo confirmed on real sites → high-confidence identity
+            _pc = prevalidated.get("pseudo_confirmed") or {}
+            if _pc:
+                emit(f"  ⭐  CONFIRMED — your pseudo '{pseudo}' found on real sites:")
+                for _un, _sites in _pc.items():
+                    emit(f"       @{_un} → {', '.join(_sites)}")
+
             # Only validated usernames go to Instagram and subsequent steps
             _ig_candidates = _validated_usernames
             if not _ig_candidates:
@@ -411,6 +453,10 @@ async def run_investigation(
                     gh = act["github"]
                     loc_s = f" — {gh['location']}" if gh.get("location") else ""
                     emit(f"  💻  GitHub @{gh['username']}: last activity {gh['last_active']}{loc_s}")
+                if act.get("steam"):
+                    st = act["steam"]
+                    when = st.get("last_active") or st.get("status_message") or st.get("status", "?")
+                    emit(f"  🎮  Steam @{st['username']}: last online {when}")
                 for _sk in ("vinted", "strava", "komoot", "leboncoin"):
                     if act.get(_sk):
                         _s = act[_sk]
@@ -632,6 +678,13 @@ async def run_investigation(
                 "location":   _act.get("github", {}).get("location"),
                 "last_active": _act.get("github", {}).get("last_active"),
             } if _act.get("github") else None,
+            "steam": {
+                "username":    _act.get("steam", {}).get("username"),
+                "last_active": _act.get("steam", {}).get("last_active"),
+                "status":      _act.get("steam", {}).get("status"),
+                "status_message": _act.get("steam", {}).get("status_message"),
+                "country":     _act.get("steam", {}).get("country"),
+            } if _act.get("steam") else None,
         },
     }
 
@@ -653,6 +706,10 @@ async def run_investigation(
 
         # IDENTITY
         id_parts: list[str] = []
+        # Highest priority: the analyst's own pseudo confirmed on real sites
+        _pc = report.get("social_media", {}).get("maigret", {}).get("pseudo_confirmed") or {}
+        for _un, _sites in _pc.items():
+            id_parts.append(f"CONFIRMED pseudo @{_un} found on: {', '.join(_sites)}.")
         if _ig:
             best = _ig[0]
             dn = f' "{best["display_name"]}"' if best.get("display_name") else ""
@@ -680,12 +737,17 @@ async def run_investigation(
         tl_items: list[str] = []
         rd = _act.get("reddit") or {}
         gh = _act.get("github") or {}
+        st = _act.get("steam") or {}
         if rd.get("last_active"):
             subs = ", ".join(rd.get("subreddits", [])[:3])
             tl_items.append(f"• {rd['last_active']}: Reddit — last active" + (f" ({subs})" if subs else ""))
         if gh.get("last_active"):
             loc = f" — 📍 {gh['location']}" if gh.get("location") else ""
             tl_items.append(f"• {gh['last_active']}: GitHub{loc}")
+        if st.get("last_active") or st.get("status_message"):
+            when = st.get("last_active") or st.get("status_message")
+            ctry = f" — 📍 {st['country']}" if st.get("country") else ""
+            tl_items.append(f"• {when}: Steam — last online{ctry}")
         for p in _ig:
             fs = p.get("first_seen", "")
             pfx = f"• {fs}: " if fs else "• "
@@ -770,6 +832,9 @@ async def run_investigation(
                     import time as _t; _t.sleep(30)
                     continue
                 emit(f"  ⚠  LLM synthesis unavailable ({type(exc).__name__}) — showing rule-based summary.")
+                _h = _llm_hint(exc)
+                if _h:
+                    emit(_h)
 
     # Always display the synthesis in the terminal
     emit(f"\n  ┌─ 📋 Checkpoint synthesis {'─'*36}┐")
@@ -806,7 +871,6 @@ async def run_investigation(
         parse_obfuscated_email as _parse_ig_email,
         parse_obfuscated_phone as _parse_ig_phone,
         match_email as _match_ig_email,
-        match_phone as _match_ig_phone,
         scan_report_for_emails as _scan_report_emails,
     )
     ig_lookups = report.get("social_media", {}).get("ig_lookups", [])
@@ -856,7 +920,7 @@ async def run_investigation(
     emit("")
 
     # 2.2 — Email validation (Reacher / check-if-email-exists)
-    from skills.email.smtp_validate import _check_reacher_available, _MAX_VALIDATE, _MAX_SERP
+    from skills.email.smtp_validate import _check_reacher_available, _MAX_VALIDATE
     reacher_up = _check_reacher_available()
     checked    = min(len(candidates), _MAX_VALIDATE)
     if reacher_up:
@@ -1098,9 +1162,11 @@ async def run_investigation(
                                  f"{pv.get('action','')[:90]}")
                 except json.JSONDecodeError:
                     report["llm_summary"] = raw_analysis
-                    report["analysis"]    = {}
-                    emit(f"  ✓  LLM summary generated ({len(raw_analysis)} chars, JSON parse failed — "
-                         f"try a model with better JSON instruction-following)")
+                    report["analysis"]    = _deterministic_analysis(report, pre_analysis, emit)
+                    report["analysis"]["executive_summary"] = raw_analysis[:600] or \
+                        report["analysis"].get("executive_summary", "")
+                    emit(f"  ✓  LLM summary kept as text; structured analysis built deterministically "
+                         f"(model returned invalid JSON)")
                 break
             except Exception as exc:
                 _exc_str = str(exc).lower()
@@ -1114,24 +1180,15 @@ async def run_investigation(
                     import time as _t2; _t2.sleep(30)
                     continue
                 emit(f"  ⚠  Final synthesis failed: {exc}")
+                _h = _llm_hint(exc)
+                if _h:
+                    emit(_h)
+                # Fall back to the deterministic reasoner so the report is still rich
+                report["analysis"] = _deterministic_analysis(report, pre_analysis, emit)
                 break
     else:
-        # No LLM — build analysis from rule-based agents only
-        tl_evts = pre_analysis.get("timeline", {}).get("events", [])
-        report["analysis"] = {
-            "executive_summary": report.get("timeline", {}).get("llm_identity", ""),
-            "global_confidence": pre_analysis.get("identity", {}).get("confidence_score", 0.0),
-            "hypotheses": [],
-            "pivot_suggestions": [],
-            "timeline": tl_evts[:10],
-            "geolocation": {
-                "confirmed": [{"location": l["location"], "source": l["source"]}
-                              for l in pre_analysis.get("geolocation", {}).get("confirmed_locations", [])],
-                "probable": [{"location": l["location"], "source": l["source"]}
-                             for l in pre_analysis.get("geolocation", {}).get("probable_locations", [])],
-                "current_estimate": pre_analysis.get("geolocation", {}).get("current_estimate", ""),
-            },
-        }
+        # No LLM — full deterministic synthesis (rich, offline, never fails)
+        report["analysis"] = _deterministic_analysis(report, pre_analysis, emit)
     emit("")
 
     emit(f"{'─' * 54}")

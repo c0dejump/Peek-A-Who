@@ -4,8 +4,6 @@ Config manager — reads/writes the project .env file and detects Ollama models.
 from __future__ import annotations
 
 import os
-import re
-from typing import Optional
 
 _ENV_PATH = os.path.join(os.path.dirname(__file__), "..", ".env")
 _ENV_PATH = os.path.abspath(_ENV_PATH)
@@ -20,13 +18,15 @@ PROVIDERS = {
 
 DEFAULT_MODELS = {
     "ollama":    ["llama3.1", "llama3.2", "llama3.3", "mistral", "qwen2.5:7b", "qwen2.5:14b", "deepseek-r1:8b"],
-    "groq":      ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
+    # Groq deprecated the Llama-3.x chat models (Jun 2026). Current catalog:
+    "groq":      ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b", "groq/compound", "groq/compound-mini"],
     "gemini":    ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro"],
     "anthropic": ["claude-sonnet-4-6", "claude-opus-4-7", "claude-haiku-4-5-20251001"],
     "openai":    ["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
 }
 
 OTHER_KEYS = ["HIBP_API_KEY", "PAPPERS_API_KEY", "TRUECALLER_TOKEN",
+              "STEAM_API_KEY",
               "TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_PHONE"]
 
 

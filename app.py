@@ -12,12 +12,28 @@ from paw_agent.engine.runner import start_investigation, get_investigation, _HIS
 from paw_agent.config_manager import (
     DEFAULT_MODELS, get_current_config, get_ollama_models, save_config
 )
-from paw_agent.case_store import CaseStore, get_store
+from paw_agent.case_store import get_store
 from paw_agent.case_runner import start_case_investigation, get_case_investigation
 
 
 def _fnd_id(key: str) -> str:
     return f"fnd_{hashlib.md5(key.encode()).hexdigest()[:8]}"
+
+
+def _latest_history_report() -> tuple[dict, dict]:
+    """Return (report, target) from the most recent history JSON, or ({}, {})."""
+    if not os.path.isdir(_HISTORY_DIR):
+        return {}, {}
+    for fname in sorted(os.listdir(_HISTORY_DIR), reverse=True):
+        if not fname.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(_HISTORY_DIR, fname), encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("report", {}), data.get("target", {})
+        except Exception:
+            continue
+    return {}, {}
 
 
 # ── Instant Watson actions (no LLM, < 100ms) ──────────────────────────────────
@@ -843,18 +859,8 @@ def investigation_report():
 
     if not report:
         # Fall back to most recent history file
-        if os.path.isdir(_HISTORY_DIR):
-            for fname in sorted(os.listdir(_HISTORY_DIR), reverse=True):
-                if not fname.endswith(".json"):
-                    continue
-                try:
-                    with open(os.path.join(_HISTORY_DIR, fname), encoding="utf-8") as f:
-                        data = json.load(f)
-                    report = data.get("report", {})
-                    target = data.get("target", target)
-                    break
-                except Exception:
-                    pass
+        report, hist_target = _latest_history_report()
+        target = hist_target or target
 
     if not report:
         return redirect(url_for("investigation"))
@@ -918,7 +924,7 @@ def api_ollama_restart():
     Runs `ollama serve` in the background and returns immediately.
     Polls for up to 10s to see if it comes up.
     """
-    import subprocess, time as _time
+    import subprocess
 
     host = os.environ.get("OLLAMA_API_BASE", os.environ.get("OLLAMA_HOST", "http://localhost:11434"))
 
@@ -977,6 +983,13 @@ def _watson_llm_error(exc: Exception, kind: str = "generic") -> dict:
     """Return a human-friendly Watson error payload instead of the raw exception string."""
     backend = _watson_backend()
     is_groq = backend.startswith("groq/")
+    # Model was removed / renamed by the provider (e.g. Groq deprecating Llama-3.x)
+    exc_low = str(exc).lower()
+    if "model_not_found" in exc_low or "does not exist" in exc_low or "notfound" in type(exc).__name__.lower():
+        msg = f"The model '{backend}' is no longer available"
+        if is_groq:
+            msg += " — Groq deprecated the Llama-3.x models. Switch to groq/openai/gpt-oss-120b"
+        return {"error": msg + " in Settings (/config)."}
     if kind == "timeout":
         if is_groq:
             return {"error": "Watson timed out — Groq API did not respond. Check your GROQ_API_KEY and network."}
@@ -1015,27 +1028,17 @@ def _watson_backend() -> str:
     )
 
 
-def _watson_build_context(inv_id: str) -> tuple[dict, str, str]:
+def _watson_build_context(inv_id: str) -> tuple[dict, str, str, dict]:
     """
     Load the investigation report and build Watson's system prompt + context.
-    Returns (ctx_dict, target_name, system_content).
+    Returns (ctx_dict, target_name, system_content, report).
     """
     report: dict = {}
     inv = get_investigation(inv_id) if inv_id else None
     if inv and inv.report:
         report = inv.report
     else:
-        if os.path.isdir(_HISTORY_DIR):
-            for fname in sorted(os.listdir(_HISTORY_DIR), reverse=True):
-                if not fname.endswith(".json"):
-                    continue
-                try:
-                    with open(os.path.join(_HISTORY_DIR, fname), encoding="utf-8") as f:
-                        data = json.load(f)
-                    report = data.get("report", {})
-                    break
-                except Exception:
-                    pass
+        report, _ = _latest_history_report()
 
     try:
         from skills.core.evidence import build_context_summary
@@ -1072,7 +1075,11 @@ def _watson_tool_loop(
     """
     Run the tool-use loop (non-streaming).
     Returns (updated_messages, tools_used).
-    Stops when the model produces a non-tool-call response, or after 5 tool rounds.
+
+    Stops when the model produces a non-tool-call response, after 6 tool
+    rounds, or when the model keeps requesting tool calls it has already made.
+    Identical (tool, args) calls are executed once and cached for the rest of
+    the request, so a looping model doesn't re-hit the network needlessly.
     """
     try:
         from skills.core.watson_tools import WATSON_TOOLS, execute_tool
@@ -1080,8 +1087,15 @@ def _watson_tool_loop(
         return messages, []
 
     tools_used: list[dict] = []
+    call_cache: dict[str, dict] = {}   # (fn+args) → result, deduped per request
 
-    for _ in range(5):
+    def _cache_key(fn_name: str, fn_args: dict) -> str:
+        try:
+            return fn_name + ":" + json.dumps(fn_args, sort_keys=True, default=str)
+        except Exception:
+            return fn_name + ":" + str(fn_args)
+
+    for _round in range(6):
         call_kwargs: dict = {
             "model": backend, "messages": messages,
             "max_tokens": 600, "timeout": timeout,
@@ -1108,20 +1122,74 @@ def _watson_tool_loop(
             ],
         })
         # Execute tools — pass inv_id so record_to_case can write to the case store
+        all_repeat = True
         for tc in msg.tool_calls:
             fn_name = tc.function.name
             try:
                 fn_args = json.loads(tc.function.arguments or "{}")
             except json.JSONDecodeError:
                 fn_args = {}
-            result = execute_tool(fn_name, fn_args, case_id=case_id or None)
-            tools_used.append({"tool": fn_name, "params": fn_args})
+
+            key = _cache_key(fn_name, fn_args)
+            if key in call_cache:
+                result = {**call_cache[key], "_cached": True}
+            else:
+                all_repeat = False
+                result = execute_tool(fn_name, fn_args, case_id=case_id or None)
+                call_cache[key] = result
+                tools_used.append({"tool": fn_name, "params": fn_args})
+
             messages.append({
                 "role": "tool", "tool_call_id": tc.id, "name": fn_name,
                 "content": json.dumps(result, ensure_ascii=False, default=str),
             })
 
+        # Anti-loop: if every tool call this round was a repeat, the model is
+        # stuck — stop and let it answer from what it already has.
+        if all_repeat:
+            break
+
     return messages, tools_used
+
+
+def _load_watson_report(inv_id: str) -> dict:
+    """Load the live investigation report, else the most recent history one."""
+    inv = get_investigation(inv_id) if inv_id else None
+    if inv and inv.report:
+        return inv.report
+    report, _ = _latest_history_report()
+    return report
+
+
+def _watson_intent_response(question: str, inv_id: str, case_id: str):
+    """
+    Try the zero-LLM intent router. Returns a Flask SSE Response when an intent
+    matched, else None (so the caller can fall through / show a help message).
+    """
+    try:
+        from skills.core.watson_intent import route as _intent_route
+    except Exception:
+        return None
+    report = _load_watson_report(inv_id)
+    try:
+        result = _intent_route(question, report=report, case_id=case_id or None)
+    except Exception:
+        result = None
+    if not result:
+        return None
+
+    tools = result.get("tools_used", [])
+    answer = result.get("answer", "")
+
+    def _sse():
+        if tools:
+            yield f"data: {json.dumps({'type': 'tools', 'tools_used': tools})}\n\n"
+        yield f"data: {json.dumps({'type': 'token', 'content': answer})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'tools_used': tools, 'engine': 'deterministic'})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return Response(_sse(), content_type="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.route("/api/investigation/chat", methods=["POST"])
@@ -1183,7 +1251,13 @@ def api_investigation_chat():
 
     backend = _watson_backend()
     if not backend:
-        return {"error": "No LLM configured. Add LLM_BACKEND to .env."}, 503
+        # No LLM at all → deterministic intent router (still useful offline)
+        resp = _watson_intent_response(question, inv_id, case_id)
+        if resp is not None:
+            return resp
+        return {"error": ("No LLM configured. Watson can still summarise the case or run a "
+                          "search/lookup — try “résumé”, “cherche <nom>”, or paste an email/phone. "
+                          "For free-form chat, add LLM_BACKEND to .env.")}, 503
 
     try:
         from litellm import completion as llm_completion
@@ -1192,6 +1266,10 @@ def api_investigation_chat():
 
     # ── Pre-flight ───────────────────────────────────────────────
     if _llm_warmup_state == "unavailable":
+        # LLM down → try the deterministic router before giving up
+        resp = _watson_intent_response(question, inv_id, case_id)
+        if resp is not None:
+            return resp
         return _watson_llm_error(Exception(), kind="connection"), 503
     if _llm_warmup_state == "warming":
         return {"error": "Watson's AI model is still loading. Try again in a moment."}, 503
@@ -1262,10 +1340,12 @@ def api_investigation_chat():
                         full_text += delta
                         yield f"data: {json.dumps({'type': 'token', 'content': delta})}\n\n"
             except Exception as exc:
-                exc_str = str(exc)
-                if "timeout" in exc_str.lower() or "timed out" in exc_str.lower():
+                exc_str = str(exc).lower()
+                if "model_not_found" in exc_str or "does not exist" in exc_str:
+                    err = _watson_llm_error(exc)["error"]
+                elif "timeout" in exc_str or "timed out" in exc_str:
                     err = _watson_llm_error(exc, kind="timeout")["error"]
-                elif "connection" in exc_str.lower():
+                elif "connection" in exc_str:
                     err = _watson_llm_error(exc, kind="connection")["error"]
                 else:
                     err = f"Watson error: {exc}"

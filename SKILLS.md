@@ -85,7 +85,7 @@ Everything else → Watson LLM + tools (natural language, any phrasing, any lang
 | Tool | What |
 |---|---|
 | `record_to_case(platform, username)` | **Save found profile to case** — writes directly to case store, no round-trip. Called automatically for "found tiktok @nnoa_opz", "le snapchat c'est johndoe add to case", etc. |
-| `web_search(query)` | DuckDuckGo with operators (site:, inurl:, "exact phrase") |
+| `web_search(query)` | **Resilient multi-engine search** (`skills/utils/search.py`): DDG → DDG-lite → Bing fallback, redirect-URL decoding, domain extraction, dedup, retry/backoff, 15-min in-process cache. Supports operators (site:, inurl:, "exact phrase") |
 | `instagram_lookup(username)` | Obfuscated email/phone hint |
 | `sherlock_check(username)` | Cross-platform presence |
 | `enrich_profile(platform, username)` | Bio, followers, links |
@@ -96,6 +96,8 @@ Everything else → Watson LLM + tools (natural language, any phrasing, any lang
 | `validate_email_batch(emails)` | SMTP-validate a list |
 
 **Streaming LLM** — tokens appear immediately via SSE. Uses `WATSON_LLM_BACKEND` (lighter, faster model).
+
+**Tool loop** — up to 6 rounds. Identical `(tool, args)` calls are executed once and cached for the rest of the request (no redundant network hits); if a whole round is nothing but repeats, the loop breaks so the model answers from what it has.
 
 **OSINT knowledge base** (`osint_knowledge.py`) — Watson's system prompt includes:
 - Full OSINT investigation cycle (collection → validation → correlation → analysis → pivoting)
