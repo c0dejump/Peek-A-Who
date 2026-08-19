@@ -779,6 +779,28 @@ def case_save_graph_layout(did: str):
 
 # ── Profile validation + enrichment ───────────────────────────
 
+@app.route("/api/case/add_fact", methods=["POST"])
+def api_case_add_fact():
+    """Add a typed fact (email/phone/city/note/…) to a case from the investigation page.
+
+    Body: {case_id, fact_type, value}. Reuses the Watson add_fact executor
+    (validation, French synonyms, dedup)."""
+    body      = request.get_json(force=True, silent=True) or {}
+    case_id   = (body.get("case_id") or "").strip()
+    fact_type = (body.get("fact_type") or "note").strip()
+    value     = body.get("value", "")
+    if not case_id:
+        return {"ok": False, "error": "No case linked — click «Save as Case» first."}, 400
+    if not value:
+        return {"ok": False, "error": "Empty value."}, 400
+    from skills.core.watson_tools import _exec_add_fact
+    res = _exec_add_fact(fact_type=fact_type, value=value, case_id=case_id)
+    if res.get("error"):
+        return {"ok": False, "error": res["error"]}, 400
+    return {"ok": True, "status": res.get("status", "ok"),
+            "fact_type": res.get("fact_type"), "value": res.get("value")}
+
+
 @app.route("/api/validate_profile", methods=["POST"])
 def api_validate_profile():
     """
@@ -1579,4 +1601,6 @@ def _ollama_prewarm():
 _ollama_prewarm()
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, threaded=True, use_reloader=False)
+    # use_reloader=True → the server auto-restarts on any code change, so you
+    # never run stale code. Harmless for Groq (prewarm is a no-op off Ollama).
+    app.run(debug=True, port=5000, threaded=True, use_reloader=True)

@@ -1910,7 +1910,8 @@ ${body}
         if (g.maps_reviews) rows += `<div class="ghunt-row"><span class="dl">Maps reviews</span><span class="gv">${esc(g.maps_reviews)}</span></div>`;
         if (g.photo_url)    rows += `<div class="ghunt-row"><span class="dl">Profile photo</span><span class="gv"><a href="${esc(g.photo_url)}" target="_blank" style="color:var(--accent)">View ↗</a></span></div>`;
         if (g.cal_events)   rows += `<div class="ghunt-row"><span class="dl">Calendar events</span><span class="gv">${esc(g.cal_events)}</span></div>`;
-        return `<div class="ghunt-card"><div class="ghunt-email">${esc(g.email)}</div>${rows}</div>`;
+        const addBtn = `<button class="pivot-ask-btn" style="float:right" title="Add email to case" onclick="addFactToCase('email','${esc(g.email)}',this)">➕ case</button>`;
+        return `<div class="ghunt-card"><div class="ghunt-email">${esc(g.email)}${addBtn}</div>${rows}</div>`;
       }).join('');
     }
 
@@ -1929,8 +1930,13 @@ ${body}
         const rel = b.relevance ? ` <span style="font-size:.68rem;color:var(--muted)">${esc(b.relevance)}</span>` : '';
         const url = b.url ? ` <a href="${esc(b.url)}" target="_blank" style="color:var(--accent);font-size:.72rem">↗ linternaute</a>` : '';
         const dipLabel = b.diploma ? `<span style="color:var(--muted);font-size:.72rem"> — ${esc(b.diploma)}</span>` : '';
+        const noteVal = esc(`BAC ${b.year||''}: ${b.name||''}${b.diploma ? ' — '+b.diploma : ''}`.trim());
         dipHtml += `<div class="breach-item">
-          <div style="font-size:.72rem;color:#f0883e;font-weight:600;margin-bottom:.2rem">BAC</div>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">
+            <span style="font-size:.72rem;color:#f0883e;font-weight:600">BAC</span>
+            <button class="pivot-ask-btn" style="margin-left:auto" title="Add to case"
+              onclick="addFactToCase('note','${noteVal}',this)">➕ case</button>
+          </div>
           <div style="font-size:.8rem;color:var(--text)">${esc(b.name)}${dipLabel}${yr}${url}</div>
           ${rel ? `<div style="margin-top:.2rem">${rel}</div>` : ''}
         </div>`;
@@ -3217,6 +3223,23 @@ ${body}
 
   // ── used from pivot cards ──────────────────────────────────────
   function askPivot(question) { watsonAsk(question); }
+
+  // ── add any typed fact to the case (BAC, email, city…) ──────────
+  async function addFactToCase(factType, value, btn) {
+    const caseId = (typeof _resolveCaseId === 'function') ? _resolveCaseId() : null;
+    if (!caseId) { alert('No active case yet — click «Save as Case» first.'); return; }
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '…';
+    try {
+      const resp = await fetch('/api/case/add_fact', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ case_id: caseId, fact_type: factType, value }),
+      });
+      const data = await resp.json();
+      if (data.ok) { btn.textContent = data.status === 'already_present' ? '✓ present' : '✓ added'; btn.style.opacity = '.6'; }
+      else { btn.textContent = orig; btn.disabled = false; alert('Could not add: ' + (data.error || 'unknown')); }
+    } catch(e) { btn.textContent = orig; btn.disabled = false; alert('Request failed: ' + e); }
+  }
 
   // ── add a confirmed profile to the case (from the ⭐ panel) ──────
   async function addConfirmedProfile(username, platform, btn) {

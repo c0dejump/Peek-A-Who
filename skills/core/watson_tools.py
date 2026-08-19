@@ -545,7 +545,10 @@ def _exec_record_to_case(platform: str, username: str, notes: str = "",
         "telegram":  f"https://t.me/{username}",
         "reddit":    f"https://www.reddit.com/user/{username}",
         "github":    f"https://github.com/{username}",
-        "twitter":   f"https://twitter.com/{username}",
+        "githubgist": f"https://github.com/{username}",
+        "twitter":   f"https://x.com/{username}",
+        "x":         f"https://x.com/{username}",
+        "pinterest": f"https://www.pinterest.com/{username}",
         "linkedin":  f"https://www.linkedin.com/in/{username}",
     }
     url = url_map.get(platform, f"https://{platform}.com/{username}")
