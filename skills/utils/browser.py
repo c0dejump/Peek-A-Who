@@ -26,12 +26,8 @@ Cookie import (authenticated sessions):
 from __future__ import annotations
 
 import json
-import os
-import re
 import sys
-import time
 from pathlib import Path
-from typing import Optional
 
 _UA_CHROME = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

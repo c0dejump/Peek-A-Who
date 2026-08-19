@@ -9,11 +9,13 @@ dist/
 build/
 
 # Environment
+.env.bak
+*.bak
 .env
 *.env
 
 # Runtime outputs
-reports/results
+reports/
 dossiers/
 cases/
 history/

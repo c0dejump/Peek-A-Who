@@ -63,9 +63,9 @@ def generate_permutations(
     Pass that session_id to validate_all to check every candidate.
 
     Args:
-        firstname:  First name only — e.g. "Nathan"
-        lastname:   Last name only — e.g. "Faillenot"
-        birth_year: Birth year e.g. "1999" — optional
+        firstname:  First name only — e.g. "Jean"
+        lastname:   Last name only — e.g. "Dupont"
+        birth_year: Birth year e.g. "1990" — optional
         keywords:   Comma-separated keywords e.g. "paris,football" — optional
         domains:    Comma-separated domains to restrict e.g. "gmail.com,outlook.com"
     """

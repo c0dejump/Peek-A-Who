@@ -16,7 +16,7 @@ import traceback
 import uuid
 from typing import Optional
 
-from paw_agent.case_store import get_store, _finding_id
+from paw_agent.case_store import get_store
 
 
 # ── Platform icon mapping ─────────────────────────────────────────────
