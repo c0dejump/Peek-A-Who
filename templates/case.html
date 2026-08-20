@@ -770,7 +770,7 @@
           Known facts
           <span id="factCount" style="font-size:.7rem;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;">{{ case.facts | length }}</span>
         </div>
-        {%- set ICONS  = {'name':'&#128100;','alias':'&#127917;','email':'&#128231;','phone':'&#128222;','keyword':'&#128273;','city':'&#127961;&#65039;','birth_year':'&#128197;','note':'&#128221;','image':'&#128444;&#65039;'} -%}
+        {%- set ICONS  = {'name':'&#128100;','alias':'&#127917;','email':'&#128231;','phone':'&#128222;','keyword':'&#128273;','city':'&#127961;&#65039;','birth_year':'&#128197;','employer':'&#128188;','note':'&#128221;','image':'&#128444;&#65039;'} -%}
         {%- set LABELS = {'name':'Identity','alias':'Aliases','email':'Email','phone':'Phone','keyword':'Keywords','city':'Location','birth_year':'Birth year','note':'Notes','image':'Images'} -%}
         {%- for ftype in ['name','alias','email','phone','keyword','city','birth_year','note','image'] -%}
           {%- set ns = namespace(count=0) -%}
@@ -982,7 +982,7 @@ const FINDING_COLORS = {
 
 const FACT_ICONS = {
   name: '👤', email: '📧', phone: '📞',
-  keyword: '🔑', alias: '🎭', city: '🏙', birth_year: '📅', note: '📝', image: '🖼️', geotime: '🗺️',
+  keyword: '🔑', alias: '🎭', city: '🏙', birth_year: '📅', employer: '💼', note: '📝', image: '🖼️', geotime: '🗺️',
 };
 
 const PLATFORM_ICONS = {

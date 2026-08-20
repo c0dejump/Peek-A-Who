@@ -1336,9 +1336,10 @@ def _watson_intent_response(question: str, inv_id: str, case_id: str):
 
 _WATSON_ACTION_CATALOG = """\
 MUTATIONS (persist to the case / graph — use when the user asks to add/save/record something):
-  add_fact(fact_type, value)      Add a TYPED fact. USE THIS for a found email/phone/city/name.
-                                  fact_type must be one of: email, phone, city, name, alias, birth_year.
-                                  e.g. a found email → add_fact(fact_type="email", value="x@gmail.com").
+  add_fact(fact_type, value)      Add a TYPED fact. USE THIS for a found email/phone/city/name/employer.
+                                  fact_type must be one of: email, phone, city, name, alias, birth_year, employer.
+                                  e.g. found email → add_fact(fact_type="email", value="x@gmail.com");
+                                  'works at GLS' → add_fact(fact_type="employer", value="GLS").
   add_keyword(keyword)            Add a keyword/search term (or several, comma-separated).
   add_geotime(location, when, note, near)  A SIGHTING: the person was at <location> at <when>.
                                   USE THIS whenever the user reports where/when the target was seen
@@ -1429,9 +1430,15 @@ def _watson_agent_stream(question, system_content, history, backend, timeout,
             raise
 
     # ── Phase 1: plan ────────────────────────────────────────────
-    try:
-        plan = _json_call(messages, max_tokens=600)
-    except Exception:
+    # gpt-oss is probabilistic — a bad-JSON reply usually parses on a retry.
+    plan = None
+    for _attempt in range(2):
+        try:
+            plan = _json_call(messages, max_tokens=600)
+            break
+        except Exception:
+            continue
+    if plan is None:
         yield {"kind": "fail"}
         return
 
