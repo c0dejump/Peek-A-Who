@@ -766,6 +766,49 @@ def case_data(did: str):
     )
 
 
+@app.route("/cases/<did>/map")
+def case_map(did: str):
+    """Geotime map — plots the case's 'geotime' sightings (location + time)."""
+    store = get_store()
+    case  = store.get(did)
+    if not case:
+        return redirect(url_for("cases_list"))
+    points = []
+    for f in case.get("facts", {}).values():
+        if f.get("type") != "geotime":
+            continue
+        v = f.get("value") or {}
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except Exception:
+                continue
+        points.append({
+            "id": f.get("id"), "location": v.get("location", ""), "when": v.get("when", ""),
+            "note": v.get("note", ""), "lat": v.get("lat"), "lon": v.get("lon"),
+            "display": v.get("display", ""), "added_at": f.get("added_at", ""),
+        })
+    return render_template("map.html", case=case,
+                           points_json=json.dumps(points, ensure_ascii=False, default=str))
+
+
+@app.route("/cases/<did>/geotime", methods=["POST"])
+def case_add_geotime(did: str):
+    """Add a geotime sighting to a case from the map UI. Body: {location, when, note, near}."""
+    body = request.get_json(force=True, silent=True) or {}
+    from skills.core.watson_tools import _exec_add_geotime
+    res = _exec_add_geotime(
+        location=(body.get("location") or "").strip(),
+        when=(body.get("when") or "").strip(),
+        note=(body.get("note") or "").strip(),
+        near=(body.get("near") or "").strip(),
+        case_id=did,
+    )
+    if res.get("error"):
+        return {"ok": False, "error": res["error"]}, 400
+    return {"ok": True, "point": res.get("point", {})}
+
+
 @app.route("/cases/<did>/graph-layout", methods=["POST"])
 def case_save_graph_layout(did: str):
     """Persist node positions + viewport from the vis-network whiteboard."""
@@ -1210,6 +1253,11 @@ MUTATIONS (persist to the case / graph — use when the user asks to add/save/re
                                   fact_type must be one of: email, phone, city, name, alias, birth_year.
                                   e.g. a found email → add_fact(fact_type="email", value="x@gmail.com").
   add_keyword(keyword)            Add a keyword/search term (or several, comma-separated).
+  add_geotime(location, when, note, near)  A SIGHTING: the person was at <location> at <when>.
+                                  USE THIS whenever the user reports where/when the target was seen
+                                  (e.g. 'toto était au Bar X à 17h' → location="Bar X", when="17h").
+                                  Pass near=<city> if a city is known, to geocode accurately. Places a
+                                  pin on the case map.
   add_note(text)                  Add a FREE-TEXT note only when no typed fact fits.
   record_to_case(platform, username)  Save a found social profile (with its platform).
   rerun_email()                   Regenerate email candidates from current keywords.
@@ -1223,7 +1271,7 @@ INVESTIGATION (gather data — use when the user asks to check/verify/look up so
   whois_lookup(domain)            Registrar/dates/org for a domain.
   instagram_lookup(username)      Obfuscated email/phone hints for an IG account."""
 
-_WATSON_MUTATIONS = {"add_fact", "add_keyword", "add_note", "record_to_case", "rerun_email"}
+_WATSON_MUTATIONS = {"add_fact", "add_geotime", "add_keyword", "add_note", "record_to_case", "rerun_email"}
 _WATSON_INVESTIGATE = {"web_search", "sherlock_check", "enrich_profile", "email_osint",
                        "phone_lookup", "web_archive", "whois_lookup", "instagram_lookup",
                        "validate_email_batch"}
@@ -1236,6 +1284,7 @@ _AGENT_TOOL_LABELS = {
     "whois_lookup": "🌍 Running WHOIS…", "instagram_lookup": "📷 Instagram lookup…",
     "validate_email_batch": "✉️ Validating emails…",
     "add_fact": "➕ Adding to case…", "add_keyword": "🔑 Adding keyword…", "add_note": "📝 Adding note…",
+    "add_geotime": "🗺️ Placing sighting on the map…",
     "record_to_case": "💾 Saving profile…", "rerun_email": "✉️ Regenerating emails…",
 }
 
@@ -1364,6 +1413,11 @@ def _watson_agent_stream(question, system_content, history, backend, timeout,
                 lines.append(f"✓ Added {res.get('fact_type','fact')}: {v}")
         elif r["tool"] == "add_keyword":
             a = res.get("added", []); lines.append(f"✓ Added keyword(s): {', '.join(a)}" if a else "Keyword(s) already present.")
+        elif r["tool"] == "add_geotime":
+            p = res.get("point", {})
+            geo = "📍 pinned" if p.get("geocoded") else "⚠ not geocoded"
+            lines.append(f"✓ Sighting saved ({geo}): {p.get('location','?')}"
+                         + (f" @ {p.get('when')}" if p.get('when') else ""))
         elif r["tool"] == "add_note":
             lines.append(f"✓ Note added: {res.get('added','')[:80]}")
         elif r["tool"] == "record_to_case":

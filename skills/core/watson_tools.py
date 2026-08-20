@@ -679,6 +679,60 @@ def _exec_add_keyword(keyword: str = "", keywords=None, case_id: str | None = No
 _FACT_TYPES = {"email", "phone", "city", "alias", "birth_year", "keyword", "name", "note"}
 
 
+def _geocode(place: str, near: str = "") -> dict | None:
+    """Geocode a place name to lat/lon via OpenStreetMap Nominatim (free, no key)."""
+    import requests
+    q = f"{place}, {near}" if near and near.lower() not in place.lower() else place
+    try:
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": q, "format": "json", "limit": 1, "addressdetails": 0},
+            headers={"User-Agent": "PAW-OSINT/1.0 (missing-person investigation tool)"},
+            timeout=10,
+        )
+        if r.ok and r.json():
+            hit = r.json()[0]
+            return {"lat": float(hit["lat"]), "lon": float(hit["lon"]),
+                    "display": hit.get("display_name", q)}
+    except Exception:
+        pass
+    return None
+
+
+def _exec_add_geotime(location: str = "", when: str = "", note: str = "",
+                      near: str = "", case_id: str | None = None) -> dict:
+    """
+    Record a geo-temporal SIGHTING — 'person was at <location> at <when>'. Geocodes
+    the place and stores it as a 'geotime' fact so it appears on the case map.
+    `near` (a city) improves geocoding accuracy for ambiguous place names.
+    """
+    location = (location or "").strip()
+    if not location:
+        return {"error": "No location given."}
+    geo = _geocode(location, near=near)
+    value = {
+        "location": location,
+        "when":     (when or "").strip(),
+        "note":     (note or "").strip(),
+        "lat":      geo["lat"] if geo else None,
+        "lon":      geo["lon"] if geo else None,
+        "display":  geo["display"] if geo else location,
+        "geocoded": bool(geo),
+    }
+    if not case_id:
+        return {"status": "not_linked",
+                "note": "No case linked — click «Save as Case» first.", "point": value}
+    try:
+        from paw_agent.case_store import get_store
+        fact = get_store().add_fact(case_id, "geotime", value)
+        if fact is None:
+            return {"error": f"Case '{case_id}' not found."}
+        return {"status": "ok", "point": value, "case_id": case_id,
+                "hint": None if geo else f"Couldn't geocode '{location}' — pin not placed, but the sighting is saved."}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 def _exec_add_fact(fact_type: str = "", value: str = "", case_id: str | None = None) -> dict:
     """
     Add a TYPED fact to the case graph (email, phone, city, alias, name, …) so it
@@ -834,6 +888,8 @@ def execute_tool(name: str, params: dict, case_id: str | None = None) -> dict:
         return _exec_add_note(case_id=case_id, **params)
     if name == "add_fact":
         return _exec_add_fact(case_id=case_id, **params)
+    if name == "add_geotime":
+        return _exec_add_geotime(case_id=case_id, **params)
     fn = _EXECUTORS.get(name)
     if fn is None:
         return {"error": f"Unknown tool: {name}"}
