@@ -287,5 +287,30 @@ def geo_imagery(location: str = "", lat: float = None, lon: float = None) -> dic
     return _geo(lat=lat, lon=lon, location=location)
 
 
+# ── Tool 11 : Telegram public profile ────────────────────────
+
+@mcp.tool()
+def telegram_lookup(username: str) -> dict:
+    """
+    Look up a public Telegram @username (no key): existence, display name, bio,
+    profile photo, type (user/channel/group) and subscriber count.
+    """
+    from skills.messaging.telegram import run_sync as _tg
+    return _tg(username)
+
+
+# ── Tool 12 : French INSEE death records ─────────────────────
+
+@mcp.tool()
+def death_records(firstname: str = "", lastname: str = "", birth_year: str = "") -> dict:
+    """
+    Search the official French INSEE death file (deces.matchid.io, free, no key)
+    by name + optional birth year. Returns birth/death dates, places and age —
+    to check whether a missing person is recorded as deceased.
+    """
+    from skills.records.deces import run_sync as _dec
+    return _dec(firstname=firstname, lastname=lastname, birth_year=birth_year)
+
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")

@@ -229,6 +229,43 @@ WATSON_TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "telegram_lookup",
+            "description": (
+                "Look up a public Telegram @username: confirms it exists and returns the "
+                "display name, bio, profile photo, type (user/channel/group) and subscriber "
+                "count. No API key. Use to check a found username on Telegram."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"username": {"type": "string", "description": "Telegram username (without @)"}},
+                "required": ["username"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "death_records",
+            "description": (
+                "Search the official French INSEE death file (fichier des décès) by name "
+                "(+ optional birth year). Returns matching records with birth date/place, "
+                "death date/place and age. Critical for a missing-person case: check whether "
+                "the person is recorded as deceased. Free, French records only."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "firstname": {"type": "string"},
+                    "lastname":  {"type": "string"},
+                    "birth_year": {"type": "string", "description": "Optional birth year to narrow results"}
+                },
+                "required": ["lastname"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "geo_imagery",
             "description": (
                 "Visually verify a place and find photos taken there: returns a Google "
@@ -573,6 +610,22 @@ def _exec_leak_search(query: str, query_type: str = "auto") -> dict:
         return leak_run(query, query_type=query_type)
     except Exception as exc:
         return {"query": query, "error": str(exc)}
+
+
+def _exec_telegram_lookup(username: str) -> dict:
+    try:
+        from skills.messaging.telegram import run_sync as tg_run
+        return tg_run(username)
+    except Exception as exc:
+        return {"username": username, "error": str(exc)}
+
+
+def _exec_death_records(firstname: str = "", lastname: str = "", birth_year: str = "") -> dict:
+    try:
+        from skills.records.deces import run_sync as dec_run
+        return dec_run(firstname=firstname, lastname=lastname, birth_year=birth_year)
+    except Exception as exc:
+        return {"error": str(exc)}
 
 
 def _exec_geo_imagery(location: str = "", lat=None, lon=None) -> dict:
@@ -1029,6 +1082,8 @@ _EXECUTORS: dict[str, Any] = {
     "reverse_image":        _exec_reverse_image,
     "leak_search":          _exec_leak_search,
     "geo_imagery":          _exec_geo_imagery,
+    "telegram_lookup":      _exec_telegram_lookup,
+    "death_records":        _exec_death_records,
     "validate_email_batch": _exec_validate_email_batch,
 }
 
