@@ -118,6 +118,21 @@
     footer { margin-top: 1.5rem; color: var(--muted); font-size: .72rem; }
     footer a { color: var(--accent); text-decoration: none; }
   </style>
+  <style id="paw-transitions">
+    /* Smooth cross-page navigation — Chromium multi-page View Transitions */
+    @view-transition { navigation: auto; }
+    @media (prefers-reduced-motion: no-preference) {
+      ::view-transition-old(root),
+      ::view-transition-new(root) { animation-duration: .28s; }
+    }
+    /* Fallback: gently fade the page in on load where view transitions are unsupported */
+    @supports not (view-transition-name: none) {
+      @media (prefers-reduced-motion: no-preference) {
+        @keyframes paw-page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        body { animation: paw-page-in .30s ease both; }
+      }
+    }
+  </style>
 </head>
 <body>
 
