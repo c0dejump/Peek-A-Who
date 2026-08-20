@@ -672,11 +672,12 @@
     <a href="/investigation" class="nav-link">Terminal</a>
     <a href="/cases" class="nav-link active">Cases</a>
     <a href="/history" class="nav-link">History</a>
-    <a href="/cases/{{ case.id }}/map" class="nav-link">🗺️ Map</a>
     <a href="/config" class="nav-link">Configuration</a>
     <span class="nav-title">{{ case.title }}</span>
     <div class="nav-right">
       <span id="invBadge" style="display:none"></span>
+      <a href="/cases/{{ case.id }}/map" class="btn-sm"
+         style="border-color:rgba(63,185,80,.45);color:var(--green,#3fb950);text-decoration:none">&#128506;&#65039; Map</a>
       <button class="btn-sm" style="border-color:rgba(248,81,73,.4);color:var(--danger);"
               onclick="confirmDeleteCase()">&#128465; Delete case</button>
     </div>
@@ -1121,6 +1122,11 @@ function initNetwork() {
     }
     if (params.nodes.length === 1) {
       const nid = params.nodes[0];
+      // Geotime node → jump straight to the map, focused on this point
+      if (state.facts[nid] && state.facts[nid].type === 'geotime') {
+        window.location.href = `/cases/${CASE_ID}/map?focus=${encodeURIComponent(nid)}`;
+        return;
+      }
       // Note-type facts are handled by HTML overlay — skip popup
       if (state.facts[nid] && state.facts[nid].type === 'note') return;
       showNodePopup(nid, params.event.center);

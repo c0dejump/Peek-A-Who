@@ -145,6 +145,14 @@
     }
 
     render();
+
+    // Focus a specific point when arriving from a graph node (?focus=<factId>)
+    const _focusId = new URLSearchParams(location.search).get('focus');
+    if (_focusId && markers[_focusId]) {
+      const m = markers[_focusId];
+      map.setView(m.getLatLng(), 16);
+      m.openPopup();
+    }
   </script>
 </body>
 </html>
