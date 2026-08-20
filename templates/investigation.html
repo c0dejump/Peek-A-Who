@@ -1335,11 +1335,13 @@
     if (strip) strip.classList.remove('hidden');
 
     es = new EventSource('/run');
+    _investRunning = true; _investHadFinding = false; mascot('working');   // Raphael starts investigating
 
     es.onmessage = function(e) {
       const event = JSON.parse(e.data);
       if (event.type === 'log') {
         appendLine(event.text);
+        _investEmote(event.text);               // react to what the step found/failed
       } else if (event.type === 'progress') {
         _handleProgress(event);
       } else if (event.type === 'report') {
@@ -1350,6 +1352,7 @@
         es.close();
         cursor.classList.add('hidden');
         setStatus('error', 'Error');
+        _investRunning = false; mascot('sad');
         btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
         setNavDone(true);
       } else if (event.type === 'token_usage') {
@@ -1365,6 +1368,8 @@
         es.close();
         cursor.classList.add('hidden');
         setStatus('done', 'Done');
+        _investRunning = false;
+        mascot(_investHadFinding ? 'happy' : 'idle');   // finish on the right note
         btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
         const btnRpt = document.getElementById('btn-report');
         if (btnRpt) btnRpt.style.display = 'inline-flex';
@@ -1377,6 +1382,7 @@
       es.close();
       cursor.classList.add('hidden');
       setStatus('error', 'Connection lost');
+      _investRunning = false; mascot('sad');
       btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
     };
   }
@@ -3076,10 +3082,27 @@ ${body}
     if (state === 'thinking' || state === 'working') {
       _trickTimer = setInterval(_doTrick, 1500);
     }
-    // transient states settle back to idle
+    // transient states settle back — to 'working' if an investigation is still
+    // streaming, otherwise to 'idle'
     if (state === 'happy' || state === 'sad') {
-      _mascotTimer = setTimeout(() => { el.className = 'mascot idle'; }, 1400);
+      _mascotTimer = setTimeout(() => {
+        el.className = 'mascot ' + (_investRunning ? 'working' : 'idle');
+      }, 1400);
     }
+  }
+
+  // React to an investigation log line with a brief emotion (throttled so a burst
+  // of ✅ lines doesn't strobe the mascot). Positive markers → happy, hard fails → sad.
+  var _investRunning = false, _investHadFinding = false, _lastEmoteAt = 0;
+  function _investEmote(text) {
+    if (!text) return;
+    const now = Date.now();
+    const good = /✅|🎯|✔|cross-confirmed|high confidence|accounts? found|profile\(s\) found|confirmed/i.test(text);
+    const bad  = /^✗|unavailable|captcha|blocked|no profile pages|not found/i.test(text);
+    if (good) _investHadFinding = true;
+    if (now - _lastEmoteAt < 2600) return;        // throttle
+    if (good)      { _lastEmoteAt = now; mascot('happy'); }
+    else if (bad)  { _lastEmoteAt = now; mascot('sad'); }
   }
 
   function _wDot(state) {  // 'idle' | 'ready' | 'busy' | 'warming' | 'offline'
