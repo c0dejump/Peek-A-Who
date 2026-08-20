@@ -831,7 +831,13 @@ def case_update_geotime(did: str, fid: str):
             val["lat"], val["lon"] = float(body["lat"]), float(body["lon"])
         except (TypeError, ValueError):
             return {"ok": False, "error": "Invalid coordinates"}, 400
-        val["display"]  = _reverse_geocode(val["lat"], val["lon"]) or val.get("display", "")
+        disp = _reverse_geocode(val["lat"], val["lon"])
+        if disp:
+            val["display"] = disp
+            # Update the shown place to the new spot (first components of the address),
+            # unless the caller also explicitly set a location this request.
+            if "location" not in body:
+                val["location"] = ", ".join(disp.split(",")[:2]).strip()
         val["geocoded"] = True
     if "when" in body:
         val["when"] = (body.get("when") or "").strip()

@@ -414,6 +414,78 @@
     }
     .pivot-ask-btn:hover { background: rgba(88,166,255,.18); }
 
+    /* ── Watson mascot (slime) ── */
+    #w-mascot { position: relative; width: 40px; height: 38px; flex-shrink: 0; }
+    .mascot .slime {
+      position: absolute; left: 3px; bottom: 4px; width: 34px; height: 28px;
+      background: radial-gradient(120% 120% at 35% 25%, #7ee787 0%, #3fb950 55%, #2ea043 100%);
+      border-radius: 50% 50% 44% 44% / 60% 60% 40% 40%;
+      box-shadow: inset -3px -4px 6px rgba(0,0,0,.18), inset 3px 3px 5px rgba(255,255,255,.35),
+                  0 2px 5px rgba(63,185,80,.35);
+      transform-origin: 50% 100%;
+      animation: slimeIdle 2.6s ease-in-out infinite;
+    }
+    .mascot .slime-shadow {
+      position: absolute; left: 7px; bottom: 1px; width: 26px; height: 6px;
+      background: rgba(0,0,0,.28); border-radius: 50%; filter: blur(1px);
+      animation: shadowIdle 2.6s ease-in-out infinite;
+    }
+    .mascot .eye {
+      position: absolute; top: 8px; width: 8px; height: 9px; background: #fff;
+      border-radius: 50%; box-shadow: inset 0 -1px 1px rgba(0,0,0,.1);
+    }
+    .mascot .eye.left  { left: 8px; }
+    .mascot .eye.right { right: 8px; }
+    .mascot .pupil {
+      position: absolute; top: 2.5px; left: 2px; width: 4px; height: 4px;
+      background: #0d1117; border-radius: 50%;
+      transition: transform .2s ease;
+    }
+    .mascot .mouth {
+      position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%);
+      width: 7px; height: 3.5px; border: 1.4px solid #1a3d24; border-top: none;
+      border-radius: 0 0 8px 8px; opacity: .8;
+    }
+    .mascot .blush { position: absolute; top: 15px; width: 5px; height: 3px;
+      background: rgba(255,120,120,.5); border-radius: 50%; }
+    .mascot .blush.left { left: 5px; } .mascot .blush.right { right: 5px; }
+
+    @keyframes slimeIdle {
+      0%,100% { transform: scaleX(1) scaleY(1); }
+      50%     { transform: scaleX(1.06) scaleY(.94) translateY(1px); }
+    }
+    @keyframes shadowIdle { 0%,100%{transform:scaleX(1);opacity:.28} 50%{transform:scaleX(1.12);opacity:.34} }
+
+    /* thinking — look up, gentle sway, pupils up */
+    .mascot.thinking .slime { animation: slimeThink 1.1s ease-in-out infinite; }
+    .mascot.thinking .pupil { transform: translateY(-1.5px); }
+    .mascot.thinking .mouth { width: 4px; border-radius: 50%; height: 4px; border-width: 1.4px; }
+    @keyframes slimeThink {
+      0%,100% { transform: rotate(-4deg) scaleY(1); }
+      50%     { transform: rotate(4deg)  scaleY(1.03); }
+    }
+    /* working — energetic bounce, wide eyes */
+    .mascot.working .slime { animation: slimeWork .5s ease-in-out infinite; }
+    .mascot.working .slime-shadow { animation: shadowWork .5s ease-in-out infinite; }
+    .mascot.working .eye { height: 10px; }
+    @keyframes slimeWork {
+      0%,100% { transform: translateY(0) scaleY(1) scaleX(1); }
+      35%     { transform: translateY(-6px) scaleY(1.1) scaleX(.9); }
+      70%     { transform: translateY(0) scaleY(.85) scaleX(1.12); }
+    }
+    @keyframes shadowWork { 0%,100%{transform:scaleX(1)} 35%{transform:scaleX(.8);opacity:.2} 70%{transform:scaleX(1.2)} }
+    /* happy — joyful hop, ^^ eyes */
+    .mascot.happy .slime { animation: slimeHop .5s ease-out 2; }
+    .mascot.happy .eye { height: 4px; border-radius: 6px 6px 0 0; top: 11px; }
+    .mascot.happy .pupil { display: none; }
+    .mascot.happy .mouth { width: 9px; height: 5px; }
+    @keyframes slimeHop { 0%{transform:translateY(0)} 40%{transform:translateY(-9px) scaleY(1.12)} 100%{transform:translateY(0)} }
+    /* sad — droop, pupils down */
+    .mascot.sad .slime { animation: none; transform: scaleY(.88) scaleX(1.05); filter: saturate(.6); }
+    .mascot.sad .pupil { transform: translateY(1.5px); }
+    .mascot.sad .mouth { bottom: 6px; border-top: 1.4px solid #1a3d24; border-bottom: none; border-radius: 8px 8px 0 0; }
+    .mascot.sad .eye { top: 10px; }
+
     /* ── Watson sidebar ── */
     body { padding-right: 350px; }
     #watson {
@@ -921,7 +993,15 @@
 
   <div class="w-body">
     <div id="w-header">
-      <span class="w-logo">🔬</span>
+      <div id="w-mascot" class="mascot idle" title="Watson">
+        <div class="slime">
+          <div class="eye left"><span class="pupil"></span></div>
+          <div class="eye right"><span class="pupil"></span></div>
+          <div class="mouth"></div>
+          <div class="blush left"></div><div class="blush right"></div>
+        </div>
+        <div class="slime-shadow"></div>
+      </div>
       <div>
         <div class="w-name">Watson</div>
         <div class="w-sub" id="w-sub">AI investigation partner</div>
@@ -2816,7 +2896,26 @@ ${body}
   }
 
   // ── set status dot ───────────────────────────────────────────
+  // ── Mascot state driver ──────────────────────────────────────
+  let _mascotTimer = null;
+  function mascot(state) {  // 'idle' | 'thinking' | 'working' | 'happy' | 'sad'
+    const el = document.getElementById('w-mascot');
+    if (!el) return;
+    clearTimeout(_mascotTimer);
+    el.className = 'mascot ' + state;
+    // transient states settle back to idle
+    if (state === 'happy' || state === 'sad') {
+      _mascotTimer = setTimeout(() => { el.className = 'mascot idle'; }, 1400);
+    }
+  }
+
   function _wDot(state) {  // 'idle' | 'ready' | 'busy' | 'warming' | 'offline'
+    // Reflect the dot state on the mascot too
+    if (state === 'busy' || state === 'warming') mascot('thinking');
+    else if (state === 'offline') mascot('sad');
+    else if (document.getElementById('w-mascot') &&
+             !['happy','sad','working'].includes(document.getElementById('w-mascot').className.split(' ')[1]))
+      mascot('idle');
     const d      = document.getElementById('w-dot');
     const sub    = document.getElementById('w-sub');
     const input  = document.getElementById('w-input');
@@ -3389,12 +3488,14 @@ ${body}
           try { evt = JSON.parse(raw); } catch { continue; }
 
           if (evt.type === 'error') {
+            mascot('sad');
             bubble.style.cssText = '';
             bubble.textContent = `⚠ ${evt.error}`;
             return;
           }
 
           if (evt.type === 'tools') {
+            mascot('working');
             toolsUsedArr = evt.tools_used || [];
             // Show tool indicator while tools run
             bubble.innerHTML = '<span class="w-thinking-dots"><span>.</span><span>.</span><span>.</span></span>';
@@ -3409,6 +3510,7 @@ ${body}
 
           if (evt.type === 'token') {
             if (!streaming) {
+              mascot('thinking');   // writing the answer
               // First token: clear the thinking dots, switch to normal style
               bubble.innerHTML = '';
               bubble.style.cssText = '';
@@ -3423,6 +3525,7 @@ ${body}
           }
 
           if (evt.type === 'done') {
+            mascot('happy');
             toolsUsedArr = evt.tools_used || toolsUsedArr;
             if (!streaming) {
               bubble.innerHTML = '';
@@ -3451,6 +3554,7 @@ ${body}
       document.getElementById('w-msgs').scrollTop = 9999;
 
     } catch(e) {
+      mascot('sad');
       bubble.style.cssText = '';
       bubble.textContent = `⚠ Request failed: ${e}`;
     } finally {
