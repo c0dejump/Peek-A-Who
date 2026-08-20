@@ -129,7 +129,7 @@
       const list = document.getElementById('list');
       list.innerHTML = '';
       document.getElementById('count').textContent = points.length;
-      if (!points.length) { list.innerHTML = '<div class="empty">No sightings yet.<br>Tell Watson “X était à tel endroit à telle heure”, drop a photo, or click the map.</div>'; return; }
+      if (!points.length) { list.innerHTML = '<div class="empty">No sightings yet.<br>Tell Raphael “X était à tel endroit à telle heure”, drop a photo, or click the map.</div>'; return; }
 
       // Order = manual seq first (if set), else chronological
       const geo = points.filter(p => p.lat != null && p.lon != null).sort(_cmp);

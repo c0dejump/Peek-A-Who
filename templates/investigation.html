@@ -1050,11 +1050,11 @@
 <!-- ── Watson — AI investigation partner ── -->
 <div id="watson">
   <!-- collapsed tab (visible only when collapsed) -->
-  <div id="w-tab" onclick="watsonToggle()">🔬 WATSON</div>
+  <div id="w-tab" onclick="watsonToggle()">🔬 RAPHAEL</div>
 
   <div class="w-body">
     <div id="w-header">
-      <div id="w-mascot" class="mascot idle" title="Watson">
+      <div id="w-mascot" class="mascot idle" title="Raphael">
         <span class="paw-shadow"></span>
         <svg viewBox="0 0 48 44" class="paw-slime" aria-hidden="true">
           <defs>
@@ -1084,7 +1084,7 @@
         </svg>
       </div>
       <div>
-        <div class="w-name">Watson</div>
+        <div class="w-name">Raphael</div>
         <div class="w-sub" id="w-sub">AI investigation partner</div>
       </div>
       <span class="w-status-dot" id="w-dot"></span>
@@ -1103,7 +1103,7 @@
     <div id="w-offline-bar">
       <div class="w-offline-title">⚠ Ollama is offline</div>
       <div class="w-offline-hint">
-        Watson needs Ollama to answer. Start it with <code>ollama serve</code>,
+        Raphael needs Ollama to answer. Start it with <code>ollama serve</code>,
         or click Restart below.
       </div>
       <div class="w-offline-actions">
@@ -1116,7 +1116,7 @@
     <div id="w-msgs">
       <div class="w-msg watson" id="w-welcome">
         <div class="w-bubble">
-          I'm Watson, your investigation partner.<br>
+          I'm Raphael, your investigation partner.<br>
           I'll analyse findings as they come in and suggest next steps.<br>
           <span style="color:var(--muted);font-size:.68rem">You can ask me anything, or use quick actions above once the report is ready.</span>
         </div>
@@ -1129,7 +1129,7 @@
     </div>
 
     <div id="w-input-row">
-      <textarea id="w-input" placeholder="Ask Watson…" rows="1"
+      <textarea id="w-input" placeholder="Ask Raphael…" rows="1"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();watsonSend();}"></textarea>
       <button id="w-send" onclick="watsonSend()">↑</button>
     </div>
@@ -3080,7 +3080,7 @@ ${body}
       case 'ready':
         d.className = 'w-status-dot ready';
         if (sub) { sub.textContent = 'AI investigation partner'; delete sub.dataset.llm; }
-        if (input) { input.disabled = false; input.placeholder = 'Ask Watson…'; }
+        if (input) { input.disabled = false; input.placeholder = 'Ask Raphael…'; }
         if (send)  send.disabled = false;
         break;
       case 'busy':
@@ -3089,7 +3089,7 @@ ${body}
       case 'warming':
         d.className = 'w-status-dot busy';
         if (sub) { sub.textContent = 'Loading AI model…'; sub.dataset.llm = 'set'; }
-        if (input) { input.disabled = false; input.placeholder = 'Watson is loading — try in a moment…'; }
+        if (input) { input.disabled = false; input.placeholder = 'Raphael is loading — try in a moment…'; }
         break;
       case 'offline':
         d.className = 'w-status-dot offline';
@@ -3122,7 +3122,7 @@ ${body}
           if (pr.alive) {
             clearInterval(poll);
             _wDot('ready');
-            _wMsg('system', '✅ Ollama is back online. Watson is ready.');
+            _wMsg('system', '✅ Ollama is back online. Raphael is ready.');
           } else if (tries >= 15) {
             clearInterval(poll);
             _wDot('offline');
@@ -3146,7 +3146,7 @@ ${body}
       const data = await fetch('/api/ollama/ping').then(r => r.json());
       if (data.alive) {
         _wDot('ready');
-        _wMsg('system', '✅ Ollama is reachable. Watson is ready.');
+        _wMsg('system', '✅ Ollama is reachable. Raphael is ready.');
       } else {
         _wDot('offline');
         _wMsg('system', '⚠ Ollama still not reachable. Start it with `ollama serve`.');

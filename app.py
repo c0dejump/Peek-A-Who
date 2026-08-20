@@ -1225,10 +1225,10 @@ def _watson_llm_error(exc: Exception, kind: str = "generic") -> dict:
         return {"error": msg + " in Settings (/config)."}
     if kind == "timeout":
         if is_groq:
-            return {"error": "Watson timed out — Groq API did not respond. Check your GROQ_API_KEY and network."}
+            return {"error": "Raphael timed out — Groq API did not respond. Check your GROQ_API_KEY and network."}
         return {
             "error": (
-                "Watson timed out waiting for the AI model. "
+                "Raphael timed out waiting for the AI model. "
                 "Ollama may still be loading the model (this can take 1-2 min on first run). "
                 "Try again in a moment, or check that Ollama is running."
             )
@@ -1238,10 +1238,10 @@ def _watson_llm_error(exc: Exception, kind: str = "generic") -> dict:
             exc_s = str(exc).lower()
             if "api_key" in exc_s or "401" in exc_s or "authentication" in exc_s:
                 return {"error": "Groq API key invalid or missing — set GROQ_API_KEY in your .env file."}
-            return {"error": "Watson can't reach Groq API — check your internet connection and GROQ_API_KEY."}
+            return {"error": "Raphael can't reach Groq API — check your internet connection and GROQ_API_KEY."}
         return {
             "error": (
-                "Watson can't reach the AI model. "
+                "Raphael can't reach the AI model. "
                 "Make sure Ollama is running (`ollama serve`) and the model is pulled."
             )
         }
@@ -1250,7 +1250,7 @@ def _watson_llm_error(exc: Exception, kind: str = "generic") -> dict:
         exc_s = str(exc).lower()
         if "api_key" in exc_s or "401" in exc_s or "authentication" in exc_s:
             return {"error": "Groq API key invalid or missing — set GROQ_API_KEY in your .env file."}
-    return {"error": f"Watson AI error: {exc}"}
+    return {"error": f"Raphael AI error: {exc}"}
 
 
 def _watson_backend() -> str:
@@ -1293,7 +1293,7 @@ def _watson_build_context(inv_id: str) -> tuple[dict, str, str, dict]:
         )
     except Exception:
         system_content = (
-            f"You are Watson, an expert OSINT investigation assistant analysing {target_name}.\n"
+            f"You are Raphael, an expert OSINT investigation assistant analysing {target_name}.\n"
             f"Always cite sources. Distinguish CONFIRMED/PROBABLE/LOW CONFIDENCE findings.\n"
             f"Investigation data:\n{json.dumps(ctx, ensure_ascii=False, indent=2)}"
         )
@@ -1692,7 +1692,7 @@ def api_investigation_chat():
         resp = _watson_intent_response(question, inv_id, case_id)
         if resp is not None:
             return resp
-        return {"error": ("No LLM configured. Watson can still summarise the case or run a "
+        return {"error": ("No LLM configured. Raphael can still summarise the case or run a "
                           "search/lookup — try “résumé”, “cherche <nom>”, or paste an email/phone. "
                           "For free-form chat, add LLM_BACKEND to .env.")}, 503
 
@@ -1709,7 +1709,7 @@ def api_investigation_chat():
             return resp
         return _watson_llm_error(Exception(), kind="connection"), 503
     if _llm_warmup_state == "warming":
-        return {"error": "Watson's AI model is still loading. Try again in a moment."}, 503
+        return {"error": "Raphael's AI model is still loading. Try again in a moment."}, 503
     if backend.startswith("ollama/") and _llm_warmup_state not in ("ready",):
         if not _quick_llm_ping(backend, timeout=4):
             model_name = backend[len("ollama/"):]
