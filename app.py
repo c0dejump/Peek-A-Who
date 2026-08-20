@@ -241,6 +241,7 @@ def investigate():
     session["target"]      = target
     session["inv_id"]      = inv_id
     session["create_case"] = request.form.get("create_case") == "1"
+    session.pop("case_id", None)   # fresh investigation → not linked to a case yet
     return redirect(url_for("investigation"))
 
 
@@ -248,16 +249,24 @@ def investigate():
 
 @app.route("/investigation")
 def investigation():
-    target = session.get("target")
-    inv_id = session.get("inv_id")
+    target  = session.get("target")
+    inv_id  = session.get("inv_id")
+    case_id = session.get("case_id", "")
     if not target or not inv_id:
+        # No live investigation in session — if it was saved as a case, go there
+        if case_id and get_store().get(case_id):
+            return redirect(url_for("case_detail", did=case_id))
         return redirect(url_for("home"))
 
     inv = get_investigation(inv_id)
     inv_done = inv.done if inv else True
+    # Keep the session pointer accurate to the investigation's own case link
+    if inv and getattr(inv, "case_id", ""):
+        case_id = inv.case_id
+        session["case_id"] = case_id
 
     return render_template("investigation.html", target=target,
-                           inv_id=inv_id, inv_done=inv_done,
+                           inv_id=inv_id, inv_done=inv_done, case_id=case_id,
                            create_case=session.get("create_case", True))
 
 
@@ -523,6 +532,10 @@ def cases_from_investigation():
     if new_findings:
         store.update_findings(did, new_findings, new_links)
 
+    # Persist the link so the terminal/Watson still know the case after navigation.
+    session["case_id"] = did
+    if inv:
+        inv.case_id = did
     return {"case_id": did, "redirect": f"/cases/{did}"}
 
 

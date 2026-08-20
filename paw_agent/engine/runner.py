@@ -76,6 +76,7 @@ class Investigation:
     def __init__(self, inv_id: str, target: dict):
         self.inv_id = inv_id
         self.target = target
+        self.case_id = ""           # set when this investigation is saved as a case
         self.log: list[dict] = []   # all events, buffered forever
         self.created_at = time.monotonic()
         self.done   = False

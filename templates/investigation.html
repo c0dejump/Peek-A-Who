@@ -2943,7 +2943,13 @@ ${body}
 
   // ── Watson ────────────────────────────────────────────────────
   const INV_ID       = {{ inv_id | tojson }};
-  const CASE_ID_SESS = {{ (create_case and inv_id) | tojson }};
+  const CASE_ID_SESS = {{ case_id | tojson }};   // persisted case this terminal is linked to
+  // Restore the case link on every load so Watson knows which case this is
+  if (CASE_ID_SESS) {
+    window._watsonCaseId = CASE_ID_SESS;
+    try { currentCaseId = CASE_ID_SESS; } catch (e) {}
+    try { showCaseBanner(CASE_ID_SESS); } catch (e) {}
+  }
   let _wHistory  = [];   // [{role, content}]
   let _wCollapsed = false;
   let _lastReport = null;  // last full report received
@@ -3342,11 +3348,11 @@ ${body}
   }
 
   function _resolveCaseId() {
-    // Try to find case_id from the URL if on a case page, or from a session hint
+    // 1) URL if on a case page  2) runtime var (auto-created / banner)
+    // 3) the case persisted in the session for this terminal
     const m = window.location.href.match(/\/cases\/([\w-]+)/);
     if (m) return m[1];
-    // Fall back: use the last auto-created case (set by autoCreateCase)
-    return window._watsonCaseId || null;
+    return window._watsonCaseId || (typeof CASE_ID_SESS !== 'undefined' ? CASE_ID_SESS : null) || null;
   }
 
   // ── Watson on report ─────────────────────────────────────────
