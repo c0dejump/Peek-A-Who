@@ -30,3 +30,4 @@ mcp>=1.0               # Model Context Protocol — used by mcp_server.py only
 # Face recognition (optional — feature degrades gracefully if not installed):
 #   pip install cmake dlib face_recognition
 # face_recognition
+Pillow>=10.0            # EXIF GPS/date extraction for geotime photos

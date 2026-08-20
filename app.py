@@ -810,6 +810,27 @@ def case_add_geotime(did: str):
     return {"ok": True, "point": res.get("point", {})}
 
 
+@app.route("/cases/<did>/geotime/photo", methods=["POST"])
+def case_geotime_photo(did: str):
+    """Drop a photo → extract EXIF GPS + date → add a geotime pin."""
+    f = request.files.get("photo")
+    if not f or not f.filename:
+        return {"ok": False, "error": "No photo uploaded."}, 400
+    from skills.core.watson_tools import _exif_geotime, _exec_add_geotime
+    exif = _exif_geotime(f.read())
+    if not exif:
+        return {"ok": False, "error": "No EXIF GPS/date in this photo (often stripped by messaging apps/screenshots)."}, 422
+    if exif.get("lat") is None:
+        return {"ok": False, "error": f"Photo has a date ({exif.get('when','?')}) but no GPS coordinates.",
+                "when": exif.get("when", "")}, 422
+    note = f"From photo: {f.filename}"
+    res = _exec_add_geotime(lat=exif["lat"], lon=exif["lon"], when=exif.get("when", ""),
+                            note=note, case_id=did)
+    if res.get("error"):
+        return {"ok": False, "error": res["error"]}, 400
+    return {"ok": True, "point": res.get("point", {})}
+
+
 @app.route("/cases/<did>/graph-layout", methods=["POST"])
 def case_save_graph_layout(did: str):
     """Persist node positions + viewport from the vis-network whiteboard."""

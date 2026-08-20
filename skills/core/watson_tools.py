@@ -699,6 +699,44 @@ def _geocode(place: str, near: str = "") -> dict | None:
     return None
 
 
+def _exif_geotime(image_bytes: bytes) -> dict | None:
+    """Extract GPS coords + capture datetime from a photo's EXIF. None if absent."""
+    try:
+        import io
+        from datetime import datetime
+        from PIL import Image, ExifTags
+        img = Image.open(io.BytesIO(image_bytes))
+        exif = getattr(img, "_getexif", lambda: None)()
+        if not exif:
+            return None
+        tags = {ExifTags.TAGS.get(k, k): v for k, v in exif.items()}
+
+        when = ""
+        dto = tags.get("DateTimeOriginal") or tags.get("DateTime")
+        if dto:
+            try:
+                when = datetime.strptime(str(dto), "%Y:%m:%d %H:%M:%S").strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                when = str(dto)
+
+        gps = tags.get("GPSInfo")
+        lat = lon = None
+        if gps:
+            g = {ExifTags.GPSTAGS.get(k, k): v for k, v in gps.items()}
+            def _dms(v, ref):
+                d = float(v[0]) + float(v[1]) / 60 + float(v[2]) / 3600
+                return -d if ref in ("S", "W") else d
+            if g.get("GPSLatitude") and g.get("GPSLongitude"):
+                lat = _dms(g["GPSLatitude"], g.get("GPSLatitudeRef", "N"))
+                lon = _dms(g["GPSLongitude"], g.get("GPSLongitudeRef", "E"))
+
+        if lat is None and not when:
+            return None
+        return {"lat": lat, "lon": lon, "when": when}
+    except Exception:
+        return None
+
+
 def _reverse_geocode(lat: float, lon: float) -> str:
     """lat/lon → human address via Nominatim reverse."""
     import requests
