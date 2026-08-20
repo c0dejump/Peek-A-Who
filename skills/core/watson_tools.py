@@ -317,6 +317,21 @@ WATSON_TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "name_search",
+            "description": (
+                "Web-search a person's full name (+ optional city) to surface their LinkedIn "
+                "(employer, school, location, connections parsed from the snippet), GitHub and "
+                "other profile pages. The first move on a real identity — do this early."
+            ),
+            "parameters": {"type":"object","properties":{
+                "firstname":{"type":"string"},"lastname":{"type":"string"},
+                "city":{"type":"string","description":"Optional city to refine"}},
+                "required":["firstname","lastname"]}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "leak_search",
             "description": (
                 "Search breach/leak databases (Dehashed, LeakCheck, IntelX) for an "
@@ -683,6 +698,14 @@ def _exec_geo_imagery(location: str = "", lat=None, lon=None) -> dict:
         return geo_run(lat=lat, lon=lon, location=location)
     except Exception as exc:
         return {"location": location, "error": str(exc)}
+
+
+def _exec_name_search(firstname: str = "", lastname: str = "", city: str = "") -> dict:
+    try:
+        from skills.identity.name_search import run_sync as ns_run
+        return ns_run(firstname, lastname, cities=[city] if city else None)
+    except Exception as exc:
+        return {"error": str(exc)}
 
 
 def _exec_reverse_image(image_url: str) -> dict:
@@ -1129,6 +1152,7 @@ _EXECUTORS: dict[str, Any] = {
     "web_archive":          _exec_web_archive,
     "whois_lookup":         _exec_whois_lookup,
     "reverse_image":        _exec_reverse_image,
+    "name_search":          _exec_name_search,
     "leak_search":          _exec_leak_search,
     "geo_imagery":          _exec_geo_imagery,
     "telegram_lookup":      _exec_telegram_lookup,

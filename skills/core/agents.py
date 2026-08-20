@@ -96,6 +96,16 @@ def run_identity_agent(report: dict) -> dict:
     for _un, _sites in (sm.get("maigret", {}).get("pseudo_confirmed") or {}).items():
         confirmed.append(f"User-provided pseudo @{_un} confirmed on: {', '.join(_sites)}")
 
+    # Name web search → LinkedIn employer/school/location (strong identity data)
+    _ns = report.get("name_search") or {}
+    if _ns.get("employer"):  confirmed.append(f"Employer (LinkedIn): {_ns['employer']}")
+    if _ns.get("education"): confirmed.append(f"Education (LinkedIn): {_ns['education']}")
+    if _ns.get("location"):
+        _mc = " — matches a given city" if _ns.get("matched_city") else ""
+        confirmed.append(f"Location (LinkedIn): {_ns['location']}{_mc}")
+    for _p in _ns.get("profiles", [])[:5]:
+        probable.append(f"Profile page: {_p['domain']} — {_p['url']}")
+
     # Depth-first pivot on the confirmed handle (web + GitHub) → real identity data
     _piv = sm.get("maigret", {}).get("pseudo_pivot") or {}
     _pid = _piv.get("identity", {})

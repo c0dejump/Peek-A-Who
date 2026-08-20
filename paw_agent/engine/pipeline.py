@@ -328,6 +328,29 @@ async def run_investigation(
             "note": "Cloudflare-protected — open links manually in a browser",
         }
 
+    # ── Step 0.85: Name web search (LinkedIn/GitHub + employer/school/location) ──
+    if firstname and lastname:
+        emit(f"  💭 [Step 0.85] Name web search — {firstname} {lastname}…")
+        try:
+            from skills.identity.name_search import run_sync as _name_search
+            ns = await asyncio.get_event_loop().run_in_executor(
+                None, _name_search, firstname, lastname, cities or [], all_keywords)
+            report["name_search"] = ns
+            if ns.get("employer") or ns.get("education") or ns.get("location"):
+                bits = [f"💼 {ns['employer']}" if ns.get("employer") else "",
+                        f"🎓 {ns['education']}" if ns.get("education") else "",
+                        f"📍 {ns['location']}" if ns.get("location") else ""]
+                emit("  🔎  LinkedIn snippet → " + " · ".join(b for b in bits if b))
+                if ns.get("matched_city"):
+                    emit(f"  ✅  Location matches a given city: {ns['matched_city']}")
+            for p in ns.get("profiles", [])[:6]:
+                emit(f"       🌐 {p['domain']}: {p['url']}")
+            if not ns.get("profiles"):
+                emit("  ℹ  No profile pages surfaced (search engine may be rate-limited).")
+        except Exception as _nex:
+            emit(f"  ⚠  Name search unavailable: {_nex}")
+        emit("")
+
     # ── Step 0.9: Phone OSINT ────────────────────────────────────
     if "phone" in active_modules and phone:
         emit(f"  💭 [Step 0.9] Phone OSINT — {phone}…")

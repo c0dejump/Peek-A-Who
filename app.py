@@ -1373,6 +1373,7 @@ INVESTIGATION (gather data — use when the user asks to check/verify/look up so
   sherlock_check(username)        Check a username across platforms.
   enrich_profile(platform, username)  Pull bio/followers/links from a profile.
   email_osint(email)              SMTP + HIBP + GHunt + SERP on an email.
+  name_search(firstname, lastname, city)  Web-search the name → LinkedIn (employer/school/location), GitHub, profiles.
   leak_search(query, query_type)  Breach/leak DBs (Dehashed/LeakCheck/IntelX) → leaked emails,
                                   passwords, phones, addresses for an email/username/phone/name.
   geo_imagery(location)           Street View at a spot + geotagged photos nearby (verify a place visually).
@@ -1389,7 +1390,7 @@ INVESTIGATION (gather data — use when the user asks to check/verify/look up so
 _WATSON_MUTATIONS = {"add_fact", "add_geotime", "add_keyword", "add_note", "record_to_case", "rerun_email"}
 _WATSON_INVESTIGATE = {"web_search", "sherlock_check", "enrich_profile", "email_osint",
                        "phone_lookup", "web_archive", "whois_lookup", "instagram_lookup",
-                       "validate_email_batch", "reverse_image", "leak_search", "geo_imagery", "telegram_lookup", "death_records", "messaging_by_number", "pivot_handle"}
+                       "validate_email_batch", "reverse_image", "leak_search", "geo_imagery", "name_search", "telegram_lookup", "death_records", "messaging_by_number", "pivot_handle"}
 
 
 _AGENT_TOOL_LABELS = {
@@ -1398,6 +1399,7 @@ _AGENT_TOOL_LABELS = {
     "phone_lookup": "📞 Looking up phone…", "web_archive": "📁 Checking web archive…",
     "whois_lookup": "🌍 Running WHOIS…", "instagram_lookup": "📷 Instagram lookup…",
     "reverse_image": "🔍 Reverse-searching the image…",
+    "name_search": "🔎 Searching the name (LinkedIn/GitHub)…",
     "leak_search": "🕳️ Searching breach/leak databases…",
     "geo_imagery": "🛰️ Fetching Street View & nearby photos…",
     "telegram_lookup": "✈️ Checking Telegram…",
@@ -1747,6 +1749,10 @@ def api_investigation_chat():
 
         def generate():
             tools_used, case_dirty, got_final = [], False, False
+            # Immediate keepalive so the browser doesn't drop the connection while
+            # the (possibly slow) plan call runs before the first real event.
+            yield ": keepalive\n\n"
+            yield _sse({"type": "ping"})
             try:
                 for ev in _watson_agent_stream(question, system_content, history, backend,
                                                timeout, llm_completion, inv_id=inv_id, case_id=case_id):
