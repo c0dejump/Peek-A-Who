@@ -337,9 +337,13 @@ async def run_investigation(
         try:
             from skills.identity.name_search import run_sync as _name_search
             ns = await asyncio.get_event_loop().run_in_executor(
-                None, _name_search, firstname, lastname, cities or [], all_keywords)
+                None, lambda: _name_search(firstname, lastname, cities or [], all_keywords, pseudo))
             report["name_search"] = ns
             _name_found = bool(ns.get("found"))
+            if ns.get("web_summary"):
+                emit(f"  🧠  Web summary: {ns['web_summary'][:200]}")
+            for _cc in ns.get("cross_confirmed", [])[:4]:
+                emit(f"  🔗  Cross-confirmed ({len(_cc.get('seen_in',[]))} searches): {_cc['domain']} — {_cc['url']}")
             if ns.get("employer") or ns.get("education") or ns.get("location"):
                 bits = [f"💼 {ns['employer']}" if ns.get("employer") else "",
                         f"🎓 {ns['education']}" if ns.get("education") else "",

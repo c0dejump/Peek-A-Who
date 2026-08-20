@@ -59,8 +59,9 @@ def _extract_handle(url: str, dom: str) -> tuple[str, str] | None:
 
 
 def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
-             keywords: list[str] | None = None) -> dict:
+             keywords: list[str] | None = None, pseudo: str = "") -> dict:
     firstname, lastname = (firstname or "").strip(), (lastname or "").strip()
+    pseudo = (pseudo or "").strip()
     if not (firstname and lastname):
         return {"error": "Need both first and last name."}
     from skills.utils.search import web_search
@@ -70,62 +71,96 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
         _parse_snippet = lambda s: {}
 
     full = f"{firstname} {lastname}"
-    # Keep it to 2 queries max so the step stays fast even if an engine is slow:
-    # the plain name, plus name+city (the single strongest refinement).
+    # Several refined queries — plain name, name+each city, name+pseudo, name+keyword.
+    # Then cross-reference: results/snippets that recur across queries are stronger.
     queries = [f'"{full}"']
-    if cities:
-        queries.append(f'"{full}" {cities[0]}')
+    for c in (cities or [])[:2]:
+        queries.append(f'"{full}" {c}')
+    if pseudo:
+        queries.append(f'"{full}" {pseudo}')
+    if keywords:
+        queries.append(f'"{full}" {keywords[0]}')
+    queries = list(dict.fromkeys(queries))[:5]
 
-    profiles: list[dict] = []
+    agg: dict[str, dict] = {}     # norm url → aggregated entry (with recurrence)
     linkedin: list[dict] = []
-    seen: set[str] = set()
+    bio_candidates: list[str] = []
+    _fl = full.lower()
 
     for q in queries:
-        res = web_search(q, num_results=10)
+        res = web_search(q, num_results=8)
         for r in res.get("results", []):
             url = r.get("url", "")
             dom = r.get("domain") or _domain(url)
-            key = url.split("?", 1)[0]
-            if key in seen or not any(dom == d or dom.endswith("." + d) for d in _PROFILE_DOMAINS):
+            title, snip = r.get("title", ""), r.get("snippet", "")
+            # collect descriptive bios (mention the name + a role/place word)
+            if _fl.split()[0] in (title + " " + snip).lower() and len(snip) >= 60 and \
+               _re.search(r"\b(d[ée]veloppeur|fondateur|ing[ée]nieur|[ée]tudiant|freelance|"
+                          r"consultant|bas[ée] à|domicili|travaille|CEO|gérant|responsable|"
+                          r"student|engineer|developer|founder|based in|works? at)\b", snip, _re.I):
+                bio_candidates.append(snip.strip())
+            if not any(dom == d or dom.endswith("." + d) for d in _PROFILE_DOMAINS):
                 continue
-            seen.add(key)
-            entry = {"domain": dom, "url": url, "title": r.get("title", ""),
-                     "snippet": r.get("snippet", "")}
+            key = url.split("?", 1)[0].rstrip("/")
+            if key in agg:
+                agg[key]["queries"].add(q)
+                continue
+            entry = {"domain": dom, "url": url, "title": title, "snippet": snip, "queries": {q}}
             hp = _extract_handle(url, dom)
             if hp:
                 entry["platform"], entry["username"] = hp
-            profiles.append(entry)
-            if "linkedin.com/in/" in url or ("linkedin.com" in dom and firstname.lower() in (r.get("title","").lower())):
-                info = _parse_snippet(r.get("snippet", "") + " " + r.get("title", ""))
-                linkedin.append({"url": url, "title": r.get("title", ""), **info})
+            agg[key] = entry
+            if "linkedin.com/in/" in url or ("linkedin.com" in dom and firstname.lower() in title.lower()):
+                info = _parse_snippet(snip + " " + title)
+                linkedin.append({"url": url, "title": title, **info})
 
-    # Cross-reference LinkedIn location with the given cities
+    # Rank profiles by cross-query recurrence (matches across searches = stronger)
+    profiles = sorted(agg.values(), key=lambda e: (-len(e["queries"]), e["domain"]))
+    for p in profiles:
+        p["seen_in"] = sorted(p.pop("queries"))
+    cross_confirmed = [p for p in profiles if len(p["seen_in"]) >= 2]
+
+    # Best descriptive summary (the 'AI-overview'-like snippet)
+    bio = ""
+    if bio_candidates:
+        bio = max(dict.fromkeys(bio_candidates), key=len)[:400]
+
+    # Employer / location from LinkedIn snippet first, else the bio
+    employer  = next((li.get("company") for li in linkedin if li.get("company")), "")
+    education = next((li.get("education") for li in linkedin if li.get("education")), "")
+    location  = next((li.get("location") for li in linkedin if li.get("location")), "")
+    if bio and not employer:
+        m = _re.search(r"(?:fondateur|founder|CEO|g[ée]rant)\s+(?:de\s+(?:la\s+)?(?:structure\s+)?|of\s+)([A-Z][\w&.\- ]{2,30})", bio)
+        if m: employer = m.group(1).strip()
+    if bio and not location:
+        m = _re.search(r"(?:bas[ée]\s+à|domicili[ée]\s+à|based in|à)\s+([A-ZÀ-Ÿ][a-zà-ÿ\- ]{2,25})", bio)
+        if m: location = m.group(1).strip()
+
     matched_city = ""
-    for li in linkedin:
-        loc = (li.get("location") or "").lower()
-        for c in (cities or []):
-            if c.lower() in loc:
-                matched_city = c
-                break
+    for c in (cities or []):
+        if any(c.lower() in (li.get("location", "") or "").lower() for li in linkedin) or \
+           (bio and c.lower() in bio.lower()):
+            matched_city = c
+            break
 
-    # Platform → username surfaced directly by the name search
     by_platform: dict[str, str] = {}
     for p in profiles:
         if p.get("platform") and p.get("username") and p["platform"] not in by_platform:
             by_platform[p["platform"]] = p["username"]
 
-    # "found" = enough to skip the noisy username brute-force
-    found = bool(linkedin) or len(profiles) >= 2 or len(by_platform) >= 1
+    found = bool(linkedin) or bool(bio) or len(profiles) >= 2 or len(by_platform) >= 1
 
     return {
         "name": full,
         "queries": queries,
         "profiles": profiles[:15],
+        "cross_confirmed": cross_confirmed[:10],   # seen across ≥2 searches
         "linkedin": linkedin[:5],
         "by_platform": by_platform,
-        "employer":  next((li.get("company") for li in linkedin if li.get("company")), ""),
-        "education": next((li.get("education") for li in linkedin if li.get("education")), ""),
-        "location":  next((li.get("location") for li in linkedin if li.get("location")), ""),
+        "web_summary": bio,
+        "employer": employer,
+        "education": education,
+        "location": location,
         "matched_city": matched_city,
         "found": found,
     }

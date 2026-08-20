@@ -96,8 +96,11 @@ def run_identity_agent(report: dict) -> dict:
     for _un, _sites in (sm.get("maigret", {}).get("pseudo_confirmed") or {}).items():
         confirmed.append(f"User-provided pseudo @{_un} confirmed on: {', '.join(_sites)}")
 
-    # Name web search → LinkedIn employer/school/location (strong identity data)
+    # Name web search → web summary + LinkedIn employer/school/location
     _ns = report.get("name_search") or {}
+    if _ns.get("web_summary"): probable.append(f"Web summary: {_ns['web_summary'][:200]}")
+    for _cc in _ns.get("cross_confirmed", [])[:3]:
+        confirmed.append(f"Cross-confirmed across {len(_cc.get('seen_in',[]))} searches: {_cc['domain']} ({_cc['url']})")
     if _ns.get("employer"):  confirmed.append(f"Employer (LinkedIn): {_ns['employer']}")
     if _ns.get("education"): confirmed.append(f"Education (LinkedIn): {_ns['education']}")
     if _ns.get("location"):
