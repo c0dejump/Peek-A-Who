@@ -699,26 +699,54 @@ def _geocode(place: str, near: str = "") -> dict | None:
     return None
 
 
+def _reverse_geocode(lat: float, lon: float) -> str:
+    """lat/lon → human address via Nominatim reverse."""
+    import requests
+    try:
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/reverse",
+            params={"lat": lat, "lon": lon, "format": "json", "zoom": 18},
+            headers={"User-Agent": "PAW-OSINT/1.0 (missing-person investigation tool)"},
+            timeout=10,
+        )
+        if r.ok:
+            return r.json().get("display_name", "")
+    except Exception:
+        pass
+    return ""
+
+
 def _exec_add_geotime(location: str = "", when: str = "", note: str = "",
-                      near: str = "", case_id: str | None = None) -> dict:
+                      near: str = "", lat=None, lon=None, case_id: str | None = None) -> dict:
     """
-    Record a geo-temporal SIGHTING — 'person was at <location> at <when>'. Geocodes
-    the place and stores it as a 'geotime' fact so it appears on the case map.
+    Record a geo-temporal SIGHTING — 'person was at <location> at <when>'.
+    If lat/lon are given (e.g. the user clicked the map) they are used as-is and
+    the address is reverse-geocoded; otherwise the place name is geocoded.
     `near` (a city) improves geocoding accuracy for ambiguous place names.
     """
     location = (location or "").strip()
-    if not location:
-        return {"error": "No location given."}
-    geo = _geocode(location, near=near)
-    value = {
-        "location": location,
-        "when":     (when or "").strip(),
-        "note":     (note or "").strip(),
-        "lat":      geo["lat"] if geo else None,
-        "lon":      geo["lon"] if geo else None,
-        "display":  geo["display"] if geo else location,
-        "geocoded": bool(geo),
-    }
+    if lat is not None and lon is not None:
+        try:
+            lat, lon = float(lat), float(lon)
+        except (TypeError, ValueError):
+            return {"error": "Invalid coordinates."}
+        display = _reverse_geocode(lat, lon)
+        value = {"location": location or (display.split(",")[0] if display else "Dropped pin"),
+                 "when": (when or "").strip(), "note": (note or "").strip(),
+                 "lat": lat, "lon": lon, "display": display or location, "geocoded": True}
+    else:
+        if not location:
+            return {"error": "No location given."}
+        geo = _geocode(location, near=near)
+        value = {
+            "location": location,
+            "when":     (when or "").strip(),
+            "note":     (note or "").strip(),
+            "lat":      geo["lat"] if geo else None,
+            "lon":      geo["lon"] if geo else None,
+            "display":  geo["display"] if geo else location,
+            "geocoded": bool(geo),
+        }
     if not case_id:
         return {"status": "not_linked",
                 "note": "No case linked — click «Save as Case» first.", "point": value}
@@ -728,7 +756,7 @@ def _exec_add_geotime(location: str = "", when: str = "", note: str = "",
         if fact is None:
             return {"error": f"Case '{case_id}' not found."}
         return {"status": "ok", "point": value, "case_id": case_id,
-                "hint": None if geo else f"Couldn't geocode '{location}' — pin not placed, but the sighting is saved."}
+                "hint": None if value.get("geocoded") else f"Couldn't geocode '{location}' — pin not placed, but the sighting is saved."}
     except Exception as exc:
         return {"error": str(exc)}
 

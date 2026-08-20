@@ -802,6 +802,7 @@ def case_add_geotime(did: str):
         when=(body.get("when") or "").strip(),
         note=(body.get("note") or "").strip(),
         near=(body.get("near") or "").strip(),
+        lat=body.get("lat"), lon=body.get("lon"),
         case_id=did,
     )
     if res.get("error"):

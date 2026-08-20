@@ -2247,39 +2247,59 @@ ${body}
       const pc = mg.pseudo_confirmed || {};
       const pcNames = Object.keys(pc);
       if (pcNames.length > 0) {
+        // Only offer to add the high-signal platforms (skip Geocaching/Steam Group/Ebay/Tumblr noise)
+        const HIGH = new Set(['github','instagram','twitter','x','tiktok','snapchat','reddit',
+                              'telegram','pinterest','linkedin','soundcloud','spotify','steam','flickr']);
         mgHtml += `<div style="margin-bottom:1.1rem;padding:.7rem .8rem;background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.28);border-radius:8px">
           <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e3b341;margin-bottom:.5rem">⭐ Confirmed — your pseudo on real sites</div>`;
         pcNames.forEach(un => {
-          (pc[un] || []).forEach(site => {
+          const sites = pc[un] || [];
+          const seen = new Set();
+          const btns = sites.map(site => {
             const platform = String(site).toLowerCase().replace(/\s*\(group\).*/,'').trim();
-            mgHtml += `<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;font-size:.8rem">
-              <span style="color:var(--text);font-weight:600">@${esc(un)}</span>
-              <span style="color:var(--muted)">→ ${esc(site)}</span>
-              <button class="pivot-ask-btn" style="margin-left:auto"
-                onclick="addConfirmedProfile('${esc(un)}','${esc(platform)}',this)"
-                title="Add this profile to the case">➕ case</button>
-            </div>`;
-          });
+            if (!HIGH.has(platform) || seen.has(platform)) return '';
+            seen.add(platform);
+            return `<button class="pivot-ask-btn" style="font-size:.66rem"
+              onclick="addConfirmedProfile('${esc(un)}','${esc(platform)}',this)"
+              title="Add ${esc(platform)} @${esc(un)} to the case">➕ ${esc(platform)}</button>`;
+          }).filter(Boolean).join(' ');
+          mgHtml += `<div style="margin-bottom:.6rem">
+            <div style="font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:.25rem">@${esc(un)}
+              <span style="color:var(--muted);font-weight:400;font-size:.7rem">— ${esc(sites.join(', '))}</span></div>
+            <div style="display:flex;flex-wrap:wrap;gap:.3rem">${btns || '<span style="color:var(--muted);font-size:.7rem">no high-signal platform</span>'}</div>
+          </div>`;
         });
         mgHtml += `</div>`;
       }
 
       // ── Validated usernames with clickable links ──
       if (validProfiles.length > 0) {
-        mgHtml += `<div style="margin-bottom:1.1rem">
-          <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.55rem">✅ Validated Usernames (${validProfiles.length})</div>
-          <div style="display:flex;flex-direction:column;gap:.45rem">`;
-        validProfiles.forEach(p => {
-          const sitePills = p.sites.map(s => s.url
+        // Rank by number of sites (more hits = stronger signal). Most generated
+        // variants are namesakes (TikTok/Geocaching return false positives for
+        // almost any handle), so show the strongest and collapse the long tail.
+        const ranked = [...validProfiles].sort((a,b) => (b.sites?.length||0) - (a.sites?.length||0));
+        const TOP = 12;
+        const _row = p => {
+          const sitePills = (p.sites||[]).map(s => s.url
             ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .55rem;border-radius:12px;font-size:.68rem;font-weight:500;background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.18);color:var(--accent);text-decoration:none" title="${esc(s.url)}">${esc(s.site)}</a>`
             : `<span style="padding:.15rem .55rem;border-radius:12px;font-size:.68rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:var(--muted)">${esc(s.site)}</span>`
           ).join('');
-          mgHtml += `<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.45rem .65rem;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:8px">
-            <span style="font-size:.8rem;font-weight:600;color:var(--text);min-width:130px;flex-shrink:0">@${esc(p.username)}</span>
+          return `<div style="display:flex;align-items:flex-start;gap:.6rem;padding:.45rem .65rem;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:8px;margin-bottom:.45rem">
+            <span style="font-size:.8rem;font-weight:600;color:var(--text);min-width:130px;flex-shrink:0">@${esc(p.username)} <span style="color:var(--muted);font-weight:400;font-size:.7rem">(${(p.sites||[]).length})</span></span>
             <div style="display:flex;flex-wrap:wrap;gap:.3rem">${sitePills}</div>
           </div>`;
-        });
-        mgHtml += `</div></div>`;
+        };
+        mgHtml += `<div style="margin-bottom:1.1rem">
+          <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem">✅ Validated Usernames — top ${Math.min(TOP, ranked.length)} of ${ranked.length}</div>
+          <div style="font-size:.68rem;color:var(--muted);margin-bottom:.55rem">Ranked by hits. Many low-hit handles are likely namesakes (TikTok/Geocaching match almost anything).</div>`;
+        mgHtml += ranked.slice(0, TOP).map(_row).join('');
+        if (ranked.length > TOP) {
+          mgHtml += `<details style="margin-top:.3rem">
+            <summary style="cursor:pointer;font-size:.72rem;color:var(--accent)">Show all ${ranked.length} validated usernames…</summary>
+            <div style="margin-top:.5rem">${ranked.slice(TOP).map(_row).join('')}</div>
+          </details>`;
+        }
+        mgHtml += `</div>`;
       }
 
       // Activity signals banner
@@ -2316,12 +2336,16 @@ ${body}
       cats.forEach(cat => {
         const items = mg[cat.key] || [];
         if (!items.length) return;
+        // Aggregate by site so we show "TikTok ×280" instead of 280 identical chips
+        const counts = {};
+        items.forEach(p => { const s = p.site || '?'; counts[s] = (counts[s]||0) + 1; });
+        const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
         mgHtml += `<div style="margin-bottom:.9rem">
-          <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem">${cat.label} (${items.length})</div>
+          <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem">${cat.label} (${items.length} hits · ${sorted.length} sites)</div>
           <div class="platform-grid">`;
-        items.forEach(p => {
+        sorted.forEach(([site, n]) => {
           mgHtml += `<div class="platform-card ${cat.cls}">
-            ${p.url ? `<a href="${esc(p.url)}" target="_blank">${esc(p.site)}</a>` : `<span style="color:var(--text)">${esc(p.site)}</span>`}
+            <span style="color:var(--text)">${esc(site)}${n>1?` <span style="color:var(--muted)">×${n}</span>`:''}</span>
           </div>`;
         });
         mgHtml += `</div></div>`;

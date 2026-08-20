@@ -48,6 +48,7 @@
     <div class="side">
       <div class="addbox">
         <h2>Add a sighting</h2>
+        <div style="font-size:.7rem;color:var(--muted);margin-bottom:.55rem">💡 Or <b>click anywhere on the map</b> to drop a precise pin.</div>
         <input id="in-loc"  placeholder="Place (e.g. Bar Le Comptoir)" />
         <input id="in-when" placeholder="When (e.g. 2024-06-20 17:00 or 17h)" />
         <input id="in-near" placeholder="City (helps geocoding, optional)" />
@@ -99,6 +100,23 @@
       });
       if (bounds.length) map.fitBounds(bounds, { padding: [40,40], maxZoom: 14 });
     }
+
+    // Click anywhere on the map to drop a precise pin (Google-Maps style)
+    map.on('click', async (e) => {
+      const when = prompt('When was the target here? (e.g. 2024-06-20 17h, or leave blank)');
+      if (when === null) return;   // cancelled
+      const note = prompt('Note (optional):') || '';
+      const { lat, lng } = e.latlng;
+      try {
+        const r = await fetch(`/cases/${CASE_ID}/geotime`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ lat, lon: lng, when: when.trim(), note: note.trim() }),
+        });
+        const data = await r.json();
+        if (data.ok) { points.push({ id:'new_'+Date.now(), ...data.point }); render(); }
+        else alert('Error: ' + (data.error||'unknown'));
+      } catch(err) { alert('Request failed: ' + err); }
+    });
 
     async function addPoint() {
       const location = document.getElementById('in-loc').value.trim();
