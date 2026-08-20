@@ -27,6 +27,10 @@
     .pt-nogeo { font-size: .68rem; color: #f0883e; margin-top: .2rem; }
     .mini { background: transparent; border: none; cursor: pointer; font-size: .78rem; padding: 0 .15rem; opacity: .7; }
     .mini:hover { opacity: 1; }
+    .pt { cursor: grab; }
+    .pt.dragging { opacity: .45; }
+    .pt.drop-before { border-top: 2px solid var(--accent); }
+    .drag-h { color: var(--muted); cursor: grab; font-size: .8rem; margin-right: .1rem; }
     .addbox { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: .7rem; margin-bottom: 1rem; }
     .addbox input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: .4rem .5rem; font-size: .8rem; margin-bottom: .45rem; }
     .addbox button { width: 100%; background: var(--accent); color: #08111f; border: none; border-radius: 6px; padding: .45rem; font-weight: 600; font-size: .8rem; cursor: pointer; }
@@ -140,17 +144,16 @@
         bounds.push([p.lat, p.lon]);
       });
 
-      // Sidebar list in trajectory order (#1 at top) with reorder/edit/delete
+      // Sidebar list in trajectory order (#1 at top) — drag to reorder, edit/delete
       const listSorted = [...points].sort(_cmp);
-      listSorted.forEach((p, i) => {
+      listSorted.forEach((p) => {
         const div = document.createElement('div');
         div.className = 'pt';
+        div.draggable = true;
+        div.dataset.id = p.id;
         const badge = orderNum[p.id] ? `<span style="color:#e3b341;font-weight:700">#${orderNum[p.id]} </span>` : '';
-        const up   = i > 0 ? `<button class="mini" title="Earlier" onclick="event.stopPropagation();reorder('${p.id}',-1)">▲</button>` : '';
-        const down = i < listSorted.length-1 ? `<button class="mini" title="Later" onclick="event.stopPropagation();reorder('${p.id}',1)">▼</button>` : '';
-        div.innerHTML = `<div class="pt-loc">${badge}📍 ${esc(p.location)}
+        div.innerHTML = `<div class="pt-loc"><span class="drag-h" title="Drag to reorder">⠿</span> ${badge}📍 ${esc(p.location)}
             <span style="float:right">
-              ${up}${down}
               <button class="mini" title="Edit" onclick="event.stopPropagation();editSighting('${p.id}')">✏️</button>
               <button class="mini" title="Delete" onclick="event.stopPropagation();deleteSighting('${p.id}')">🗑️</button>
             </span></div>
@@ -164,6 +167,45 @@
       });
       if (bounds.length) map.fitBounds(bounds, { padding: [45,45], maxZoom: 14 });
     }
+
+    // ── Drag-and-drop reordering of the sighting list ──────────────────────────
+    let _dragId = null;
+    const _listEl = document.getElementById('list');
+    _listEl.addEventListener('dragstart', e => {
+      const item = e.target.closest('.pt'); if (!item) return;
+      _dragId = item.dataset.id; item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    _listEl.addEventListener('dragend', e => {
+      const item = e.target.closest('.pt'); if (item) item.classList.remove('dragging');
+      _listEl.querySelectorAll('.drop-before').forEach(el => el.classList.remove('drop-before'));
+    });
+    _listEl.addEventListener('dragover', e => {
+      e.preventDefault();
+      const over = e.target.closest('.pt');
+      _listEl.querySelectorAll('.drop-before').forEach(el => el.classList.remove('drop-before'));
+      if (over && over.dataset.id !== _dragId) over.classList.add('drop-before');
+    });
+    _listEl.addEventListener('drop', async e => {
+      e.preventDefault();
+      const over = e.target.closest('.pt');
+      if (!_dragId) return;
+      const targetId = over ? over.dataset.id : null;   // drop before this item (null = end)
+      // Rebuild the order from the current DOM order, moving _dragId before targetId
+      const ids = [...points].sort(_cmp).map(p => p.id).filter(id => id !== _dragId);
+      const at = targetId ? ids.indexOf(targetId) : ids.length;
+      ids.splice(at < 0 ? ids.length : at, 0, _dragId);
+      _dragId = null;
+      // Apply seq locally, render, persist
+      ids.forEach((id, idx) => { const lp = points.find(x => x.id === id); if (lp) lp.seq = idx; });
+      render();
+      try {
+        await fetch(`/cases/${CASE_ID}/geotime/reorder`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ order: ids }),
+        });
+      } catch(err) { /* local order already applied */ }
+    });
 
     // Persist an edit/move to the server, then update local state
     async function saveEdit(id, changes) {
@@ -187,27 +229,6 @@
       const when = prompt('When (e.g. 2024-06-20 17:00):', p.when || ''); if (when === null) return;
       const note = prompt('Note:', p.note || ''); if (note === null) return;
       saveEdit(id, { location: location.trim(), when: when.trim(), note: note.trim() });
-    }
-
-    // Move a sighting up/down in the chronological sequence (manual override)
-    async function reorder(id, dir) {
-      const ordered = [...points].sort(_cmp);
-      const i = ordered.findIndex(p => p.id === id);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= ordered.length) return;
-      [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
-      // Assign explicit seq to lock the new order, update local + persist
-      ordered.forEach((p, idx) => {
-        p.seq = idx;
-        const lp = points.find(x => x.id === p.id); if (lp) lp.seq = idx;
-      });
-      render();
-      try {
-        await fetch(`/cases/${CASE_ID}/geotime/reorder`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ order: ordered.map(p => p.id) }),
-        });
-      } catch(e) { /* local order already applied */ }
     }
 
     async function deleteSighting(id) {
