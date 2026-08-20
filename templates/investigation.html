@@ -418,34 +418,62 @@
     #w-mascot { width: 42px; height: 42px; flex-shrink: 0; }
     .paw-slime { width: 100%; height: 100%; overflow: visible; }
     .paw-slime .head  { fill: url(#slimeGrad); }
-    .paw-slime .eye   { fill: #0d1117; }
+    .paw-slime .eye   { fill: #0d1117; transform-box: fill-box; transform-origin: center;
+                        animation: blink 4.5s ease-in-out infinite; }
     .paw-slime .shine { fill: rgba(255,255,255,.55); }
     .paw-slime .shine.small { fill: rgba(255,255,255,.7); }
     .paw-slime .shadow{ fill: rgba(0,0,0,.30); }
-    .paw-slime .body  { transform-origin: 24px 39px; animation: slimeIdle 2.8s ease-in-out infinite; }
-    .paw-slime .shadow{ transform-origin: 24px 43px; animation: shadowIdle 2.8s ease-in-out infinite; }
+    /* transform-box:fill-box makes transform-origin relative to each shape → reliable, smooth */
+    .paw-slime .body  { transform-box: fill-box; transform-origin: 50% 100%;
+                        animation: slimeIdle 3s ease-in-out infinite; will-change: transform; }
+    .paw-slime .shadow{ transform-box: fill-box; transform-origin: 50% 50%;
+                        animation: shadowIdle 3s ease-in-out infinite; }
 
-    @keyframes slimeIdle { 0%,100%{transform:scaleX(1) scaleY(1)} 50%{transform:scaleX(1.06) scaleY(.94) translateY(1px)} }
-    @keyframes shadowIdle{ 0%,100%{transform:scaleX(1);opacity:.30} 50%{transform:scaleX(1.14);opacity:.36} }
+    @keyframes blink { 0%,92%,100%{transform:scaleY(1)} 96%{transform:scaleY(.1)} }
+    @keyframes slimeIdle {
+      0%,100% { transform: scale(1,1); }
+      30%     { transform: scale(1.08,.92); }
+      60%     { transform: scale(.95,1.06) translateY(-1.5px); }
+    }
+    @keyframes shadowIdle{ 0%,100%{transform:scaleX(1);opacity:.30} 45%{transform:scaleX(1.18);opacity:.38} }
 
-    /* thinking — gentle sway, eyes glance up */
-    .mascot.thinking .body { animation: slimeThink 1.3s ease-in-out infinite; }
-    .mascot.thinking .eye  { transform: translateY(-1.2px); }
-    @keyframes slimeThink { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(4deg) scaleY(1.03)} }
+    /* thinking — lively sway, eyes glance up, no blink */
+    .mascot.thinking .body { animation: slimeThink 1.4s cubic-bezier(.45,.05,.55,.95) infinite; }
+    .mascot.thinking .eye  { animation: none; transform: translateY(-1.4px); }
+    @keyframes slimeThink {
+      0%,100% { transform: rotate(-7deg) scale(1,1); }
+      50%     { transform: rotate(7deg)  scale(1.04,.97); }
+    }
 
-    /* working — energetic bounce */
-    .mascot.working .body  { animation: slimeWork .5s ease-in-out infinite; }
-    .mascot.working .shadow{ animation: shadowWork .5s ease-in-out infinite; }
-    @keyframes slimeWork { 0%,100%{transform:translateY(0) scaleY(1) scaleX(1)} 35%{transform:translateY(-6px) scaleY(1.1) scaleX(.9)} 70%{transform:translateY(0) scaleY(.85) scaleX(1.12)} }
-    @keyframes shadowWork{ 0%,100%{transform:scaleX(1);opacity:.3} 35%{transform:scaleX(.8);opacity:.2} }
+    /* working — springy jelly bounce */
+    .mascot.working .body  { animation: slimeWork .55s cubic-bezier(.5,-0.3,.5,1.3) infinite; }
+    .mascot.working .shadow{ animation: shadowWork .55s ease-in-out infinite; }
+    .mascot.working .eye   { animation: none; }
+    @keyframes slimeWork {
+      0%   { transform: translateY(0) scale(1,1); }
+      25%  { transform: translateY(-8px) scale(.86,1.16); }
+      45%  { transform: translateY(-8px) scale(.9,1.1); }
+      70%  { transform: translateY(0) scale(1.18,.82); }
+      85%  { transform: translateY(0) scale(.96,1.04); }
+      100% { transform: translateY(0) scale(1,1); }
+    }
+    @keyframes shadowWork{ 0%,70%,100%{transform:scaleX(1);opacity:.3} 30%{transform:scaleX(.75);opacity:.18} }
 
-    /* happy — joyful hop */
-    .mascot.happy .body { animation: slimeHop .5s ease-out 2; }
-    @keyframes slimeHop { 0%{transform:translateY(0)} 40%{transform:translateY(-9px) scaleY(1.12) scaleX(.92)} 100%{transform:translateY(0)} }
+    /* happy — joyful springy hop */
+    .mascot.happy .body { animation: slimeHop .6s cubic-bezier(.3,-0.4,.4,1.4) 2; }
+    .mascot.happy .eye  { animation: none; }
+    @keyframes slimeHop {
+      0%   { transform: translateY(0) scale(1,1); }
+      20%  { transform: translateY(0) scale(1.2,.8); }
+      45%  { transform: translateY(-12px) scale(.85,1.18); }
+      70%  { transform: translateY(0) scale(1.12,.9); }
+      100% { transform: translateY(0) scale(1,1); }
+    }
 
     /* sad — droop + desaturate */
-    .mascot.sad .body { animation: none; transform: scaleY(.85) scaleX(1.06) translateY(3px); }
-    .mascot.sad { filter: saturate(.55) brightness(.9); }
+    .mascot.sad .body { animation: none; transform: scale(1.08,.82) translateY(3px); }
+    .mascot.sad .eye  { animation: none; transform: translateY(1.4px); }
+    .mascot.sad { filter: saturate(.5) brightness(.88); }
 
     /* ── Watson sidebar ── */
     body { padding-right: 350px; }
