@@ -229,6 +229,22 @@ WATSON_TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "messaging_by_number",
+            "description": (
+                "For a phone number, return click-to-chat deep-links across messaging apps "
+                "(WhatsApp, Signal, Viber, Telegram) so you can check which have an account "
+                "and see the public photo. No key. Profile photo/last-seen need a session."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"phone": {"type": "string", "description": "Phone number (international format preferred)"}},
+                "required": ["phone"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "telegram_lookup",
             "description": (
                 "Look up a public Telegram @username: confirms it exists and returns the "
@@ -610,6 +626,14 @@ def _exec_leak_search(query: str, query_type: str = "auto") -> dict:
         return leak_run(query, query_type=query_type)
     except Exception as exc:
         return {"query": query, "error": str(exc)}
+
+
+def _exec_messaging_by_number(phone: str) -> dict:
+    try:
+        from skills.messaging.by_number import run_sync as msg_run
+        return msg_run(phone)
+    except Exception as exc:
+        return {"phone": phone, "error": str(exc)}
 
 
 def _exec_telegram_lookup(username: str) -> dict:
@@ -1084,6 +1108,7 @@ _EXECUTORS: dict[str, Any] = {
     "geo_imagery":          _exec_geo_imagery,
     "telegram_lookup":      _exec_telegram_lookup,
     "death_records":        _exec_death_records,
+    "messaging_by_number":  _exec_messaging_by_number,
     "validate_email_batch": _exec_validate_email_batch,
 }
 

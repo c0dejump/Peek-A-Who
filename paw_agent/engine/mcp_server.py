@@ -299,6 +299,16 @@ def telegram_lookup(username: str) -> dict:
     return _tg(username)
 
 
+@mcp.tool()
+def messaging_by_number(phone: str) -> dict:
+    """
+    Click-to-chat deep-links (WhatsApp, Signal, Viber, Telegram) for a phone
+    number, to check which messaging apps the number is on. No key.
+    """
+    from skills.messaging.by_number import run_sync as _mbn
+    return _mbn(phone)
+
+
 # ── Tool 12 : French INSEE death records ─────────────────────
 
 @mcp.tool()
