@@ -253,5 +253,23 @@ def reverse_image_search(image_url: str) -> dict:
     return _ris(image_url)
 
 
+# ── Tool 9 : Breach / leak-data search ───────────────────────
+
+@mcp.tool()
+def leak_search(query: str, query_type: str = "auto") -> dict:
+    """
+    Search breach/leak databases (Dehashed, LeakCheck, IntelX) for an email,
+    username, phone, name, IP or domain, returning leaked content (linked
+    emails, usernames, passwords/hashes, phones, addresses). Uses whichever of
+    DEHASHED_KEY / LEAKCHECK_KEY / INTELX_KEY is configured.
+
+    Args:
+        query: identifier to search
+        query_type: auto | email | username | phone | name | ip | domain
+    """
+    from skills.breach.leak_search import run_sync as _leak
+    return _leak(query, query_type=query_type)
+
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")

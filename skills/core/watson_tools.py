@@ -229,6 +229,29 @@ WATSON_TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "leak_search",
+            "description": (
+                "Search breach/leak databases (Dehashed, LeakCheck, IntelX) for an "
+                "email, username, phone, name, IP or domain. Unlike a breach check, this "
+                "returns the leaked CONTENT — linked emails, usernames, passwords/hashes, "
+                "phones, addresses — the strongest pivots. Returns a clear note if no "
+                "provider key is configured."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Identifier to search (email/username/phone/name/IP/domain)"},
+                    "query_type": {"type": "string",
+                                   "enum": ["auto", "email", "username", "phone", "name", "ip", "domain"],
+                                   "description": "Type of identifier (default auto-detect)"}
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "reverse_image",
             "description": (
                 "Reverse-image-search a photo by URL (e.g. a profile picture) to find where "
@@ -524,6 +547,14 @@ def _exec_web_archive(url: str) -> dict:
         }
     except Exception as exc:
         return {"url": url, "error": str(exc)}
+
+
+def _exec_leak_search(query: str, query_type: str = "auto") -> dict:
+    try:
+        from skills.breach.leak_search import run_sync as leak_run
+        return leak_run(query, query_type=query_type)
+    except Exception as exc:
+        return {"query": query, "error": str(exc)}
 
 
 def _exec_reverse_image(image_url: str) -> dict:
@@ -970,6 +1001,7 @@ _EXECUTORS: dict[str, Any] = {
     "web_archive":          _exec_web_archive,
     "whois_lookup":         _exec_whois_lookup,
     "reverse_image":        _exec_reverse_image,
+    "leak_search":          _exec_leak_search,
     "validate_email_batch": _exec_validate_email_batch,
 }
 
