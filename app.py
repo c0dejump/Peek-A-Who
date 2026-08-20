@@ -1357,12 +1357,13 @@ INVESTIGATION (gather data — use when the user asks to check/verify/look up so
   phone_lookup(phone)             Carrier/region/linked accounts for a phone.
   web_archive(url)                Wayback first/last snapshot of a URL.
   whois_lookup(domain)            Registrar/dates/org for a domain.
-  instagram_lookup(username)      Obfuscated email/phone hints for an IG account."""
+  instagram_lookup(username)      Obfuscated email/phone hints for an IG account.
+  reverse_image(image_url)        Reverse-search a photo URL (find where it appears, confirm identity)."""
 
 _WATSON_MUTATIONS = {"add_fact", "add_geotime", "add_keyword", "add_note", "record_to_case", "rerun_email"}
 _WATSON_INVESTIGATE = {"web_search", "sherlock_check", "enrich_profile", "email_osint",
                        "phone_lookup", "web_archive", "whois_lookup", "instagram_lookup",
-                       "validate_email_batch"}
+                       "validate_email_batch", "reverse_image"}
 
 
 _AGENT_TOOL_LABELS = {
@@ -1370,6 +1371,7 @@ _AGENT_TOOL_LABELS = {
     "enrich_profile": "🔍 Enriching profile…", "email_osint": "📧 Investigating email (SMTP · HIBP · GHunt)…",
     "phone_lookup": "📞 Looking up phone…", "web_archive": "📁 Checking web archive…",
     "whois_lookup": "🌍 Running WHOIS…", "instagram_lookup": "📷 Instagram lookup…",
+    "reverse_image": "🔍 Reverse-searching the image…",
     "validate_email_batch": "✉️ Validating emails…",
     "add_fact": "➕ Adding to case…", "add_keyword": "🔑 Adding keyword…", "add_note": "📝 Adding note…",
     "add_geotime": "🗺️ Placing sighting on the map…",

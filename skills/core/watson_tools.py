@@ -229,6 +229,28 @@ WATSON_TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "reverse_image",
+            "description": (
+                "Reverse-image-search a photo by URL (e.g. a profile picture) to find where "
+                "else it appears online and confirm identity. Returns ready-to-open engine "
+                "links (Yandex — best for faces, Google Lens, Bing, TinEye) and best-effort "
+                "matched pages. Use when you have an image URL to trace."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "image_url": {
+                        "type": "string",
+                        "description": "Public URL of the image to reverse-search"
+                    }
+                },
+                "required": ["image_url"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "record_to_case",
             "description": (
                 "Record a found social media account or profile into the current investigation case. "
@@ -502,6 +524,14 @@ def _exec_web_archive(url: str) -> dict:
         }
     except Exception as exc:
         return {"url": url, "error": str(exc)}
+
+
+def _exec_reverse_image(image_url: str) -> dict:
+    try:
+        from skills.image.reverse_search import run_sync as ris_run
+        return ris_run(image_url)
+    except Exception as exc:
+        return {"image_url": image_url, "error": str(exc)}
 
 
 def _exec_whois_lookup(domain: str) -> dict:
@@ -939,6 +969,7 @@ _EXECUTORS: dict[str, Any] = {
     "phone_lookup":         _exec_phone_lookup,
     "web_archive":          _exec_web_archive,
     "whois_lookup":         _exec_whois_lookup,
+    "reverse_image":        _exec_reverse_image,
     "validate_email_batch": _exec_validate_email_batch,
 }
 

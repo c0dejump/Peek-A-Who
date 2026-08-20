@@ -237,5 +237,21 @@ def check_google_account(email: str) -> dict:
     return _ghunt_run(email)
 
 
+# ── Tool 8 : Reverse image search ────────────────────────────
+
+@mcp.tool()
+def reverse_image_search(image_url: str) -> dict:
+    """
+    Reverse-image-search a photo by URL to find where else it appears online and
+    confirm identity. Returns ready-to-open engine links (Yandex — best for faces,
+    Google Lens, Bing, TinEye) plus best-effort matched pages. No API key needed.
+
+    Args:
+        image_url: Public URL of the image to trace (e.g. a profile picture)
+    """
+    from skills.image.reverse_search import run_sync as _ris
+    return _ris(image_url)
+
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")
