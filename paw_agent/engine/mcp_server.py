@@ -271,5 +271,21 @@ def leak_search(query: str, query_type: str = "auto") -> dict:
     return _leak(query, query_type=query_type)
 
 
+# ── Tool 10 : Geo-imagery (Street View + nearby photos) ──────
+
+@mcp.tool()
+def geo_imagery(location: str = "", lat: float = None, lon: float = None) -> dict:
+    """
+    Visually verify a place and surface photos taken there. Returns a Google
+    Street View link at the exact spot plus geotagged Flickr photos nearby
+    (FLICKR_KEY for auto photos; static Street View thumb needs GOOGLE_MAPS_KEY).
+
+    Args:
+        location: place/address to geocode (or pass lat+lon directly)
+    """
+    from skills.geo.imagery import run_sync as _geo
+    return _geo(lat=lat, lon=lon, location=location)
+
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")

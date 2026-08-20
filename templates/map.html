@@ -134,7 +134,11 @@
       geo.forEach(p => {
         const n = orderNum[p.id];
         const m = L.marker([p.lat, p.lon], { draggable: true, autoPan: true }).addTo(map);
-        m.bindPopup(`<b>#${n} — 📍 ${esc(p.location)}</b>${p.when?`<br>⏱ ${esc(p.when)}`:''}${p.note?`<br>${esc(p.note)}`:''}<br><small>${esc(p.display||'')}</small><br><i style="color:#666">drag to move</i>`);
+        const sv = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${p.lat},${p.lon}`;
+        const fl = `https://www.flickr.com/map?&fLat=${p.lat}&fLon=${p.lon}&zl=15`;
+        m.bindPopup(`<b>#${n} — 📍 ${esc(p.location)}</b>${p.when?`<br>⏱ ${esc(p.when)}`:''}${p.note?`<br>${esc(p.note)}`:''}<br><small>${esc(p.display||'')}</small>`
+          + `<br><a href="${sv}" target="_blank">🛰️ Street View</a> · <a href="${fl}" target="_blank">📷 Photos here</a>`
+          + `<br><i style="color:#666">drag to move</i>`);
         m.bindTooltip(String(n), { permanent: true, direction: 'top', className: 'traj-num', offset: [0,-8] });
         m.on('dragend', async () => {
           const ll = m.getLatLng();

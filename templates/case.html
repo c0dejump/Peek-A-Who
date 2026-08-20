@@ -1651,9 +1651,12 @@ function showNodePopup(nodeId, center) {
       const btn = (href, txt, color) => `<a href="${href}" ${href.startsWith('http')?'target="_blank" rel="noopener"':''}
           style="font-size:.72rem;color:${color};text-decoration:none;display:inline-flex;align-items:center;
                  gap:.3rem;padding:.28rem .6rem;border-radius:5px;border:1px solid ${color}55;background:${color}14">${txt}</a>`;
+      const sview = (v.lat != null && v.lon != null)
+        ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${v.lat},${v.lon}` : null;
       html += `<div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap">
         ${btn(`/cases/${CASE_ID}/map?focus=${encodeURIComponent(nodeId)}`, '🗺️ Case map', '#3fb950')}
         ${btn(gmaps, '📍 Google Maps', '#4db6ac')}
+        ${sview ? btn(sview, '🛰️ Street View', '#c9a0ff') : ''}
       </div>`;
     } else {
       html += row('Value', String(data.value));

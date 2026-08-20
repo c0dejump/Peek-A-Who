@@ -1356,6 +1356,7 @@ INVESTIGATION (gather data — use when the user asks to check/verify/look up so
   email_osint(email)              SMTP + HIBP + GHunt + SERP on an email.
   leak_search(query, query_type)  Breach/leak DBs (Dehashed/LeakCheck/IntelX) → leaked emails,
                                   passwords, phones, addresses for an email/username/phone/name.
+  geo_imagery(location)           Street View at a spot + geotagged photos nearby (verify a place visually).
   phone_lookup(phone)             Carrier/region/linked accounts for a phone.
   web_archive(url)                Wayback first/last snapshot of a URL.
   whois_lookup(domain)            Registrar/dates/org for a domain.
@@ -1365,7 +1366,7 @@ INVESTIGATION (gather data — use when the user asks to check/verify/look up so
 _WATSON_MUTATIONS = {"add_fact", "add_geotime", "add_keyword", "add_note", "record_to_case", "rerun_email"}
 _WATSON_INVESTIGATE = {"web_search", "sherlock_check", "enrich_profile", "email_osint",
                        "phone_lookup", "web_archive", "whois_lookup", "instagram_lookup",
-                       "validate_email_batch", "reverse_image", "leak_search"}
+                       "validate_email_batch", "reverse_image", "leak_search", "geo_imagery"}
 
 
 _AGENT_TOOL_LABELS = {
@@ -1375,6 +1376,7 @@ _AGENT_TOOL_LABELS = {
     "whois_lookup": "🌍 Running WHOIS…", "instagram_lookup": "📷 Instagram lookup…",
     "reverse_image": "🔍 Reverse-searching the image…",
     "leak_search": "🕳️ Searching breach/leak databases…",
+    "geo_imagery": "🛰️ Fetching Street View & nearby photos…",
     "validate_email_batch": "✉️ Validating emails…",
     "add_fact": "➕ Adding to case…", "add_keyword": "🔑 Adding keyword…", "add_note": "📝 Adding note…",
     "add_geotime": "🗺️ Placing sighting on the map…",

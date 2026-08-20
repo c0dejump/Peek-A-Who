@@ -229,6 +229,24 @@ WATSON_TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "geo_imagery",
+            "description": (
+                "Visually verify a place and find photos taken there: returns a Google "
+                "Street View link at the exact spot plus geotagged photos nearby (Flickr). "
+                "Use for a sighting location or any address. Accepts a place name."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string", "description": "Place/address to look at (geocoded)"}
+                },
+                "required": ["location"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "leak_search",
             "description": (
                 "Search breach/leak databases (Dehashed, LeakCheck, IntelX) for an "
@@ -555,6 +573,14 @@ def _exec_leak_search(query: str, query_type: str = "auto") -> dict:
         return leak_run(query, query_type=query_type)
     except Exception as exc:
         return {"query": query, "error": str(exc)}
+
+
+def _exec_geo_imagery(location: str = "", lat=None, lon=None) -> dict:
+    try:
+        from skills.geo.imagery import run_sync as geo_run
+        return geo_run(lat=lat, lon=lon, location=location)
+    except Exception as exc:
+        return {"location": location, "error": str(exc)}
 
 
 def _exec_reverse_image(image_url: str) -> dict:
@@ -1002,6 +1028,7 @@ _EXECUTORS: dict[str, Any] = {
     "whois_lookup":         _exec_whois_lookup,
     "reverse_image":        _exec_reverse_image,
     "leak_search":          _exec_leak_search,
+    "geo_imagery":          _exec_geo_imagery,
     "validate_email_batch": _exec_validate_email_batch,
 }
 
