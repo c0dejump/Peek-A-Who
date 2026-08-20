@@ -420,7 +420,7 @@
     .paw-slime {
       position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
       transform-origin: 50% 94%; will-change: transform; backface-visibility: hidden;
-      animation: slimeIdle 3s ease-in-out infinite;
+      animation: slimeIdle 2.3s ease-in-out infinite;
     }
     .paw-slime .head  { fill: url(#slimeGrad); }
     .paw-slime .eye   { fill: #0d1117; transform-box: fill-box; transform-origin: center;
@@ -431,7 +431,7 @@
       position: absolute; left: 50%; bottom: 1px; width: 24px; height: 5px;
       transform: translateX(-50%); background: rgba(0,0,0,.30); border-radius: 50%;
       filter: blur(1px); will-change: transform, opacity;
-      animation: shadowIdle 3s ease-in-out infinite;
+      animation: shadowIdle 2.3s ease-in-out infinite;
     }
 
     @keyframes blink { 0%,94%,100%{transform:scaleY(1)} 97%{transform:scaleY(.08)} }
@@ -443,7 +443,7 @@
     @keyframes shadowIdle{ 0%,100%{transform:translateX(-50%) scaleX(1);opacity:.30} 47%{transform:translateX(-50%) scaleX(1.2);opacity:.38} }
 
     /* thinking — lively sway */
-    .mascot.thinking .paw-slime { animation: slimeThink 1.4s cubic-bezier(.45,.05,.55,.95) infinite; }
+    .mascot.thinking .paw-slime { animation: slimeThink 1.0s cubic-bezier(.45,.05,.55,.95) infinite; }
     .mascot.thinking .eye  { animation: none; transform: translateY(-1.4px); }
     @keyframes slimeThink {
       0%,100% { transform: rotate(-7deg) scale(1,1); }
@@ -451,8 +451,8 @@
     }
 
     /* working — springy jelly bounce */
-    .mascot.working .paw-slime { animation: slimeWork .55s cubic-bezier(.5,-0.3,.5,1.3) infinite; }
-    .mascot.working .paw-shadow{ animation: shadowWork .55s ease-in-out infinite; }
+    .mascot.working .paw-slime { animation: slimeWork .42s cubic-bezier(.5,-0.3,.5,1.3) infinite; }
+    .mascot.working .paw-shadow{ animation: shadowWork .42s ease-in-out infinite; }
     .mascot.working .eye { animation: none; }
     @keyframes slimeWork {
       0%   { transform: translateY(0) scale(1,1); }
@@ -465,7 +465,7 @@
     @keyframes shadowWork{ 0%,70%,100%{transform:translateX(-50%) scaleX(1);opacity:.3} 30%{transform:translateX(-50%) scaleX(.72);opacity:.16} }
 
     /* happy — joyful springy hop */
-    .mascot.happy .paw-slime { animation: slimeHop .6s cubic-bezier(.3,-0.4,.4,1.4) 2; }
+    .mascot.happy .paw-slime { animation: slimeHop .48s cubic-bezier(.3,-0.4,.4,1.4) 2; }
     .mascot.happy .eye { animation: none; }
     @keyframes slimeHop {
       0%   { transform: translateY(0) scale(1,1); }
