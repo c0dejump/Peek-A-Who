@@ -415,30 +415,35 @@
     .pivot-ask-btn:hover { background: rgba(88,166,255,.18); }
 
     /* ── Watson mascot (PAW blue slime) ── */
-    #w-mascot { width: 42px; height: 42px; flex-shrink: 0; }
-    .paw-slime { width: 100%; height: 100%; overflow: visible; }
+    /* Animate the <svg> BOX (GPU-composited) not inner <g> → smooth 60fps. */
+    #w-mascot { position: relative; width: 42px; height: 42px; flex-shrink: 0; }
+    .paw-slime {
+      position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
+      transform-origin: 50% 94%; will-change: transform; backface-visibility: hidden;
+      animation: slimeIdle 3s ease-in-out infinite;
+    }
     .paw-slime .head  { fill: url(#slimeGrad); }
     .paw-slime .eye   { fill: #0d1117; transform-box: fill-box; transform-origin: center;
-                        animation: blink 4.5s ease-in-out infinite; }
+                        animation: blink 6.5s ease-in-out infinite; }
     .paw-slime .shine { fill: rgba(255,255,255,.55); }
     .paw-slime .shine.small { fill: rgba(255,255,255,.7); }
-    .paw-slime .shadow{ fill: rgba(0,0,0,.30); }
-    /* transform-box:fill-box makes transform-origin relative to each shape → reliable, smooth */
-    .paw-slime .body  { transform-box: fill-box; transform-origin: 50% 100%;
-                        animation: slimeIdle 3s ease-in-out infinite; will-change: transform; }
-    .paw-slime .shadow{ transform-box: fill-box; transform-origin: 50% 50%;
-                        animation: shadowIdle 3s ease-in-out infinite; }
-
-    @keyframes blink { 0%,92%,100%{transform:scaleY(1)} 96%{transform:scaleY(.1)} }
-    @keyframes slimeIdle {
-      0%,100% { transform: scale(1,1); }
-      30%     { transform: scale(1.08,.92); }
-      60%     { transform: scale(.95,1.06) translateY(-1.5px); }
+    .paw-shadow {
+      position: absolute; left: 50%; bottom: 1px; width: 24px; height: 5px;
+      transform: translateX(-50%); background: rgba(0,0,0,.30); border-radius: 50%;
+      filter: blur(1px); will-change: transform, opacity;
+      animation: shadowIdle 3s ease-in-out infinite;
     }
-    @keyframes shadowIdle{ 0%,100%{transform:scaleX(1);opacity:.30} 45%{transform:scaleX(1.18);opacity:.38} }
 
-    /* thinking — lively sway, eyes glance up, no blink */
-    .mascot.thinking .body { animation: slimeThink 1.4s cubic-bezier(.45,.05,.55,.95) infinite; }
+    @keyframes blink { 0%,94%,100%{transform:scaleY(1)} 97%{transform:scaleY(.08)} }
+    @keyframes slimeIdle {
+      0%,100% { transform: scale(1,1) translateY(0); }
+      30%     { transform: scale(1.07,.93) translateY(.5px); }
+      65%     { transform: scale(.96,1.05) translateY(-1.5px); }
+    }
+    @keyframes shadowIdle{ 0%,100%{transform:translateX(-50%) scaleX(1);opacity:.30} 47%{transform:translateX(-50%) scaleX(1.2);opacity:.38} }
+
+    /* thinking — lively sway */
+    .mascot.thinking .paw-slime { animation: slimeThink 1.4s cubic-bezier(.45,.05,.55,.95) infinite; }
     .mascot.thinking .eye  { animation: none; transform: translateY(-1.4px); }
     @keyframes slimeThink {
       0%,100% { transform: rotate(-7deg) scale(1,1); }
@@ -446,9 +451,9 @@
     }
 
     /* working — springy jelly bounce */
-    .mascot.working .body  { animation: slimeWork .55s cubic-bezier(.5,-0.3,.5,1.3) infinite; }
-    .mascot.working .shadow{ animation: shadowWork .55s ease-in-out infinite; }
-    .mascot.working .eye   { animation: none; }
+    .mascot.working .paw-slime { animation: slimeWork .55s cubic-bezier(.5,-0.3,.5,1.3) infinite; }
+    .mascot.working .paw-shadow{ animation: shadowWork .55s ease-in-out infinite; }
+    .mascot.working .eye { animation: none; }
     @keyframes slimeWork {
       0%   { transform: translateY(0) scale(1,1); }
       25%  { transform: translateY(-8px) scale(.86,1.16); }
@@ -457,11 +462,11 @@
       85%  { transform: translateY(0) scale(.96,1.04); }
       100% { transform: translateY(0) scale(1,1); }
     }
-    @keyframes shadowWork{ 0%,70%,100%{transform:scaleX(1);opacity:.3} 30%{transform:scaleX(.75);opacity:.18} }
+    @keyframes shadowWork{ 0%,70%,100%{transform:translateX(-50%) scaleX(1);opacity:.3} 30%{transform:translateX(-50%) scaleX(.72);opacity:.16} }
 
     /* happy — joyful springy hop */
-    .mascot.happy .body { animation: slimeHop .6s cubic-bezier(.3,-0.4,.4,1.4) 2; }
-    .mascot.happy .eye  { animation: none; }
+    .mascot.happy .paw-slime { animation: slimeHop .6s cubic-bezier(.3,-0.4,.4,1.4) 2; }
+    .mascot.happy .eye { animation: none; }
     @keyframes slimeHop {
       0%   { transform: translateY(0) scale(1,1); }
       20%  { transform: translateY(0) scale(1.2,.8); }
@@ -471,8 +476,8 @@
     }
 
     /* sad — droop + desaturate */
-    .mascot.sad .body { animation: none; transform: scale(1.08,.82) translateY(3px); }
-    .mascot.sad .eye  { animation: none; transform: translateY(1.4px); }
+    .mascot.sad .paw-slime { animation: none; transform: scale(1.08,.82) translateY(3px); }
+    .mascot.sad .eye { animation: none; transform: translateY(1.4px); }
     .mascot.sad { filter: saturate(.5) brightness(.88); }
 
     /* ── Watson sidebar ── */
@@ -983,7 +988,8 @@
   <div class="w-body">
     <div id="w-header">
       <div id="w-mascot" class="mascot idle" title="Watson">
-        <svg viewBox="0 0 48 48" class="paw-slime" aria-hidden="true">
+        <span class="paw-shadow"></span>
+        <svg viewBox="0 0 48 44" class="paw-slime" aria-hidden="true">
           <defs>
             <radialGradient id="slimeGrad" cx="38%" cy="26%" r="78%">
               <stop offset="0%"  stop-color="#9fcbff"/>
@@ -991,16 +997,12 @@
               <stop offset="100%" stop-color="#3d8ae0"/>
             </radialGradient>
           </defs>
-          <ellipse class="shadow" cx="24" cy="42.5" rx="12" ry="2.4"/>
-          <g class="body">
-            <!-- glossy slime blob (Tensura style) -->
-            <path class="head" d="M8 25 Q8 12 24 12 Q40 12 40 25 Q40 40 24 40 Q8 40 8 25 Z"/>
-            <ellipse class="shine" cx="15.5" cy="18" rx="5" ry="3.1" transform="rotate(-20 15.5 18)"/>
-            <ellipse class="shine small" cx="24" cy="16" rx="1.6" ry="1.1"/>
-            <!-- simple black eyes -->
-            <ellipse class="eye" cx="19" cy="26" rx="1.9" ry="2.7"/>
-            <ellipse class="eye" cx="29" cy="26" rx="1.9" ry="2.7"/>
-          </g>
+          <!-- glossy slime blob (Tensura style) -->
+          <path class="head" d="M8 25 Q8 12 24 12 Q40 12 40 25 Q40 40 24 40 Q8 40 8 25 Z"/>
+          <ellipse class="shine" cx="15.5" cy="18" rx="5" ry="3.1" transform="rotate(-20 15.5 18)"/>
+          <ellipse class="shine small" cx="24" cy="16" rx="1.6" ry="1.1"/>
+          <ellipse class="eye" cx="19" cy="26" rx="1.9" ry="2.7"/>
+          <ellipse class="eye" cx="29" cy="26" rx="1.9" ry="2.7"/>
         </svg>
       </div>
       <div>
