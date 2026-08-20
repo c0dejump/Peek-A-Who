@@ -94,6 +94,14 @@ Everything else → Watson LLM + tools (natural language, any phrasing, any lang
 | `web_archive(url)` | Wayback Machine first/last snapshot |
 | `whois_lookup(domain)` | Registrar, dates, org |
 | `validate_email_batch(emails)` | SMTP-validate a list |
+| `reverse_image(image_url)` | **Reverse image search** — Yandex/Google Lens/Bing/TinEye links + Yandex scrape (`skills/image/reverse_search.py`) |
+| `leak_search(query, query_type)` | **Breach/leak content** — Dehashed/LeakCheck/IntelX → leaked emails/passwords/phones/addresses (`skills/breach/leak_search.py`; needs a provider key) |
+| `geo_imagery(location)` | **Street View + geotagged photos** near a point (`skills/geo/imagery.py`; Flickr photos need FLICKR_KEY) |
+| `telegram_lookup(username)` | Public Telegram profile via t.me scrape (`skills/messaging/telegram.py`) |
+| `messaging_by_number(phone)` | WhatsApp/Signal/Viber/Telegram deep-links (`skills/messaging/by_number.py`) |
+| `death_records(firstname, lastname, birth_year)` | **French INSEE death file** via deces.matchid.io (`skills/records/deces.py`) |
+| `add_geotime(location, when, note)` | Record a sighting → geocoded pin on the case map |
+| `add_fact` / `add_keyword` / `add_note` | Persist typed facts / keywords / notes to the case graph |
 
 **Streaming LLM** — tokens appear immediately via SSE. Uses `WATSON_LLM_BACKEND` (lighter, faster model).
 
