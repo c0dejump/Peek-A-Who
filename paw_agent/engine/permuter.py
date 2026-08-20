@@ -98,6 +98,8 @@ def generate(
 
     # ── Priority 2: keyword + year ────────────────────────────────
     for kw in kws:
+        if len(kw) < 4:   # short keyword = prefix/suffix, skip standalone+year forms
+            continue
         if yr2:
             _add(f"{kw}{yr2}", f"{kw}.{yr2}", f"{kw}_{yr2}", f"{kw}-{yr2}")
             for sep in SEPARATORS:
@@ -105,9 +107,10 @@ def generate(
         if yr4:
             _add(f"{kw}{yr4}")
 
-    # ── Priority 3: keyword alone ─────────────────────────────────
+    # ── Priority 3: keyword alone (only for keywords ≥ 4 chars) ───
     for kw in kws:
-        _add(kw)
+        if len(kw) >= 4:
+            _add(kw)
 
     # ── Priority 4: classic name combos ──────────────────────────
     for sep in SEPARATORS:

@@ -1156,10 +1156,15 @@ def _generate_ig_usernames(
     for kw in kws:
         if not kw:
             continue
-        _add(kw)                          # keyword alone  e.g. "mchl"
-        if yr2:
-            _add(f"{kw}{yr2}")            # e.g. "mchl90"
-            _add(f"{kw}_{yr2}")
+        # A keyword < 4 chars (e.g. "sen") is almost always a prefix/suffix, not a
+        # standalone handle — testing it alone floods results with namesakes. So we
+        # only combine it with the name/pseudo below.
+        _short_kw = len(kw) < 4
+        if not _short_kw:
+            _add(kw)                      # keyword alone  e.g. "mchl"
+            if yr2:
+                _add(f"{kw}{yr2}")        # e.g. "mchl90"
+                _add(f"{kw}_{yr2}")
         if fn:
             _add(f"{fn}.{kw}")            # e.g. "tristan.mchl"  ← most likely
             _add(f"{fn}_{kw}")
@@ -1242,7 +1247,7 @@ def _generate_ig_usernames(
         if raw_pseudo:
             leet_seeds.append(raw_pseudo)
     for kw in kws:
-        if kw:
+        if kw and len(kw) >= 4:   # short keywords are prefixes/suffixes — don't leet them alone
             leet_seeds.append(kw)
     for base in result[:15]:
         if base not in leet_seeds:
