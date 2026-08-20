@@ -229,6 +229,23 @@ WATSON_TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "pivot_handle",
+            "description": (
+                "DEPTH-FIRST pivot on a confirmed handle/username: web-search it to find its "
+                "real profile pages (GitHub, X/Twitter, Medium…) and deep-enrich the GitHub "
+                "profile (real name, location, linked Twitter, blog). Use this on a strong "
+                "username instead of breadth-first existence checks."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"handle": {"type": "string", "description": "The username/handle to pivot on"}},
+                "required": ["handle"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "messaging_by_number",
             "description": (
                 "For a phone number, return click-to-chat deep-links across messaging apps "
@@ -626,6 +643,14 @@ def _exec_leak_search(query: str, query_type: str = "auto") -> dict:
         return leak_run(query, query_type=query_type)
     except Exception as exc:
         return {"query": query, "error": str(exc)}
+
+
+def _exec_pivot_handle(handle: str) -> dict:
+    try:
+        from skills.social_media.pseudo_pivot import pivot_handle
+        return pivot_handle(handle)
+    except Exception as exc:
+        return {"handle": handle, "error": str(exc)}
 
 
 def _exec_messaging_by_number(phone: str) -> dict:
@@ -1109,6 +1134,7 @@ _EXECUTORS: dict[str, Any] = {
     "telegram_lookup":      _exec_telegram_lookup,
     "death_records":        _exec_death_records,
     "messaging_by_number":  _exec_messaging_by_number,
+    "pivot_handle":         _exec_pivot_handle,
     "validate_email_batch": _exec_validate_email_batch,
 }
 

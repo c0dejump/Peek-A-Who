@@ -96,6 +96,17 @@ def run_identity_agent(report: dict) -> dict:
     for _un, _sites in (sm.get("maigret", {}).get("pseudo_confirmed") or {}).items():
         confirmed.append(f"User-provided pseudo @{_un} confirmed on: {', '.join(_sites)}")
 
+    # Depth-first pivot on the confirmed handle (web + GitHub) → real identity data
+    _piv = sm.get("maigret", {}).get("pseudo_pivot") or {}
+    _pid = _piv.get("identity", {})
+    if _pid.get("name"):    confirmed.append(f"Real name via GitHub: {_pid['name']}")
+    if _pid.get("location"): confirmed.append(f"Location via GitHub profile: {_pid['location']}")
+    if _pid.get("twitter"): confirmed.append(f"Linked Twitter/X (from GitHub): @{_pid['twitter']}")
+    for _h, _hd in _piv.get("handles", {}).items():
+        doms = [w["domain"] for w in _hd.get("web", [])]
+        if doms:
+            probable.append(f"@{_h} profile pages: {', '.join(dict.fromkeys(doms))}")
+
     # Name confirmed if appears in multiple data sources
     name_sources: list[str] = []
     if dip.get("bac_results"):

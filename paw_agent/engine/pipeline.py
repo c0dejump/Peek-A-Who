@@ -436,6 +436,25 @@ async def run_investigation(
                 for _un, _sites in _pc.items():
                     emit(f"       @{_un} → {', '.join(_sites)}")
 
+                # ── PIVOT: depth-first on the confirmed handle (web + GitHub enrich) ──
+                # This is what turns a confirmed pseudo into real identity data,
+                # instead of drowning in generated-variant namesakes.
+                try:
+                    from skills.social_media.pseudo_pivot import run_sync as _pivot
+                    _piv = await asyncio.get_event_loop().run_in_executor(None, _pivot, _pc)
+                    prevalidated["pseudo_pivot"] = _piv
+                    _id = _piv.get("identity", {})
+                    if _id.get("name") or _id.get("location") or _id.get("twitter"):
+                        bits = [f"name: {_id['name']}" if _id.get("name") else "",
+                                f"📍 {_id['location']}" if _id.get("location") else "",
+                                f"🐦 @{_id['twitter']}" if _id.get("twitter") else ""]
+                        emit("  🔎  Pivot (GitHub) → " + " · ".join(b for b in bits if b))
+                    for _h, _hd in _piv.get("handles", {}).items():
+                        for _w in _hd.get("web", [])[:5]:
+                            emit(f"       🌐 @{_h} on {_w['domain']}: {_w['url']}")
+                except Exception as _pex:
+                    emit(f"  ⚠  Pivot failed: {_pex}")
+
             # Only validated usernames go to Instagram and subsequent steps
             _ig_candidates = _validated_usernames
             if not _ig_candidates:

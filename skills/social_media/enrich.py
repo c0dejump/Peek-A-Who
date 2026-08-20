@@ -218,6 +218,40 @@ def _enrich_linkedin(username: str, url: str) -> dict:
     }
 
 
+def _enrich_github(username: str, url: str = "") -> dict:
+    """GitHub public profile via the REST API — real name, location, linked Twitter/blog."""
+    import requests
+    out = {"platform": "github", "username": username,
+           "url": url or f"https://github.com/{username}", "found": False}
+    try:
+        r = requests.get(f"https://api.github.com/users/{username}",
+                         headers={"User-Agent": "PAW-OSINT/1.0", "Accept": "application/vnd.github+json"},
+                         timeout=10)
+        if r.status_code == 404:
+            return {**out, "note": "No such GitHub user."}
+        if r.status_code == 403:
+            return {**out, "note": "GitHub API rate-limited (unauthenticated)."}
+        if not r.ok:
+            return {**out, "note": f"HTTP {r.status_code}"}
+        d = r.json()
+        out.update({
+            "found": True,
+            "display_name": d.get("name") or "",
+            "bio":          d.get("bio") or "",
+            "location":     d.get("location") or "",
+            "company":      d.get("company") or "",
+            "external_url": d.get("blog") or "",
+            "twitter":      d.get("twitter_username") or "",
+            "followers":    d.get("followers"),
+            "public_repos": d.get("public_repos"),
+            "created_at":   (d.get("created_at") or "")[:10],
+            "profile_pic":  d.get("avatar_url") or "",
+        })
+        return out
+    except Exception as exc:
+        return {**out, "error": str(exc)}
+
+
 # ── Generic (maigret hits, other platforms) ───────────────────────────────────
 
 def _enrich_generic(platform: str, username: str, url: str) -> dict:
@@ -259,6 +293,8 @@ def enrich_profile(
         return _enrich_tiktok(username)
     if pl == "linkedin":
         return _enrich_linkedin(username, url)
+    if pl in ("github", "githubgist"):
+        return _enrich_github(username, url)
     return _enrich_generic(platform, username, url)
 
 

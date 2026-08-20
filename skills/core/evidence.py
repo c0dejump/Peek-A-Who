@@ -164,6 +164,8 @@ def build_context_summary(report: dict) -> dict:
             "platforms":   platforms,
             # Analyst-provided pseudo confirmed on real sites — the strongest lead.
             "confirmed_pseudo": mg.get("pseudo_confirmed") or {},
+            # Depth-first pivot result: real profile pages + GitHub identity.
+            "pseudo_pivot": mg.get("pseudo_pivot") or {},
         },
         "activity": {
             "reddit": act.get("reddit", {}),
