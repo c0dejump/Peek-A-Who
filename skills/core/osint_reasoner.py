@@ -319,6 +319,10 @@ def synthesize(report: dict, pre_analysis: dict | None = None) -> dict:
             "probable":  geo_prob,
             "current_estimate": geo.get("current_estimate", ""),
         },
+        # Geo-temporal track: where the target was, when (most recent first)
+        "geotime": timeline.get("geotime", []),
+        "last_known_location": timeline.get("last_known_location"),
+        "last_known_activity": _fmt_last_activity(timeline.get("last_known_activity")),
         "relational_network": {
             "contacts": [],
             "associated_accounts": assoc,

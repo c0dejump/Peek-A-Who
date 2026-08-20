@@ -348,6 +348,11 @@ function render() {
   const preTl  = pre?.timeline || {};
   const tlEvts = tlA.length ? tlA : (preTl.events || []);
 
+  // ── Geotime (where + when) ────────────────────────────────────
+  const geotime  = a.geotime || preTl.geotime || [];
+  const lastLoc  = a.last_known_location || preTl.last_known_location || null;
+  const lastAct  = a.last_known_activity || null;
+
   // ── Hypotheses ────────────────────────────────────────────────
   const hyps = a.hypotheses || [];
 
@@ -490,13 +495,42 @@ function render() {
       <div class="timeline">`;
     tlEvts.slice(0, 20).forEach(ev => {
       const cf = ev.confidence || 'low';
+      const loc = ev.location ? ` <span style="color:#e3b341">📍 ${esc(ev.location)}</span>` : '';
       html += `<div class="tl-event ${cf}">
         <div class="tl-date">${esc(ev.date||'?')}</div>
-        <div class="tl-text">${esc(ev.event||'')}</div>
+        <div class="tl-text">${esc(ev.event||'')}${loc}</div>
         ${ev.source ? `<div class="tl-src">${esc(ev.source)}</div>` : ''}
       </div>`;
     });
     html += `</div></div>`;
+  }
+
+  // ── Geotime — where the target was, when (the mission's core view) ──
+  if (geotime.length || lastLoc || lastAct) {
+    html += `<div class="rpt-section">
+      <div class="rpt-section-title"><span class="ico">🗺️</span> Geotime — last seen &amp; whereabouts</div>`;
+    if (lastAct || lastLoc) {
+      html += `<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.8rem">`;
+      if (lastAct) html += `<div style="background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px;padding:.5rem .8rem">
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:#3fb950">⏱ Last known activity</div>
+        <div style="font-size:.85rem;color:var(--text,#e6edf3);margin-top:.2rem">${esc(lastAct)}</div></div>`;
+      if (lastLoc) html += `<div style="background:rgba(210,153,34,.1);border:1px solid rgba(210,153,34,.3);border-radius:8px;padding:.5rem .8rem">
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:#e3b341">📍 Last known location</div>
+        <div style="font-size:.85rem;color:var(--text,#e6edf3);margin-top:.2rem">${esc(lastLoc.location||'?')}${lastLoc.date ? ' · '+esc(lastLoc.date) : ''} <span style="color:var(--muted,#8b949e);font-size:.7rem">(${esc(lastLoc.source||'?')})</span></div></div>`;
+      html += `</div>`;
+    }
+    if (geotime.length) {
+      html += `<div class="timeline">`;
+      geotime.forEach(g => {
+        html += `<div class="tl-event ${g.confidence||'low'}">
+          <div class="tl-date">${esc(g.date||'—')}</div>
+          <div class="tl-text">📍 <strong style="color:#e3b341">${esc(g.location||'?')}</strong> — ${esc(g.event||'')}</div>
+          ${g.source ? `<div class="tl-src">${esc(g.source)}</div>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
   }
 
   // ── Correlations + anomalies ──────────────────────────────────

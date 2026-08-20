@@ -353,10 +353,11 @@ def run_timeline_agent(report: dict) -> dict:
     """
     events: list[dict] = []
 
-    def _add(date: str, event: str, source: str, confidence: str = "probable") -> None:
+    def _add(date: str, event: str, source: str, confidence: str = "probable",
+             location: str = "") -> None:
         if date:
             events.append({"date": date, "event": event, "source": source,
-                           "confidence": confidence})
+                           "confidence": confidence, "location": location or ""})
 
     tgt = report.get("target", {})
     if tgt.get("birth_year"):
@@ -378,17 +379,27 @@ def run_timeline_agent(report: dict) -> dict:
         if b.get("date_creation"):
             _add(b["date_creation"], f"Business creation: {b.get('name','?')}", "SIRENE", "confirmed")
 
+    biz_reg = report.get("phone", {})
+    if biz_reg.get("region"):
+        # phone carrier region is an (undated) coarse location anchor
+        pass
+
     sm  = report.get("social_media", {})
     act = sm.get("maigret", {}).get("activity_signals", {})
     rd  = act.get("reddit", {})
     gh  = act.get("github", {})
+    st  = act.get("steam", {})
 
     if gh.get("last_active"):
-        loc = f" from {gh['location']}" if gh.get("location") else ""
-        _add(gh["last_active"], f"GitHub activity{loc}", "GitHub", "confirmed")
+        _add(gh["last_active"], "GitHub activity", "GitHub", "confirmed",
+             location=gh.get("location", ""))
     if rd.get("last_active"):
         subs = ", ".join(rd.get("subreddits", [])[:2])
-        _add(rd["last_active"], f"Reddit activity" + (f" ({subs})" if subs else ""), "Reddit", "confirmed")
+        _add(rd["last_active"], "Reddit activity" + (f" ({subs})" if subs else ""), "Reddit", "confirmed")
+    if st.get("last_active") or st.get("status_message"):
+        when = st.get("last_active") or st.get("status_message")
+        _add(str(when), f"Steam last online — @{st.get('username','?')}", "Steam", "confirmed",
+             location=st.get("country", ""))
 
     for ig in sm.get("instagram", {}).get("found", [])[:3]:
         if ig.get("first_seen"):
@@ -410,6 +421,20 @@ def run_timeline_agent(report: dict) -> dict:
     events.sort(key=_sort_key, reverse=True)
 
     last_known = events[0] if events else None
+
+    # ── Geotime: where the target was, when (dated + located signals) ──
+    geotime = [
+        {"date": e["date"], "location": e["location"], "event": e["event"],
+         "source": e["source"], "confidence": e["confidence"]}
+        for e in events if e.get("location")
+    ]
+    # Add undated coarse anchors (phone region) at the end so they're not lost
+    ph_region = report.get("phone", {}).get("region")
+    if ph_region and not any(g["location"] == ph_region for g in geotime):
+        geotime.append({"date": "", "location": ph_region, "event": "Phone carrier region",
+                        "source": "phone", "confidence": "probable"})
+    last_location = next((g for g in geotime if g["date"]), None)
+
     return {
         "agent":      "timeline",
         "run_at":     _now_iso(),
@@ -417,6 +442,8 @@ def run_timeline_agent(report: dict) -> dict:
         "event_count": len(events),
         "last_known_activity": last_known,
         "span_years": _span_years(events),
+        "geotime":    geotime,
+        "last_known_location": last_location,
     }
 
 
