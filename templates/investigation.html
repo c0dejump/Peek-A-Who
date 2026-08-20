@@ -427,10 +427,12 @@
                         stroke-linecap: round; transform-box: fill-box; transform-origin: center;
                         transition: d .30s ease;   /* emotions morph the stroke shape */
                         animation: blink 6.5s ease-in-out infinite; }
-    /* second, thinner stroke under each eye — the double-line look adds expression */
-    .paw-slime .eye2  { fill: none; stroke: #0a0d14; stroke-width: 1.25; stroke-linecap: round;
-                        opacity: .68; transform: translateY(1.6px) scaleX(.82);
-                        transform-box: fill-box; transform-origin: center; transition: d .30s ease; }
+    /* second stroke under each eye — thinner & smaller, shrinking from the INNER corner */
+    .paw-slime .eye2  { fill: none; stroke: #0a0d14; stroke-width: 1.5; stroke-linecap: round;
+                        opacity: .6; transform: translateY(1.5px) scale(.58);
+                        transform-box: fill-box; transition: d .30s ease; }
+    .paw-slime .eye-l2 { transform-origin: 100% 50%; }  /* left eye: inner = right edge  */
+    .paw-slime .eye-r2 { transform-origin: 0% 50%; }     /* right eye: inner = left edge  */
     .paw-slime .shine { fill: rgba(255,255,255,.55); }
     .paw-slime .shine.small { fill: rgba(255,255,255,.7); }
     .paw-shadow {
