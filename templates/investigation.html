@@ -939,6 +939,12 @@
         <div id="diploma-list"></div>
       </div>
 
+      <!-- Name web search / web presence -->
+      <div class="report-section full" id="sect-namesearch" style="display:none">
+        <div class="rs-title">&#127760; Web presence (name search)</div>
+        <div id="namesearch-content"></div>
+      </div>
+
       <!-- Business registries -->
       <div class="report-section full" id="sect-business" style="display:none">
         <div class="rs-title">&#127968; Business registries (SIRENE / Pappers)</div>
@@ -2119,6 +2125,47 @@ ${body}
       });
 
       document.getElementById('diploma-list').innerHTML = dipHtml;
+    }
+
+    // ── Name web search / web presence ────────────────────────
+    const ns = r.name_search || {};
+    if ((ns.profiles || []).length || ns.web_summary || ns.employer) {
+      document.getElementById('sect-namesearch').style.display = 'block';
+      let nh = '';
+      if (typeof ns.confidence === 'number') {
+        const pct = Math.round(ns.confidence * 100);
+        const col = pct >= 80 ? '#3fb950' : pct >= 50 ? '#d29922' : '#8b949e';
+        nh += `<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;font-size:.78rem">
+          <span style="font-weight:700;color:${col}">🎯 ${pct}% confidence</span>
+          <span style="color:var(--muted)">${ns.high_confidence ? 'identity matched — deep search skipped' : 'unconfirmed — deep search also ran'}</span>
+        </div>`;
+        if ((ns.confidence_reasons||[]).length)
+          nh += `<div style="font-size:.72rem;color:var(--muted);margin-bottom:.7rem">${ns.confidence_reasons.map(r=>'• '+esc(r)).join('<br>')}</div>`;
+      }
+      if (ns.web_summary)
+        nh += `<div style="font-size:.8rem;color:var(--text);line-height:1.5;margin-bottom:.7rem;border-left:2px solid var(--accent);padding-left:.6rem">🧠 ${esc(ns.web_summary)}</div>`;
+      const idbits = [];
+      if (ns.employer)  idbits.push(`💼 <b>${esc(ns.employer)}</b>`);
+      if (ns.education) idbits.push(`🎓 ${esc(ns.education)}`);
+      if (ns.location)  idbits.push(`📍 ${esc(ns.location)}${ns.matched_city ? ' <span style="color:#3fb950">✓ matches param</span>' : ''}`);
+      if (idbits.length)
+        nh += `<div style="font-size:.8rem;margin-bottom:.7rem;display:flex;flex-wrap:wrap;gap:.8rem">${idbits.join('')}</div>`;
+      const profs = ns.profiles || [];
+      const crossSet = new Set((ns.cross_confirmed||[]).map(c => c.url));
+      if (profs.length) {
+        nh += `<div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem">Profiles found (${profs.length})</div>`;
+        nh += `<div style="display:flex;flex-direction:column;gap:.4rem">`;
+        profs.forEach(p => {
+          const cross = crossSet.has(p.url) ? ` <span title="Seen across multiple searches" style="color:#3fb950;font-size:.66rem">⭑ cross-confirmed</span>` : '';
+          const handle = p.username ? ` <span style="color:var(--muted)">@${esc(p.username)}</span>` : '';
+          nh += `<div style="background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:7px;padding:.45rem .65rem;font-size:.78rem">
+            <a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600">${esc(p.domain)}</a>${handle}${cross}
+            ${p.title ? `<div style="color:var(--muted);font-size:.72rem;margin-top:.15rem">${esc(p.title)}</div>` : ''}
+          </div>`;
+        });
+        nh += `</div>`;
+      }
+      document.getElementById('namesearch-content').innerHTML = nh;
     }
 
     // ── Business registries ───────────────────────────────────

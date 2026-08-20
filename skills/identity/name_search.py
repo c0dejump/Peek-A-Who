@@ -46,6 +46,24 @@ _NON_USER = {"p", "explore", "reel", "reels", "stories", "watch", "search",
              "hashtag", "profile.php", "pages", "groups", "in", "company",
              "channel", "results", "user", "c", "@"}
 
+# URL path markers that mean "this is a listing / directory page", not one person.
+# The malt.fr/all-freelances page polluted the web_summary with a dozen names.
+_LISTING_MARKERS = ("all-freelances", "/freelances", "/search", "/recherche",
+                    "/annuaire", "/directory", "/list", "/profiles", "/jobs",
+                    "/candidats", "/results", "/people", "/members")
+# a "Firstname Lastname" pair (Title-case) — used to detect multi-person listings
+_NAME_PAIR = _re.compile(r"\b[A-ZÀ-Ÿ][a-zà-ÿ]{2,}\s+[A-ZÀ-Ÿ][a-zà-ÿ]{2,}\b")
+
+
+def _looks_like_listing(url: str, snip: str) -> bool:
+    """A directory/listing page (many names) rather than one person's page."""
+    low = url.lower()
+    if any(m in low for m in _LISTING_MARKERS):
+        return True
+    # 3+ distinct Firstname-Lastname pairs in one snippet → a list of people
+    pairs = {p.lower() for p in _NAME_PAIR.findall(snip)}
+    return len(pairs) >= 3
+
 
 def _extract_handle(url: str, dom: str) -> tuple[str, str] | None:
     for d, (platform, pat) in _PLATFORM_PATTERNS.items():
@@ -93,8 +111,11 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
             url = r.get("url", "")
             dom = r.get("domain") or _domain(url)
             title, snip = r.get("title", ""), r.get("snippet", "")
-            # collect descriptive bios (mention the name + a role/place word)
-            if _fl.split()[0] in (title + " " + snip).lower() and len(snip) >= 60 and \
+            # collect descriptive bios: must mention BOTH names + a role/place word,
+            # and NOT be a directory/listing page (those list many people).
+            _ts = (title + " " + snip).lower()
+            if firstname.lower() in _ts and lastname.lower() in _ts and len(snip) >= 60 and \
+               not _looks_like_listing(url, snip) and \
                _re.search(r"\b(d[ée]veloppeur|fondateur|ing[ée]nieur|[ée]tudiant|freelance|"
                           r"consultant|bas[ée] à|domicili|travaille|CEO|gérant|responsable|"
                           r"student|engineer|developer|founder|based in|works? at)\b", snip, _re.I):
@@ -148,7 +169,38 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
         if p.get("platform") and p.get("username") and p["platform"] not in by_platform:
             by_platform[p["platform"]] = p["username"]
 
+    # ── Confidence that we found the RIGHT individual (0.0 – 1.0) ─────────
+    # The brute-force is only skipped above ~0.8, so this must reward signals
+    # that *disambiguate* one person (a param that matched), not merely that
+    # *somebody* with this name exists on the web.
+    _pseudo_q = f'"{full}" {pseudo}' if pseudo else None
+    _pseudo_hit = bool(pseudo) and (
+        any(_pseudo_q in p.get("seen_in", []) for p in profiles) or
+        pseudo.lower() in {v.lower() for v in by_platform.values()}
+    )
+    _kw_hit = bool(keywords) and bio and any(
+        (k or "").lower() in bio.lower() for k in keywords)
+
+    confidence = 0.0
+    reasons: list[str] = []
+    if matched_city:
+        confidence += 0.40; reasons.append(f"location matches param «{matched_city}»")
+    if _pseudo_hit:
+        confidence += 0.40; reasons.append(f"pseudo «{pseudo}» confirmed on a profile")
+    if _kw_hit:
+        confidence += 0.25; reasons.append("a provided keyword appears in the bio")
+    if cross_confirmed:
+        confidence += min(len(cross_confirmed), 2) * 0.20    # up to +0.40
+        reasons.append(f"{len(cross_confirmed)} profile(s) recur across searches")
+    if linkedin and (employer or education or location):
+        confidence += 0.25; reasons.append("LinkedIn snippet parsed (employer/school/location)")
+    if bio:
+        confidence += 0.15; reasons.append("descriptive bio found")
+    confidence = round(min(confidence, 1.0), 2)
+
     found = bool(linkedin) or bool(bio) or len(profiles) >= 2 or len(by_platform) >= 1
+    # High-confidence = we're ≥80% sure it's the right person → skip the noisy brute-force.
+    high_confidence = confidence >= 0.80
 
     return {
         "name": full,
@@ -163,4 +215,7 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
         "location": location,
         "matched_city": matched_city,
         "found": found,
+        "confidence": confidence,
+        "high_confidence": high_confidence,
+        "confidence_reasons": reasons,
     }

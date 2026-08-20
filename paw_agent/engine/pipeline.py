@@ -339,7 +339,19 @@ async def run_investigation(
             ns = await asyncio.get_event_loop().run_in_executor(
                 None, lambda: _name_search(firstname, lastname, cities or [], all_keywords, pseudo))
             report["name_search"] = ns
-            _name_found = bool(ns.get("found"))
+            # Only skip the noisy username brute-force when we're ≥80% sure it's
+            # the right person (a param actually matched), not just that someone
+            # with this name exists online.
+            _conf = ns.get("confidence", 0.0)
+            _name_found = bool(ns.get("high_confidence"))
+            _pct = int(round(_conf * 100))
+            if ns.get("found"):
+                _verdict = ("✅ high confidence — deep search will be skipped"
+                            if _name_found else
+                            "➡ low confidence — deep username search will still run")
+                emit(f"  🎯  Match confidence: {_pct}%  ({_verdict})")
+                for _rz in ns.get("confidence_reasons", [])[:4]:
+                    emit(f"       • {_rz}")
             if ns.get("web_summary"):
                 emit(f"  🧠  Web summary: {ns['web_summary'][:200]}")
             for _cc in ns.get("cross_confirmed", [])[:4]:
@@ -569,7 +581,7 @@ async def run_investigation(
         emit("")
 
     # ── Step 0.95: Instagram ─────────────────────────────────────
-    if "social_media" in active_modules and _social_has_context:
+    if "social_media" in active_modules and _social_has_context and not _name_found:
         emit(f"  💭 [Step 0.95] Instagram username search — {len(_ig_candidates)} candidates…")
         emit(f"  📱  First: {', '.join(_ig_candidates[:5])}")
         try:
@@ -622,7 +634,7 @@ async def run_investigation(
         emit("")
 
     # ── Step 0.95c: TikTok ──────────────────────────────────────
-    if "social_media" in active_modules and _social_has_context:
+    if "social_media" in active_modules and _social_has_context and not _name_found:
         emit(f"  💭 [Step 0.95c] TikTok username search — {len(_ig_candidates)} candidates…")
         try:
             tt = await _tiktok_run(
@@ -646,7 +658,7 @@ async def run_investigation(
         emit("")
 
     # ── Step 0.95d: LinkedIn (URL candidates — not verifiable) ───
-    if "social_media" in active_modules and _social_has_context:
+    if "social_media" in active_modules and _social_has_context and not _name_found:
         # If the early name search already surfaced the LinkedIn profile, reuse it
         # and SKIP the redundant SERP + candidate generation entirely.
         _ns_li = (report.get("name_search") or {}).get("linkedin") or []
