@@ -1439,6 +1439,26 @@ function mergeGraphData(fresh) {
   refreshGTP();
 }
 
+// ── Live refresh: pull fresh case data when the tab regains focus ───────────────
+// So facts Watson adds from the investigation page appear on the graph without a
+// manual reload. Only rebuilds when the node count actually changed.
+let _liveNodeCount = -1;
+async function refreshGraphFromServer() {
+  if (!CASE_ID) return;
+  try {
+    const r = await fetch(`/cases/${CASE_ID}/data`);
+    if (!r.ok) return;
+    const fresh = await r.json();
+    const n = Object.keys(fresh.facts || {}).length + Object.keys(fresh.findings || {}).length;
+    if (_liveNodeCount === -1) { _liveNodeCount = n; return; }
+    if (n !== _liveNodeCount) { _liveNodeCount = n; mergeGraphData(fresh); }
+  } catch (e) { /* ignore */ }
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) refreshGraphFromServer();
+});
+window.addEventListener('focus', refreshGraphFromServer);
+
 // ── Note card HTML overlay system ─────────────────────────────────────────────
 
 let _dragNoteCard = null;

@@ -403,12 +403,47 @@ def _exec_email_osint(email: str) -> dict:
     return output
 
 
-def _exec_phone_lookup(phone: str) -> dict:
+def _phone_basic(phone: str) -> dict:
+    """Offline phonenumbers parse — always fast, no network."""
     try:
-        from skills.phone.lookup import run_sync as phone_run
-        return phone_run(phone)
+        import phonenumbers
+        from phonenumbers import carrier, geocoder, number_type, PhoneNumberType
+        pn = phonenumbers.parse(phone, "FR")
+        _types = {PhoneNumberType.MOBILE: "mobile", PhoneNumberType.FIXED_LINE: "landline",
+                  PhoneNumberType.VOIP: "voip"}
+        return {
+            "phone": phone,
+            "valid": phonenumbers.is_valid_number(pn),
+            "e164": phonenumbers.format_number(pn, phonenumbers.PhoneNumberFormat.E164),
+            "carrier": carrier.name_for_number(pn, "fr") or None,
+            "region": geocoder.description_for_number(pn, "fr") or None,
+            "type": _types.get(number_type(pn), "unknown"),
+        }
     except Exception as exc:
         return {"phone": phone, "error": str(exc)}
+
+
+def _exec_phone_lookup(phone: str) -> dict:
+    try:
+        import asyncio
+        from skills.phone.lookup import run as phone_run
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)   # so inner get_event_loop() finds it
+        try:
+            res = loop.run_until_complete(phone_run(phone))
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
+        # Full lookup can time out on the French directory scrapes — fall back
+        # to the offline phonenumbers parse so we still return carrier/region.
+        if not isinstance(res, dict) or res.get("error") or res.get("valid") is None:
+            basic = _phone_basic(phone)
+            if not basic.get("error"):
+                basic["note"] = "Basic parse (web directory lookup unavailable)."
+                return basic
+        return res
+    except Exception:
+        return _phone_basic(phone)
 
 
 def _exec_web_archive(url: str) -> dict:

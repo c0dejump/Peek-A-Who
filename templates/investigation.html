@@ -3408,6 +3408,16 @@ ${body}
             } else if (toolsUsedArr.length) {
               _showToolTags(toolsUsedArr);
             }
+            // Watson mutated the case → tell the user + link to the (updated) graph
+            if (evt.case_dirty) {
+              const cid = (typeof _resolveCaseId === 'function') ? _resolveCaseId() : null;
+              const note = document.createElement('div');
+              note.style.cssText = 'margin-top:.5rem;font-size:.72rem;color:#3fb950';
+              note.innerHTML = cid
+                ? `✓ Case updated — <a href="/cases/${cid}" target="_blank" style="color:#3fb950;font-weight:600">open graph ↗</a>`
+                : '✓ Case updated';
+              bubble.appendChild(note);
+            }
           }
         }
       }

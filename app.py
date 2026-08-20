@@ -1229,11 +1229,27 @@ _WATSON_INVESTIGATE = {"web_search", "sherlock_check", "enrich_profile", "email_
                        "validate_email_batch"}
 
 
-def _watson_agent_run(question, system_content, history, backend, timeout,
-                      llm_completion, inv_id="", case_id=""):
+_AGENT_TOOL_LABELS = {
+    "web_search": "🌐 Searching the web…", "sherlock_check": "🕵️ Checking username across platforms…",
+    "enrich_profile": "🔍 Enriching profile…", "email_osint": "📧 Investigating email (SMTP · HIBP · GHunt)…",
+    "phone_lookup": "📞 Looking up phone…", "web_archive": "📁 Checking web archive…",
+    "whois_lookup": "🌍 Running WHOIS…", "instagram_lookup": "📷 Instagram lookup…",
+    "validate_email_batch": "✉️ Validating emails…",
+    "add_fact": "➕ Adding to case…", "add_keyword": "🔑 Adding keyword…", "add_note": "📝 Adding note…",
+    "record_to_case": "💾 Saving profile…", "rerun_email": "✉️ Regenerating emails…",
+}
+
+
+def _watson_agent_stream(question, system_content, history, backend, timeout,
+                         llm_completion, inv_id="", case_id=""):
     """
-    Plan → execute → synthesise. Returns (final_text, actions_taken).
-    actions_taken is a list of {"tool","params"} for the UI.
+    Plan → execute → synthesise, as a GENERATOR yielding event dicts so the
+    endpoint can stream progress (keeps slow tools like email_osint from
+    dropping the connection) and tell the UI when the case/graph changed.
+
+    Yields: {"kind":"fail"} | {"kind":"tools","tools_used":[…]}
+          | {"kind":"progress","text":…}
+          | {"kind":"final","text":…,"tools_used":[…],"case_dirty":bool}
     """
     from skills.core.watson_tools import execute_tool
 
@@ -1280,34 +1296,42 @@ def _watson_agent_run(question, system_content, history, backend, timeout,
     try:
         plan = _json_call(messages, max_tokens=600)
     except Exception:
-        return None, []   # signal caller to fall back
+        yield {"kind": "fail"}
+        return
 
     actions = plan.get("actions") or []
     reply   = (plan.get("reply") or "").strip()
     if not isinstance(actions, list):
         actions = []
 
-    # ── Phase 2: execute ─────────────────────────────────────────
-    actions_taken, results, did_investigate = [], [], False
-    for act in actions[:6]:
-        if not isinstance(act, dict):
-            continue
-        name = act.get("tool", "")
+    valid = [a for a in actions[:6] if isinstance(a, dict)
+             and a.get("tool") in (_WATSON_MUTATIONS | _WATSON_INVESTIGATE)]
+    if valid:
+        yield {"kind": "tools",
+               "tools_used": [{"tool": a["tool"],
+                               "params": a.get("params") if isinstance(a.get("params"), dict) else {}}
+                              for a in valid]}
+
+    # ── Phase 2: execute (streaming progress) ────────────────────
+    actions_taken, results, did_investigate, case_dirty = [], [], False, False
+    for act in valid:
+        name = act["tool"]
         params = act.get("params") if isinstance(act.get("params"), dict) else {}
-        if name not in _WATSON_MUTATIONS and name not in _WATSON_INVESTIGATE:
-            continue
+        yield {"kind": "progress", "text": _AGENT_TOOL_LABELS.get(name, f"Running {name}…") + "\n"}
         res = execute_tool(name, params, case_id=case_id or None)
         actions_taken.append({"tool": name, "params": params})
         results.append({"tool": name, "params": params, "result": res})
         if name in _WATSON_INVESTIGATE:
             did_investigate = True
+        if name in _WATSON_MUTATIONS and not res.get("error") and res.get("status") != "not_linked":
+            case_dirty = True
 
     # ── Phase 3: answer ──────────────────────────────────────────
     if not results:
-        return (reply or "…"), actions_taken
+        yield {"kind": "final", "text": reply or "…", "tools_used": actions_taken, "case_dirty": case_dirty}
+        return
 
     if did_investigate:
-        # Synthesise a briefing ("topo") from the gathered data
         synth_msgs = [
             {"role": "system", "content": system_content
                 + "\n\nYou just ran tools for the analyst. Write a clear, concise briefing "
@@ -1317,12 +1341,12 @@ def _watson_agent_run(question, system_content, history, backend, timeout,
                 f"Tool results (JSON):\n{json.dumps(results, ensure_ascii=False, default=str)[:6000]}"},
         ]
         try:
-            kwargs = {"model": backend, "messages": synth_msgs, "max_tokens": 900, "timeout": timeout}
-            fr = llm_completion(**kwargs)
+            fr = llm_completion(model=backend, messages=synth_msgs, max_tokens=900, timeout=timeout)
             final = (fr.choices[0].message.content or "").strip()
         except Exception:
             final = reply or "Done — see results above."
-        return final, actions_taken
+        yield {"kind": "final", "text": final, "tools_used": actions_taken, "case_dirty": case_dirty}
+        return
 
     # Pure mutations → confirm what was persisted
     lines = []
@@ -1348,7 +1372,22 @@ def _watson_agent_run(question, system_content, history, backend, timeout,
             lines.append(f"✓ Regenerated {res.get('total_candidates',0)} email candidates.")
         else:
             lines.append(f"✓ {r['tool']} done.")
-    return (reply + ("\n\n" if reply else "") + "\n".join(lines)).strip(), actions_taken
+    yield {"kind": "final",
+           "text": (reply + ("\n\n" if reply else "") + "\n".join(lines)).strip(),
+           "tools_used": actions_taken, "case_dirty": case_dirty}
+
+
+def _watson_agent_run(question, system_content, history, backend, timeout,
+                      llm_completion, inv_id="", case_id=""):
+    """Sync wrapper over _watson_agent_stream. Returns (final_text|None, actions)."""
+    final_text, tools = None, []
+    for ev in _watson_agent_stream(question, system_content, history, backend, timeout,
+                                   llm_completion, inv_id=inv_id, case_id=case_id):
+        if ev["kind"] == "fail":
+            return None, []
+        if ev["kind"] == "final":
+            final_text, tools = ev["text"], ev.get("tools_used", [])
+    return final_text, tools
 
 
 @app.route("/api/investigation/chat", methods=["POST"])
@@ -1520,40 +1559,70 @@ def api_investigation_chat():
     timeout = int(raw_timeout) if raw_timeout.isdigit() else (120 if backend.startswith("ollama/") else 60)
 
     # ── Watson agent: plan → execute → answer (robust JSON-plan flow) ──
+    if do_stream:
+        def _sse(obj):
+            return f"data: {json.dumps(obj)}\n\n"
+
+        def generate():
+            tools_used, case_dirty, got_final = [], False, False
+            try:
+                for ev in _watson_agent_stream(question, system_content, history, backend,
+                                               timeout, llm_completion, inv_id=inv_id, case_id=case_id):
+                    kind = ev.get("kind")
+                    if kind == "fail":
+                        break
+                    if kind == "tools":
+                        tools_used = ev["tools_used"]
+                        yield _sse({"type": "tools", "tools_used": tools_used})
+                    elif kind == "progress":
+                        yield _sse({"type": "token", "content": ev["text"]})
+                    elif kind == "final":
+                        got_final = True
+                        case_dirty = ev.get("case_dirty", False)
+                        txt = ev.get("text") or "…"
+                        for i in range(0, len(txt), 120):
+                            yield _sse({"type": "token", "content": txt[i:i+120]})
+            except Exception as exc:
+                _el = str(exc).lower()
+                if "model_not_found" in _el or "does not exist" in _el:
+                    yield _sse({"type": "error", "error": _watson_llm_error(exc)["error"]})
+                    yield "data: [DONE]\n\n"
+                    return
+                got_final = False
+
+            if not got_final:
+                # plan failed / crashed → deterministic router, else a clear message
+                routed = _watson_route(question, inv_id, case_id)
+                if routed and routed.get("answer"):
+                    if routed.get("tools_used"):
+                        yield _sse({"type": "tools", "tools_used": routed["tools_used"]})
+                    yield _sse({"type": "token", "content": routed["answer"]})
+                else:
+                    yield _sse({"type": "token", "content":
+                        "I couldn't process that with the current model — try rephrasing, "
+                        "ask for a “résumé”, or a specific action like “ajoute … en keyword” "
+                        "or “vérifie …”."})
+
+            yield _sse({"type": "done", "tools_used": tools_used, "case_dirty": case_dirty})
+            yield "data: [DONE]\n\n"
+
+        return Response(generate(), content_type="text/event-stream",
+                        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    # Non-streaming (legacy)
     final_text, tools_used = None, []
     try:
         final_text, tools_used = _watson_agent_run(
             question, system_content, history, backend, timeout,
             llm_completion, inv_id=inv_id, case_id=case_id)
     except Exception as exc:
-        _exc_low = str(exc).lower()
-        if "model_not_found" in _exc_low or "does not exist" in _exc_low:
+        if "model_not_found" in str(exc).lower():
             return _watson_llm_error(exc), 503
         final_text = None
-
-    # Agent failed to produce a plan → deterministic router, else a clear message
     if final_text is None:
         routed = _watson_route(question, inv_id, case_id)
-        if routed and routed.get("answer"):
-            final_text, tools_used = routed["answer"], routed.get("tools_used", [])
-        else:
-            final_text = ("I couldn't process that with the current model — try rephrasing, "
-                          "ask for a “résumé”, or a specific action like “ajoute … en keyword” "
-                          "or “vérifie …”.")
-
-    if do_stream:
-        def generate():
-            if tools_used:
-                yield f"data: {json.dumps({'type': 'tools', 'tools_used': tools_used})}\n\n"
-            # Emit in chunks for a progressive feel
-            for i in range(0, len(final_text), 120):
-                yield f"data: {json.dumps({'type': 'token', 'content': final_text[i:i+120]})}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'tools_used': tools_used})}\n\n"
-            yield "data: [DONE]\n\n"
-
-        return Response(generate(), content_type="text/event-stream",
-                        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
-
+        final_text = (routed or {}).get("answer") or "I couldn't process that with the current model."
+        tools_used = (routed or {}).get("tools_used", [])
     return {"answer": final_text, "sources": [], "confidence": "unknown",
             "followup_questions": [], "tools_used": tools_used}
 
