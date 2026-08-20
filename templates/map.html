@@ -25,6 +25,8 @@
     .pt-when { font-size: .74rem; color: var(--gold); margin-top: .15rem; }
     .pt-note { font-size: .74rem; color: var(--muted); margin-top: .2rem; }
     .pt-nogeo { font-size: .68rem; color: #f0883e; margin-top: .2rem; }
+    .mini { background: transparent; border: none; cursor: pointer; font-size: .78rem; padding: 0 .15rem; opacity: .7; }
+    .mini:hover { opacity: 1; }
     .addbox { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: .7rem; margin-bottom: 1rem; }
     .addbox input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: .4rem .5rem; font-size: .8rem; margin-bottom: .45rem; }
     .addbox button { width: 100%; background: var(--accent); color: #08111f; border: none; border-radius: 6px; padding: .45rem; font-weight: 600; font-size: .8rem; cursor: pointer; }
@@ -108,31 +110,41 @@
       const geo = points.filter(p => p.lat != null && p.lon != null).sort((a,b) => _timeKey(a) - _timeKey(b));
       const orderNum = {}; geo.forEach((p,i) => orderNum[p.id] = i + 1);
 
-      // Trajectory polyline (person's path over time)
+      // Trajectory polyline (person's path over time) — casing + bright line for visibility
       const showTraj = document.getElementById('trajToggle').checked;
       if (showTraj && geo.length >= 2) {
-        trajLine = L.polyline(geo.map(p => [p.lat, p.lon]),
-          { color: '#e3b341', weight: 3, opacity: .75, dashArray: '6,8' }).addTo(map);
+        const coords = geo.map(p => [p.lat, p.lon]);
+        const casing = L.polyline(coords, { color: '#000', weight: 8, opacity: .35 });
+        const line   = L.polyline(coords, { color: '#ff2d78', weight: 4, opacity: .95 });
+        trajLine = L.layerGroup([casing, line]).addTo(map);
       }
 
-      // Numbered markers
+      // Numbered, DRAGGABLE markers
       const bounds = [];
       geo.forEach(p => {
         const n = orderNum[p.id];
-        const m = L.marker([p.lat, p.lon]).addTo(map);
-        m.bindPopup(`<b>#${n} — 📍 ${esc(p.location)}</b>${p.when?`<br>⏱ ${esc(p.when)}`:''}${p.note?`<br>${esc(p.note)}`:''}<br><small>${esc(p.display||'')}</small>`);
+        const m = L.marker([p.lat, p.lon], { draggable: true, autoPan: true }).addTo(map);
+        m.bindPopup(`<b>#${n} — 📍 ${esc(p.location)}</b>${p.when?`<br>⏱ ${esc(p.when)}`:''}${p.note?`<br>${esc(p.note)}`:''}<br><small>${esc(p.display||'')}</small><br><i style="color:#666">drag to move</i>`);
         m.bindTooltip(String(n), { permanent: true, direction: 'top', className: 'traj-num', offset: [0,-8] });
+        m.on('dragend', async () => {
+          const ll = m.getLatLng();
+          await saveEdit(p.id, { lat: ll.lat, lon: ll.lng });
+        });
         markers[p.id] = m;
         bounds.push([p.lat, p.lon]);
       });
 
-      // Sidebar list (most recent first)
+      // Sidebar list (most recent first) with edit/delete
       const listSorted = [...points].sort((a,b) => _timeKey(b) - _timeKey(a));
       listSorted.forEach(p => {
         const div = document.createElement('div');
         div.className = 'pt';
         const badge = orderNum[p.id] ? `<span style="color:#e3b341;font-weight:700">#${orderNum[p.id]} </span>` : '';
-        div.innerHTML = `<div class="pt-loc">${badge}📍 ${esc(p.location)}</div>
+        div.innerHTML = `<div class="pt-loc">${badge}📍 ${esc(p.location)}
+            <span style="float:right">
+              <button class="mini" title="Edit" onclick="event.stopPropagation();editSighting('${p.id}')">✏️</button>
+              <button class="mini" title="Delete" onclick="event.stopPropagation();deleteSighting('${p.id}')">🗑️</button>
+            </span></div>
           ${p.when ? `<div class="pt-when">⏱ ${esc(p.when)}</div>` : ''}
           ${p.note ? `<div class="pt-note">${esc(p.note)}</div>` : ''}
           ${(p.lat==null) ? `<div class="pt-nogeo">⚠ not geocoded — no pin</div>` : ''}`;
@@ -142,6 +154,40 @@
         list.appendChild(div);
       });
       if (bounds.length) map.fitBounds(bounds, { padding: [45,45], maxZoom: 14 });
+    }
+
+    // Persist an edit/move to the server, then update local state
+    async function saveEdit(id, changes) {
+      try {
+        const r = await fetch(`/cases/${CASE_ID}/geotime/${id}`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(changes),
+        });
+        const data = await r.json();
+        if (data.ok) {
+          const idx = points.findIndex(x => x.id === id);
+          if (idx >= 0) points[idx] = { ...points[idx], ...data.point };
+          render();
+        } else alert('Error: ' + (data.error||'unknown'));
+      } catch(e) { alert('Request failed: ' + e); }
+    }
+
+    function editSighting(id) {
+      const p = points.find(x => x.id === id); if (!p) return;
+      const location = prompt('Place:', p.location || ''); if (location === null) return;
+      const when = prompt('When (e.g. 2024-06-20 17:00):', p.when || ''); if (when === null) return;
+      const note = prompt('Note:', p.note || ''); if (note === null) return;
+      saveEdit(id, { location: location.trim(), when: when.trim(), note: note.trim() });
+    }
+
+    async function deleteSighting(id) {
+      if (!confirm('Delete this sighting?')) return;
+      try {
+        const r = await fetch(`/cases/${CASE_ID}/geotime/${id}`, { method:'DELETE' });
+        const data = await r.json();
+        if (data.ok) { points = points.filter(x => x.id !== id); render(); }
+        else alert('Error: ' + (data.error||'unknown'));
+      } catch(e) { alert('Request failed: ' + e); }
     }
 
     async function uploadPhoto() {

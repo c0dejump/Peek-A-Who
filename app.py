@@ -810,6 +810,52 @@ def case_add_geotime(did: str):
     return {"ok": True, "point": res.get("point", {})}
 
 
+@app.route("/cases/<did>/geotime/<fid>", methods=["POST"])
+def case_update_geotime(did: str, fid: str):
+    """Edit or move a geotime sighting. Body: any of {location, when, note, lat, lon, near}."""
+    body  = request.get_json(force=True, silent=True) or {}
+    store = get_store()
+    case  = store.get(did)
+    if not case or fid not in case.get("facts", {}):
+        return {"ok": False, "error": "Sighting not found"}, 404
+    fact = case["facts"][fid]
+    if fact.get("type") != "geotime":
+        return {"ok": False, "error": "Not a geotime fact"}, 400
+    val = dict(fact.get("value") or {})
+    from skills.core.watson_tools import _geocode, _reverse_geocode
+
+    moved = ("lat" in body and body.get("lat") is not None and body.get("lon") is not None)
+    if moved:
+        try:
+            val["lat"], val["lon"] = float(body["lat"]), float(body["lon"])
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "Invalid coordinates"}, 400
+        val["display"]  = _reverse_geocode(val["lat"], val["lon"]) or val.get("display", "")
+        val["geocoded"] = True
+    if "when" in body:
+        val["when"] = (body.get("when") or "").strip()
+    if "note" in body:
+        val["note"] = (body.get("note") or "").strip()
+    if "location" in body:
+        newloc = (body.get("location") or "").strip()
+        # Re-geocode only if the place text changed and we weren't given coords
+        if newloc and newloc != val.get("location") and not moved:
+            g = _geocode(newloc, near=(body.get("near") or "").strip())
+            if g:
+                val.update(lat=g["lat"], lon=g["lon"], display=g["display"], geocoded=True)
+        val["location"] = newloc
+
+    store.update_fact_value(did, fid, val)
+    return {"ok": True, "point": {**val, "id": fid}}
+
+
+@app.route("/cases/<did>/geotime/<fid>", methods=["DELETE"])
+def case_delete_geotime(did: str, fid: str):
+    """Delete a geotime sighting."""
+    ok = get_store().remove_fact(did, fid)
+    return ({"ok": True} if ok else ({"ok": False, "error": "Not found"}, 404))
+
+
 @app.route("/cases/<did>/geotime/photo", methods=["POST"])
 def case_geotime_photo(did: str):
     """Drop a photo → extract EXIF GPS + date → add a geotime pin."""
