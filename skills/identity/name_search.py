@@ -28,6 +28,36 @@ def _domain(url: str) -> str:
         return ""
 
 
+import re as _re
+
+# domain → (platform, regex to pull the username/handle from the path)
+_PLATFORM_PATTERNS = {
+    "instagram.com": ("instagram", r"instagram\.com/([^/?#]+)"),
+    "tiktok.com":    ("tiktok",    r"tiktok\.com/@([^/?#]+)"),
+    "twitter.com":   ("twitter",   r"twitter\.com/([^/?#]+)"),
+    "x.com":         ("twitter",   r"x\.com/([^/?#]+)"),
+    "github.com":    ("github",    r"github\.com/([^/?#]+)"),
+    "facebook.com":  ("facebook",  r"facebook\.com/([^/?#]+)"),
+    "youtube.com":   ("youtube",   r"youtube\.com/(?:@|c/|user/)?([^/?#]+)"),
+    "medium.com":    ("medium",    r"medium\.com/@?([^/?#]+)"),
+}
+# path segments that are not usernames
+_NON_USER = {"p", "explore", "reel", "reels", "stories", "watch", "search",
+             "hashtag", "profile.php", "pages", "groups", "in", "company",
+             "channel", "results", "user", "c", "@"}
+
+
+def _extract_handle(url: str, dom: str) -> tuple[str, str] | None:
+    for d, (platform, pat) in _PLATFORM_PATTERNS.items():
+        if dom == d or dom.endswith("." + d):
+            m = _re.search(pat, url, _re.I)
+            if m:
+                u = m.group(1).strip("@").strip()
+                if u and u.lower() not in _NON_USER and 1 < len(u) <= 40:
+                    return platform, u
+    return None
+
+
 def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
              keywords: list[str] | None = None) -> dict:
     firstname, lastname = (firstname or "").strip(), (lastname or "").strip()
@@ -61,6 +91,9 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
             seen.add(key)
             entry = {"domain": dom, "url": url, "title": r.get("title", ""),
                      "snippet": r.get("snippet", "")}
+            hp = _extract_handle(url, dom)
+            if hp:
+                entry["platform"], entry["username"] = hp
             profiles.append(entry)
             if "linkedin.com/in/" in url or ("linkedin.com" in dom and firstname.lower() in (r.get("title","").lower())):
                 info = _parse_snippet(r.get("snippet", "") + " " + r.get("title", ""))
@@ -75,13 +108,24 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
                 matched_city = c
                 break
 
+    # Platform → username surfaced directly by the name search
+    by_platform: dict[str, str] = {}
+    for p in profiles:
+        if p.get("platform") and p.get("username") and p["platform"] not in by_platform:
+            by_platform[p["platform"]] = p["username"]
+
+    # "found" = enough to skip the noisy username brute-force
+    found = bool(linkedin) or len(profiles) >= 2 or len(by_platform) >= 1
+
     return {
         "name": full,
         "queries": queries,
         "profiles": profiles[:15],
         "linkedin": linkedin[:5],
+        "by_platform": by_platform,
         "employer":  next((li.get("company") for li in linkedin if li.get("company")), ""),
         "education": next((li.get("education") for li in linkedin if li.get("education")), ""),
         "location":  next((li.get("location") for li in linkedin if li.get("location")), ""),
         "matched_city": matched_city,
+        "found": found,
     }

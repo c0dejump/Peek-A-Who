@@ -328,7 +328,10 @@ async def run_investigation(
             "note": "Cloudflare-protected — open links manually in a browser",
         }
 
-    # ── Step 0.85: Name web search (LinkedIn/GitHub + employer/school/location) ──
+    # ── Step 0.85: Name web search FIRST (cheap) — a single search often already
+    # surfaces LinkedIn/GitHub/socials. If it does, we SKIP the noisy username
+    # brute-force below (no point flooding 36 sites with generated variants).
+    _name_found = False
     if firstname and lastname:
         emit(f"  💭 [Step 0.85] Name web search — {firstname} {lastname}…")
         try:
@@ -336,6 +339,7 @@ async def run_investigation(
             ns = await asyncio.get_event_loop().run_in_executor(
                 None, _name_search, firstname, lastname, cities or [], all_keywords)
             report["name_search"] = ns
+            _name_found = bool(ns.get("found"))
             if ns.get("employer") or ns.get("education") or ns.get("location"):
                 bits = [f"💼 {ns['employer']}" if ns.get("employer") else "",
                         f"🎓 {ns['education']}" if ns.get("education") else "",
@@ -343,10 +347,22 @@ async def run_investigation(
                 emit("  🔎  LinkedIn snippet → " + " · ".join(b for b in bits if b))
                 if ns.get("matched_city"):
                     emit(f"  ✅  Location matches a given city: {ns['matched_city']}")
+            # Seed found accounts directly into the report per platform
+            _bp = ns.get("by_platform", {})
+            if _bp:
+                emit(f"  ✅  Accounts found directly: " +
+                     ", ".join(f"{k} @{v}" for k, v in _bp.items()))
+                sm0 = report.setdefault("social_media", {})
+                for _plat, _u in _bp.items():
+                    if _plat in ("instagram", "tiktok"):
+                        sm0.setdefault(_plat, {}).setdefault("found", []).append(
+                            {"username": _u, "display_name": "", "relevance": 8,
+                             "url": next((p["url"] for p in ns["profiles"]
+                                          if p.get("username") == _u), ""), "source": "name_search"})
             for p in ns.get("profiles", [])[:6]:
                 emit(f"       🌐 {p['domain']}: {p['url']}")
             if not ns.get("profiles"):
-                emit("  ℹ  No profile pages surfaced (search engine may be rate-limited).")
+                emit("  ℹ  No profile pages surfaced — will run the deeper username search.")
         except Exception as _nex:
             emit(f"  ⚠  Name search unavailable: {_nex}")
         emit("")
@@ -393,7 +409,31 @@ async def run_investigation(
         or (lastname and not firstname) # lastname alone → acceptable
     )
 
-    if "social_media" in active_modules and _social_has_context:
+    if "social_media" in active_modules and _name_found:
+        # The name search already surfaced real profiles — don't brute-force 36
+        # sites with generated variants (that's where the namesake noise comes from).
+        emit("  ⏭  [Step 0.93–0.97] Username brute-force skipped — identity already "
+             "found via the name search (use it; no need to make noise).")
+        # A given pseudo is a targeted, non-noisy lead → still pivot on it.
+        if pseudo:
+            try:
+                from skills.social_media.pseudo_pivot import pivot_handle
+                _piv = await asyncio.get_event_loop().run_in_executor(None, pivot_handle, pseudo)
+                gh = _piv.get("github") or {}
+                report.setdefault("social_media", {}).setdefault("maigret", {})["pseudo_pivot"] = {
+                    "handles": {pseudo: _piv},
+                    "identity": {"name": gh.get("display_name", ""),
+                                 "location": gh.get("location", ""),
+                                 "twitter": gh.get("twitter", "")},
+                }
+                if _piv.get("web") or gh:
+                    emit(f"  🔎  Pivot @{pseudo} → " +
+                         ", ".join(w["domain"] for w in _piv.get("web", [])[:5]) +
+                         (f" · 🐦 @{gh.get('twitter')}" if gh.get("twitter") else ""))
+            except Exception:
+                pass
+        emit("")
+    elif "social_media" in active_modules and _social_has_context:
         dept_codes = [k for k in city_extras if re.match(r"^\d{2}$", k)]
         _ig_candidates = _generate_ig_usernames(
             firstname, lastname, birth_year,
@@ -603,6 +643,26 @@ async def run_investigation(
 
     # ── Step 0.95d: LinkedIn (URL candidates — not verifiable) ───
     if "social_media" in active_modules and _social_has_context:
+        # If the early name search already surfaced the LinkedIn profile, reuse it
+        # and SKIP the redundant SERP + candidate generation entirely.
+        _ns_li = (report.get("name_search") or {}).get("linkedin") or []
+        if _ns_li:
+            emit(f"  ⏭  [Step 0.95d] LinkedIn — already found via name search "
+                 f"({len(_ns_li)} profile(s)), skipping candidate generation")
+            for p in _ns_li:
+                emit(f"  🔗  {p.get('url','')}")
+                _bits = [p.get('company',''), p.get('location',''),
+                         (f"{p.get('connections')} connections" if p.get('connections') else "")]
+                _bits = [b for b in _bits if b]
+                if _bits: emit(f"       {' · '.join(_bits)}")
+                if p.get("education"): emit(f"       🎓 {p['education']}")
+            report["social_media"]["linkedin"] = {
+                "serp_found": _ns_li, "candidates": [], "generated": 0,
+                "blocked": True, "note": "Found via name web search (Step 0.85)",
+            }
+            emit("")
+    if "social_media" in active_modules and _social_has_context \
+            and not (report.get("name_search") or {}).get("linkedin"):
         emit(f"  💭 [Step 0.95d] LinkedIn profile candidates…")
         try:
             li = await _linkedin_run(
