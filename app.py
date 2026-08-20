@@ -1760,17 +1760,34 @@ def api_investigation_chat():
                 got_final = False
 
             if not got_final:
-                # plan failed / crashed → deterministic router, else a clear message
+                # plan failed / crashed → deterministic router first
                 routed = _watson_route(question, inv_id, case_id)
                 if routed and routed.get("answer"):
                     if routed.get("tools_used"):
                         yield _sse({"type": "tools", "tools_used": routed["tools_used"]})
                     yield _sse({"type": "token", "content": routed["answer"]})
                 else:
-                    yield _sse({"type": "token", "content":
-                        "I couldn't process that with the current model — try rephrasing, "
-                        "ask for a “résumé”, or a specific action like “ajoute … en keyword” "
-                        "or “vérifie …”."})
+                    # Last resort: a PLAIN LLM answer from context (no JSON plan, no tools —
+                    # far less likely to fail than the plan call). Answers things like
+                    # "give me the BAC link" straight from the investigation data.
+                    answered = False
+                    try:
+                        pmsgs = [{"role": "system", "content": system_content},
+                                 {"role": "user", "content": question}]
+                        pr = llm_completion(model=backend, messages=pmsgs,
+                                            max_tokens=600, timeout=timeout)
+                        txt = (pr.choices[0].message.content or "").strip()
+                        if txt:
+                            for i in range(0, len(txt), 120):
+                                yield _sse({"type": "token", "content": txt[i:i+120]})
+                            answered = True
+                    except Exception:
+                        pass
+                    if not answered:
+                        yield _sse({"type": "token", "content":
+                            "I couldn't process that with the current model — try rephrasing, "
+                            "ask for a “résumé”, or a specific action like “ajoute … en keyword” "
+                            "or “vérifie …”."})
 
             yield _sse({"type": "done", "tools_used": tools_used, "case_dirty": case_dirty})
             yield "data: [DONE]\n\n"
