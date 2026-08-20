@@ -1124,9 +1124,9 @@ function initNetwork() {
       const nid = params.nodes[0];
       // Note-type facts are handled by HTML overlay — skip popup
       if (state.facts[nid] && state.facts[nid].type === 'note') return;
-      showNodePopup(nid, params.event.center);
+      showNodePopup(nid, params.pointer.DOM);
     } else if (params.edges.length === 1 && params.nodes.length === 0) {
-      showEdgePopup(params.edges[0], params.event.center);
+      showEdgePopup(params.edges[0], params.pointer.DOM);
     } else {
       hideNodePopup();
     }
