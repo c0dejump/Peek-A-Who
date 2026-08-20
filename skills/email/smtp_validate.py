@@ -116,24 +116,32 @@ def _parse_reacher(data: dict, email: str) -> dict:
     }
 
 
+_MX_CACHE: dict[str, bool] = {}   # domain → has_mx (candidates share domains)
+
+
 def _check_mx_only(email: str) -> dict:
     """
     Fallback when Reacher is unavailable: check DNS MX records only.
     Cannot verify actual deliverability — marks as unverifiable.
+    MX is cached per domain so a batch of @gmail.com candidates costs one lookup.
     """
     import socket
     domain = email.split("@")[-1].lower() if "@" in email else ""
-    has_mx = False
-    try:
-        import dns.resolver
-        answers = dns.resolver.resolve(domain, "MX")
-        has_mx = len(answers) > 0
-    except Exception:
+    if domain in _MX_CACHE:
+        has_mx = _MX_CACHE[domain]
+    else:
+        has_mx = False
         try:
-            socket.getaddrinfo(domain, None)
-            has_mx = True
+            import dns.resolver
+            answers = dns.resolver.resolve(domain, "MX")
+            has_mx = len(answers) > 0
         except Exception:
-            has_mx = False
+            try:
+                socket.getaddrinfo(domain, None)
+                has_mx = True
+            except Exception:
+                has_mx = False
+        _MX_CACHE[domain] = has_mx
 
     return {
         "email":         email,
@@ -201,8 +209,10 @@ def run_sync(email: str) -> dict:
 
 # Maximum candidates to run MX/SMTP checks against
 _MAX_VALIDATE = 80
-# Maximum survivors (valid + risky + unverifiable) to enrich with SERP
-_MAX_SERP     = 20
+# Maximum survivors (valid + risky + unverifiable) to enrich with SERP.
+# Each SERP is a web search — kept small and run in parallel to stay fast and
+# avoid rate-limiting the search engine.
+_MAX_SERP     = 12
 
 
 def validate_batch(emails: list[str], max_results: int = 20) -> dict:
@@ -216,9 +226,22 @@ def validate_batch(emails: list[str], max_results: int = 20) -> dict:
     invalid: list[str]      = []
     details: list[dict]     = []
 
-    for email in emails[:max_results]:
-        r = run_sync(email)
+    batch = emails[:max_results]
+    # MX-only mode is I/O-bound DNS → run in parallel (huge speed-up). Reacher hits
+    # real SMTP servers, so keep it sequential+paced to avoid being rate-limited.
+    if _reacher_available:
+        results_list = []
+        for email in batch:
+            results_list.append(run_sync(email))
+            time.sleep(0.3)
+    else:
+        import concurrent.futures as _cf
+        with _cf.ThreadPoolExecutor(max_workers=min(16, max(1, len(batch)))) as ex:
+            results_list = list(ex.map(run_sync, batch))
+
+    for r in results_list:
         details.append(r)
+        email = r.get("email", "")
         if r["valid"] is True:
             valid.append(email)
         elif r["valid"] is False:
@@ -227,8 +250,6 @@ def validate_batch(emails: list[str], max_results: int = 20) -> dict:
             risky.append(email)
         else:
             unverifiable.append(email)
-        if _reacher_available:
-            time.sleep(0.3)   # pace only when hitting real SMTP servers
 
     return {
         "valid":              valid,
@@ -252,18 +273,21 @@ def validate_all(candidates: list[str]) -> dict:
     capped = candidates[:_MAX_VALIDATE]
     result = validate_batch(capped, max_results=len(capped))
 
-    # SERP enrichment — only on non-invalid survivors, capped to avoid rate-limits
+    # SERP enrichment — only on non-invalid survivors, capped + PARALLEL so the
+    # web searches don't stack up (this was the slow part of the SMTP step).
     survivors = result["valid"] + result["risky"] + result["unverifiable"]
-    serp_targets = set(survivors[:_MAX_SERP])
-    for det in result["details"]:
-        if det["email"] not in serp_targets:
-            continue
-        serp = _check_serp_hit(det["email"])
-        det["serp_hit"]    = serp["hit"]
-        det["serp_count"]  = serp["count"]
-        det["serp_likely"] = (det["valid"] is None and serp["hit"])
-        if _reacher_available:
-            time.sleep(0.2)
+    serp_targets = list(dict.fromkeys(survivors))[:_MAX_SERP]
+    if serp_targets:
+        import concurrent.futures as _cf
+        with _cf.ThreadPoolExecutor(max_workers=min(6, len(serp_targets))) as ex:
+            serp_map = dict(zip(serp_targets, ex.map(_check_serp_hit, serp_targets)))
+        for det in result["details"]:
+            serp = serp_map.get(det["email"])
+            if not serp:
+                continue
+            det["serp_hit"]    = serp["hit"]
+            det["serp_count"]  = serp["count"]
+            det["serp_likely"] = (det["valid"] is None and serp["hit"])
 
     # "valid" for pipeline = confirmed safe; pass risky as unverifiable
     return {

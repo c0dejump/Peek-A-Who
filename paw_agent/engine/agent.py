@@ -991,15 +991,23 @@ async def _search_phone_direct(
                 results["e164"], e164_no_plus, national_clean
             )
 
-        # ── Public footprint — verified dorks ──────────────────
+        # ── Public footprint — verified dorks (best-effort; never fatal) ──
+        # The directory-dork checks can time out (as_completed raises); don't let
+        # that discard the phonenumbers data (carrier/region/type) already parsed.
         if results["valid"]:
-            results["footprint"] = _build_phone_footprint(
-                national_clean, results["e164"], firstname
-            )
+            try:
+                results["footprint"] = _build_phone_footprint(
+                    national_clean, results["e164"], firstname
+                )
+            except Exception as _fpx:
+                results["footprint_error"] = str(_fpx)
 
         # ── Tellows spam check (free API + page scrape fallback) ──
         if results["valid"]:
-            results["tellows"] = _fetch_tellows(results["e164"])
+            try:
+                results["tellows"] = _fetch_tellows(results["e164"])
+            except Exception:
+                pass
 
         import subprocess
 
