@@ -416,7 +416,7 @@
 
     /* ── Watson mascot (PAW blue slime) ── */
     /* Animate the <svg> BOX (GPU-composited) not inner <g> → smooth 60fps. */
-    #w-mascot { position: relative; width: 42px; height: 42px; flex-shrink: 0; }
+    #w-mascot { position: relative; width: 54px; height: 54px; flex-shrink: 0; }
     .paw-slime {
       position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible;
       transform-origin: 50% 94%; will-change: transform; backface-visibility: hidden;
@@ -427,6 +427,10 @@
                         stroke-linecap: round; transform-box: fill-box; transform-origin: center;
                         transition: d .30s ease;   /* emotions morph the stroke shape */
                         animation: blink 6.5s ease-in-out infinite; }
+    /* second, thinner stroke under each eye — the double-line look adds expression */
+    .paw-slime .eye2  { fill: none; stroke: #0a0d14; stroke-width: 1.25; stroke-linecap: round;
+                        opacity: .68; transform: translateY(1.6px) scaleX(.82);
+                        transform-box: fill-box; transform-origin: center; transition: d .30s ease; }
     .paw-slime .shine { fill: rgba(255,255,255,.55); }
     .paw-slime .shine.small { fill: rgba(255,255,255,.7); }
     .paw-shadow {
@@ -485,14 +489,14 @@
     /* ── emotion = the shape of the two eye-strokes (Rimuru/Tensura style) ── */
     /* idle default (in the SVG `d`) is a gentle content arch. Each state below
        re-draws the traits; `transition: d` morphs them = the "petit mouvement". */
-    .mascot.happy .eye-l    { d: path("M16.4 26.2 Q19.3 23.8 22.2 26.2"); }  /* ⌒ big content arch */
-    .mascot.happy .eye-r    { d: path("M25.8 26.2 Q28.7 23.8 31.6 26.2"); }
-    .mascot.sad .eye-l      { d: path("M16.6 24.9 Q19.3 26.7 22.0 24.9"); }  /* ‿ droopy sad */
-    .mascot.sad .eye-r      { d: path("M26.0 24.9 Q28.7 26.7 31.4 24.9"); }
-    .mascot.thinking .eye-l { d: path("M16.8 25.5 Q19.3 24.4 21.8 25.5"); }  /* small curious arch */
-    .mascot.thinking .eye-r { d: path("M26.2 25.5 Q28.7 24.4 31.2 25.5"); }
-    .mascot.working .eye-l  { d: path("M16.6 24.7 Q19.3 25.8 22.2 26.6"); }  /* ╲ ╱ focused */
-    .mascot.working .eye-r  { d: path("M25.8 26.6 Q28.7 25.8 31.6 24.7"); }
+    .mascot.happy .eye-l,   .mascot.happy .eye-l2    { d: path("M16.4 26.2 Q19.3 23.8 22.2 26.2"); }  /* ⌒ big content arch */
+    .mascot.happy .eye-r,   .mascot.happy .eye-r2    { d: path("M25.8 26.2 Q28.7 23.8 31.6 26.2"); }
+    .mascot.sad .eye-l,     .mascot.sad .eye-l2      { d: path("M16.6 24.9 Q19.3 26.7 22.0 24.9"); }  /* ‿ droopy sad */
+    .mascot.sad .eye-r,     .mascot.sad .eye-r2      { d: path("M26.0 24.9 Q28.7 26.7 31.4 24.9"); }
+    .mascot.thinking .eye-l,.mascot.thinking .eye-l2 { d: path("M16.8 25.5 Q19.3 24.4 21.8 25.5"); }  /* small curious arch */
+    .mascot.thinking .eye-r,.mascot.thinking .eye-r2 { d: path("M26.2 25.5 Q28.7 24.4 31.2 25.5"); }
+    .mascot.working .eye-l, .mascot.working .eye-l2  { d: path("M16.6 24.7 Q19.3 25.8 22.2 26.6"); }  /* ╲ ╱ focused */
+    .mascot.working .eye-r, .mascot.working .eye-r2  { d: path("M25.8 26.6 Q28.7 25.8 31.6 24.7"); }
 
     /* ── random tricks while waiting (override base with !important) ── */
     .paw-slime .tophat, .paw-slime .magnifier { opacity: 0; transform-box: fill-box; transform-origin: center; }
@@ -1082,9 +1086,11 @@
           <path class="head" d="M8 25 Q8 12 24 12 Q40 12 40 25 Q40 40 24 40 Q8 40 8 25 Z"/>
           <ellipse class="shine" cx="15.5" cy="18" rx="5" ry="3.1" transform="rotate(-20 15.5 18)"/>
           <ellipse class="shine small" cx="24" cy="16" rx="1.6" ry="1.1"/>
-          <!-- Rimuru slime eyes: two curved strokes; the emotion is in their curvature -->
-          <path class="eye eye-l" d="M16.6 25.8 Q19.3 24.3 22.0 25.8"/>
-          <path class="eye eye-r" d="M26.0 25.8 Q28.7 24.3 31.4 25.8"/>
+          <!-- Rimuru slime eyes: each eye is two curved strokes; emotion is in their curvature -->
+          <path class="eye eye-l"   d="M16.6 25.8 Q19.3 24.3 22.0 25.8"/>
+          <path class="eye2 eye-l2" d="M16.6 25.8 Q19.3 24.3 22.0 25.8"/>
+          <path class="eye eye-r"   d="M26.0 25.8 Q28.7 24.3 31.4 25.8"/>
+          <path class="eye2 eye-r2" d="M26.0 25.8 Q28.7 24.3 31.4 25.8"/>
           <!-- detective hat (revealed during the 'hat' trick) -->
           <g class="tophat">
             <ellipse cx="24" cy="12.5" rx="15" ry="3.4" fill="#26314a"/>
