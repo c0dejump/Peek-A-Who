@@ -793,7 +793,8 @@ def _exec_add_geotime(location: str = "", when: str = "", note: str = "",
         fact = get_store().add_fact(case_id, "geotime", value)
         if fact is None:
             return {"error": f"Case '{case_id}' not found."}
-        return {"status": "ok", "point": value, "case_id": case_id,
+        return {"status": "ok", "point": {**value, "id": fact.get("id")},
+                "fact_id": fact.get("id"), "case_id": case_id,
                 "hint": None if value.get("geocoded") else f"Couldn't geocode '{location}' — pin not placed, but the sighting is saved."}
     except Exception as exc:
         return {"error": str(exc)}

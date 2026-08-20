@@ -95,6 +95,12 @@
       t = Date.parse(p.added_at || '');
       return isNaN(t) ? 0 : t;
     }
+    // Order comparator: manual seq (if set) wins, else chronological time
+    function _cmp(a, b) {
+      const sa = (a.seq == null) ? Infinity : a.seq, sb = (b.seq == null) ? Infinity : b.seq;
+      if (sa !== sb) return sa - sb;
+      return _timeKey(a) - _timeKey(b);
+    }
 
     function render() {
       // clear markers + trajectory
@@ -106,8 +112,8 @@
       document.getElementById('count').textContent = points.length;
       if (!points.length) { list.innerHTML = '<div class="empty">No sightings yet.<br>Tell Watson “X était à tel endroit à telle heure”, drop a photo, or click the map.</div>'; return; }
 
-      // Chronological order (oldest → newest) of GEOCODED points → trajectory + numbers
-      const geo = points.filter(p => p.lat != null && p.lon != null).sort((a,b) => _timeKey(a) - _timeKey(b));
+      // Order = manual seq first (if set), else chronological
+      const geo = points.filter(p => p.lat != null && p.lon != null).sort(_cmp);
       const orderNum = {}; geo.forEach((p,i) => orderNum[p.id] = i + 1);
 
       // Trajectory polyline (person's path over time) — casing + bright line for visibility
@@ -134,14 +140,17 @@
         bounds.push([p.lat, p.lon]);
       });
 
-      // Sidebar list (most recent first) with edit/delete
-      const listSorted = [...points].sort((a,b) => _timeKey(b) - _timeKey(a));
-      listSorted.forEach(p => {
+      // Sidebar list in trajectory order (#1 at top) with reorder/edit/delete
+      const listSorted = [...points].sort(_cmp);
+      listSorted.forEach((p, i) => {
         const div = document.createElement('div');
         div.className = 'pt';
         const badge = orderNum[p.id] ? `<span style="color:#e3b341;font-weight:700">#${orderNum[p.id]} </span>` : '';
+        const up   = i > 0 ? `<button class="mini" title="Earlier" onclick="event.stopPropagation();reorder('${p.id}',-1)">▲</button>` : '';
+        const down = i < listSorted.length-1 ? `<button class="mini" title="Later" onclick="event.stopPropagation();reorder('${p.id}',1)">▼</button>` : '';
         div.innerHTML = `<div class="pt-loc">${badge}📍 ${esc(p.location)}
             <span style="float:right">
+              ${up}${down}
               <button class="mini" title="Edit" onclick="event.stopPropagation();editSighting('${p.id}')">✏️</button>
               <button class="mini" title="Delete" onclick="event.stopPropagation();deleteSighting('${p.id}')">🗑️</button>
             </span></div>
@@ -180,6 +189,27 @@
       saveEdit(id, { location: location.trim(), when: when.trim(), note: note.trim() });
     }
 
+    // Move a sighting up/down in the chronological sequence (manual override)
+    async function reorder(id, dir) {
+      const ordered = [...points].sort(_cmp);
+      const i = ordered.findIndex(p => p.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= ordered.length) return;
+      [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+      // Assign explicit seq to lock the new order, update local + persist
+      ordered.forEach((p, idx) => {
+        p.seq = idx;
+        const lp = points.find(x => x.id === p.id); if (lp) lp.seq = idx;
+      });
+      render();
+      try {
+        await fetch(`/cases/${CASE_ID}/geotime/reorder`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ order: ordered.map(p => p.id) }),
+        });
+      } catch(e) { /* local order already applied */ }
+    }
+
     async function deleteSighting(id) {
       if (!confirm('Delete this sighting?')) return;
       try {
@@ -199,7 +229,7 @@
       try {
         const r = await fetch(`/cases/${CASE_ID}/geotime/photo`, { method:'POST', body: fd });
         const data = await r.json();
-        if (data.ok) { points.push({ id:'new_'+Date.now(), ...data.point }); inp.value=''; render(); }
+        if (data.ok) { points.push({ ...data.point }); inp.value=''; render(); }
         else alert(data.error || 'Could not read the photo.');
       } catch(e) { alert('Request failed: ' + e); }
       finally { btn.disabled = false; btn.textContent = '📷 Add from photo'; }
@@ -217,7 +247,7 @@
           body: JSON.stringify({ lat, lon: lng, when: when.trim(), note: note.trim() }),
         });
         const data = await r.json();
-        if (data.ok) { points.push({ id:'new_'+Date.now(), ...data.point }); render(); }
+        if (data.ok) { points.push({ ...data.point }); render(); }
         else alert('Error: ' + (data.error||'unknown'));
       } catch(err) { alert('Request failed: ' + err); }
     });
@@ -239,7 +269,7 @@
         });
         const data = await r.json();
         if (data.ok) {
-          points.push({ id: 'new_'+Date.now(), ...data.point });
+          points.push({ ...data.point });
           ['in-loc','in-when','in-near','in-note'].forEach(id => document.getElementById(id).value = '');
           render();
           if (!data.point.geocoded) alert(`Saved, but couldn't geocode “${location}” — try adding a city.`);

@@ -787,6 +787,7 @@ def case_map(did: str):
             "id": f.get("id"), "location": v.get("location", ""), "when": v.get("when", ""),
             "note": v.get("note", ""), "lat": v.get("lat"), "lon": v.get("lon"),
             "display": v.get("display", ""), "added_at": f.get("added_at", ""),
+            "seq": v.get("seq"),
         })
     return render_template("map.html", case=case,
                            points_json=json.dumps(points, ensure_ascii=False, default=str))
@@ -847,6 +848,24 @@ def case_update_geotime(did: str, fid: str):
 
     store.update_fact_value(did, fid, val)
     return {"ok": True, "point": {**val, "id": fid}}
+
+
+@app.route("/cases/<did>/geotime/reorder", methods=["POST"])
+def case_reorder_geotime(did: str):
+    """Set the manual chronological order of geotime pins. Body: {order: [factId,…]}."""
+    body  = request.get_json(force=True, silent=True) or {}
+    order = body.get("order") or []
+    store = get_store()
+    case  = store.get(did)
+    if not case:
+        return {"ok": False, "error": "Case not found"}, 404
+    for i, fid in enumerate(order):
+        fact = case.get("facts", {}).get(fid)
+        if fact and fact.get("type") == "geotime":
+            val = dict(fact.get("value") or {})
+            val["seq"] = i
+            store.update_fact_value(did, fid, val)
+    return {"ok": True}
 
 
 @app.route("/cases/<did>/geotime/<fid>", methods=["DELETE"])
