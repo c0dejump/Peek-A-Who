@@ -332,6 +332,30 @@ WATSON_TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "google_dork",
+            "description": (
+                "Run targeted Google dorks (advanced operators: site:, filetype:, "
+                "intitle:, inurl:, verbatim \"…\") for a person or domain. Sweeps social/"
+                "code sites per-site, documents (pdf/doc/xls…), paste sites, contact "
+                "details and — with a domain — exposed files & login surfaces. Uses real "
+                "Google via a headless browser when possible, else falls back to Bing/DDG "
+                "with the target site enforced. Give a name, pseudo, email and/or domain."
+            ),
+            "parameters": {"type": "object", "properties": {
+                "firstname": {"type": "string"},
+                "lastname":  {"type": "string"},
+                "pseudo":    {"type": "string", "description": "Username/handle"},
+                "email":     {"type": "string"},
+                "domain":    {"type": "string", "description": "Domain to dork (site:)"},
+                "city":      {"type": "string", "description": "Optional city to refine"},
+                "categories": {"type": "array", "items": {"type": "string"},
+                    "description": "Subset of socials, documents, contact, leaks, code, domain, keywords"}
+            }, "required": []}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "leak_search",
             "description": (
                 "Search breach/leak databases (Dehashed, LeakCheck, IntelX) for an "
@@ -704,6 +728,18 @@ def _exec_name_search(firstname: str = "", lastname: str = "", city: str = "") -
     try:
         from skills.identity.name_search import run_sync as ns_run
         return ns_run(firstname, lastname, cities=[city] if city else None)
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+def _exec_google_dork(firstname: str = "", lastname: str = "", pseudo: str = "",
+                      email: str = "", domain: str = "", city: str = "",
+                      keywords=None, categories=None) -> dict:
+    try:
+        from skills.recon.google_dork import run_sync as dork_run
+        return dork_run(firstname=firstname, lastname=lastname, pseudo=pseudo,
+                        email=email, domain=domain, city=city,
+                        keywords=keywords or [], categories=categories)
     except Exception as exc:
         return {"error": str(exc)}
 
@@ -1153,6 +1189,7 @@ _EXECUTORS: dict[str, Any] = {
     "whois_lookup":         _exec_whois_lookup,
     "reverse_image":        _exec_reverse_image,
     "name_search":          _exec_name_search,
+    "google_dork":          _exec_google_dork,
     "leak_search":          _exec_leak_search,
     "geo_imagery":          _exec_geo_imagery,
     "telegram_lookup":      _exec_telegram_lookup,

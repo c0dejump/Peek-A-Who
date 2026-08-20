@@ -322,5 +322,24 @@ def death_records(firstname: str = "", lastname: str = "", birth_year: str = "")
     return _dec(firstname=firstname, lastname=lastname, birth_year=birth_year)
 
 
+@mcp.tool()
+def google_dork(firstname: str = "", lastname: str = "", pseudo: str = "",
+                email: str = "", domain: str = "", city: str = "",
+                keywords: list = None, categories: list = None) -> dict:
+    """
+    Run targeted Google dorks (advanced operators: site:, filetype:, intitle:,
+    inurl:, verbatim "…") for a person or domain. Sweeps social/code sites
+    per-site, documents (pdf/doc/xls…), paste sites, contact details and — with a
+    domain — exposed files & login surfaces. Uses real Google via a headless
+    browser when possible, else falls back to Bing/DDG with the target site
+    enforced. Provide any of: name, pseudo, email, domain. `categories` is an
+    optional subset of: socials, documents, contact, leaks, code, domain, keywords.
+    """
+    from skills.recon.google_dork import run_sync as _dork
+    return _dork(firstname=firstname, lastname=lastname, pseudo=pseudo,
+                 email=email, domain=domain, city=city,
+                 keywords=keywords or [], categories=categories)
+
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")

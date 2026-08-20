@@ -25,6 +25,7 @@ mcp>=1.0               # Model Context Protocol — used by mcp_server.py only
 
 # ── Optional / enhanced features ───────────────────────────────
 # playwright>=1.44     # JavaScript-rendered page fallback (Instagram, TikTok)
+selenium>=4.20         # real-browser Google dorking (skills/utils/browser_search.py); needs a Chromium/Firefox binary
 # pimeyes             # paid facial recognition — manual integration only
 #
 # Face recognition (optional — feature degrades gracefully if not installed):

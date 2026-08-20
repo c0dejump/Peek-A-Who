@@ -162,6 +162,14 @@ def _parse_bing(html: str) -> list[SearchResult]:
 # ── Engine fetchers (query → raw results) ──────────────────────────────────
 def _fetch_engine(engine: str, query: str, region: str, timeout: int) -> list[SearchResult]:
     import requests
+    if engine == "google":
+        # Real headless-browser Google (Chromium → Firefox). Heavy, so it's opt-in
+        # (not in the default chain); the dork skill requests it explicitly.
+        try:
+            from skills.utils.browser_search import google_search
+            return google_search(query, region=region, num_results=12, timeout=timeout)
+        except Exception:
+            return []
     if engine == "ddg":
         url = "https://html.duckduckgo.com/html/"
         params = {"q": query, "kl": region}
