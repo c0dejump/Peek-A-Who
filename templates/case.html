@@ -1122,11 +1122,6 @@ function initNetwork() {
     }
     if (params.nodes.length === 1) {
       const nid = params.nodes[0];
-      // Geotime node → jump straight to the map, focused on this point
-      if (state.facts[nid] && state.facts[nid].type === 'geotime') {
-        window.location.href = `/cases/${CASE_ID}/map?focus=${encodeURIComponent(nid)}`;
-        return;
-      }
       // Note-type facts are handled by HTML overlay — skip popup
       if (state.facts[nid] && state.facts[nid].type === 'note') return;
       showNodePopup(nid, params.event.center);
@@ -1643,6 +1638,22 @@ function showNodePopup(nodeId, center) {
                   border:1px solid rgba(77,182,172,.3);background:rgba(77,182,172,.08)">
           🗺️ View on Google Maps
         </a>
+      </div>`;
+    } else if (data.type === 'geotime') {
+      const v = typeof data.value === 'string' ? (tryParseJSON(data.value) || {}) : (data.value || {});
+      html += row('Place', v.location || '?');
+      if (v.when) html += row('When', v.when);
+      if (v.note) html += row('Note', v.note);
+      // Open on: case map (focused) or Google Maps (coords if we have them)
+      const gmaps = (v.lat != null && v.lon != null)
+        ? `https://www.google.com/maps/search/?api=1&query=${v.lat},${v.lon}`
+        : `https://www.google.com/maps/search/${encodeURIComponent(v.location || '')}`;
+      const btn = (href, txt, color) => `<a href="${href}" ${href.startsWith('http')?'target="_blank" rel="noopener"':''}
+          style="font-size:.72rem;color:${color};text-decoration:none;display:inline-flex;align-items:center;
+                 gap:.3rem;padding:.28rem .6rem;border-radius:5px;border:1px solid ${color}55;background:${color}14">${txt}</a>`;
+      html += `<div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap">
+        ${btn(`/cases/${CASE_ID}/map?focus=${encodeURIComponent(nodeId)}`, '🗺️ Case map', '#3fb950')}
+        ${btn(gmaps, '📍 Google Maps', '#4db6ac')}
       </div>`;
     } else {
       html += row('Value', String(data.value));
