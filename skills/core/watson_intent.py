@@ -35,6 +35,12 @@ _ARCHIVE_RE  = re.compile(r"\b(archive|wayback|snapshot)\b", re.I)
 _SHERLOCK_RE = re.compile(r"\b(sherlock|v[ée]rifie|verifie|check|cherche).*(pseudo|username|utilisateur|compte)\b", re.I)
 _ENRICH_RE   = re.compile(r"\b(enrich|enrichi[ts]?)\b", re.I)
 _SEARCH_RE   = re.compile(r"\b(cherche|recherche|search|google|trouve|find|look up|lookup)\b", re.I)
+# "deep dive" phrasings + a reference to a profile/account (rather than a free query)
+_DEEP_RE     = re.compile(r"\b(approfondi\w*|approfondie|deep|creus\w*|fouill\w*|analyse\w*|"
+                          r"investigat\w*|en savoir plus|dig|dossier|profil\w* complet)\b", re.I)
+_PROFILE_REF_RE = re.compile(r"\b(ce|cet|cette|son|sa|ses|le|the|this|that)\s+"
+                             r"(profil|compte|account|profile|insta\w*|tiktok|pseudo|username)\b"
+                             r"|\b(profil|compte|account|profile)\b", re.I)
 
 _PLATFORMS = ["instagram", "tiktok", "github", "reddit", "twitter", "linkedin",
               "snapchat", "telegram", "steam", "youtube", "facebook"]
@@ -101,6 +107,70 @@ def _pick_platform(text: str) -> str:
         if p in low:
             return p
     return ""
+
+
+def _current_profile(report: dict | None, case_id: str | None) -> dict | None:
+    """Resolve what 'this profile / ce compte' refers to: the most recently added
+    social profile in the case, else the first found account in the report."""
+    # 1) case findings (a profile added via record_to_case is the freshest lead)
+    if case_id:
+        try:
+            from paw_agent.case_store import get_store
+            c = get_store().get(case_id) or {}
+            finds = list((c.get("findings") or {}).values())
+            finds.sort(key=lambda f: f.get("created_at", ""), reverse=True)
+            for f in finds:
+                d = f.get("data") or {}
+                if d.get("platform") and d.get("username"):
+                    return {"platform": d["platform"], "username": d["username"],
+                            "url": d.get("url", "")}
+        except Exception:
+            pass
+    # 2) report social accounts
+    sm = (report or {}).get("social_media") or {}
+    for plat, blk in sm.items():
+        if isinstance(blk, dict):
+            for acc in (blk.get("found") or []):
+                if acc.get("username"):
+                    return {"platform": plat, "username": acc["username"],
+                            "url": acc.get("url", "")}
+    return None
+
+
+def _summarize_deep(plat: str, un: str, enr: dict, shy: dict, piv: dict) -> str:
+    lines = [f"**Deep dive — {plat} @{un}**", ""]
+    if enr and not enr.get("error"):
+        nm  = enr.get("full_name") or enr.get("name") or enr.get("display_name") or ""
+        loc = enr.get("location") or ""
+        fol = enr.get("followers", enr.get("follower_count"))
+        bio = enr.get("bio") or enr.get("description") or ""
+        if nm:  lines.append(f"• Name: {nm}")
+        if loc: lines.append(f"• Location: {loc}")
+        if fol not in (None, ""): lines.append(f"• Followers: {fol}")
+        for k in ("external_url", "blog", "website"):
+            if enr.get(k): lines.append(f"• Link: {enr[k]}"); break
+        if enr.get("email_hint"):  lines.append(f"• Email hint: {enr['email_hint']}")
+        if enr.get("phone_hint"):  lines.append(f"• Phone hint: {enr['phone_hint']}")
+        if bio: lines.append(f"• Bio: {bio[:200]}")
+    elif enr:
+        lines.append(f"• Enrich: ⚠ {enr.get('error')}")
+    n = (shy or {}).get("found_count") or len((shy or {}).get("urls") or [])
+    if n:
+        lines.append(f"• Same handle **@{un}** found on {n} other site(s):")
+        for u in ((shy or {}).get("urls") or [])[:8]:
+            lines.append(f"    – {u}")
+    piv = piv or {}
+    web = piv.get("web") or (piv.get("handles", {}).get(un, {}) or {}).get("web") or []
+    gh  = piv.get("github") or (piv.get("handles", {}).get(un, {}) or {}).get("github") or {}
+    if gh and gh.get("url"):
+        who = " · ".join(b for b in [gh.get("name"), gh.get("location"),
+                                     (f"🐦@{gh['twitter']}" if gh.get("twitter") else "")] if b)
+        lines.append(f"• GitHub: {gh['url']}" + (f" ({who})" if who else ""))
+    for w in web[:5]:
+        lines.append(f"• {w.get('domain','')}: {w.get('url','')}")
+    if len(lines) <= 2:
+        lines.append("_No extra data surfaced — the profile may be private or sparse._")
+    return "\n".join(lines)
 
 
 def _summarize_tool_result(intent: str, result: dict) -> str:
@@ -178,6 +248,34 @@ def route(question: str, report: dict | None = None, case_id: str | None = None)
             return _pack(_summarize_tool_result("web_archive", res), "web_archive",
                          tools=[{"tool": "web_archive", "params": {"url": url}}])
 
+    # 4.5) deep dive on a profile — "recherche approfondie sur ce profil",
+    #      "creuse ce compte", "analyse @natan_ubx"… Resolves the handle from the
+    #      message or from context (the profile just added to the case) and runs
+    #      enrich + sherlock + pivot instead of a literal web search of the sentence.
+    _handle = _pick_username(q)
+    _refs   = _PROFILE_REF_RE.search(q)
+    _deep   = _DEEP_RE.search(q)
+    if _deep or (_handle and (_deep or _refs)) or (_SEARCH_RE.search(q) and _refs):
+        plat = _pick_platform(q)
+        prof = {"platform": plat, "username": _handle, "url": ""} if _handle else None
+        if not prof or not prof["platform"]:
+            ctx = _current_profile(report, case_id)
+            if ctx:
+                if not prof:
+                    prof = ctx
+                elif not prof["platform"]:
+                    prof["platform"] = ctx["platform"]
+        if prof and prof.get("username"):
+            plat = prof["platform"] or "instagram"
+            un   = prof["username"].lstrip("@")
+            enr = _exec("enrich_profile", platform=plat, username=un)
+            shy = _exec("sherlock_check", username=un)
+            piv = _exec("pivot_handle", handle=un)
+            return _pack(_summarize_deep(plat, un, enr, shy, piv), "profile_deep_dive",
+                         tools=[{"tool": "enrich_profile", "params": {"platform": plat, "username": un}},
+                                {"tool": "sherlock_check", "params": {"username": un}},
+                                {"tool": "pivot_handle", "params": {"handle": un}}])
+
     # 5) username check (sherlock)
     if _SHERLOCK_RE.search(q):
         un = _pick_username(q)
@@ -204,8 +302,18 @@ def route(question: str, report: dict | None = None, case_id: str | None = None)
 
     # 8) generic web search (catch-all when a search verb is present)
     if _SEARCH_RE.search(q):
-        # strip the search verb to build a cleaner query
-        query = re.sub(_SEARCH_RE, "", q, count=1).strip(" :\"'") or q
+        # strip filler (search verbs + "sur/pour/le/ce…") to build a cleaner query
+        query = re.sub(_SEARCH_RE, " ", q)
+        query = re.sub(r"\b(fais|faire|une?|des?|du|sur|pour|le|la|les|ce|cet|cette|ces|"
+                       r"stp|s'?il te pla[iî]t|please|profil\w*|compte|about|on|of|moi)\b",
+                       " ", query, flags=re.I)
+        query = re.sub(r"\s+", " ", query).strip(" :\"'")
+        # Nothing meaningful left → don't fire a garbage search; ask for specifics.
+        if len(query) < 3:
+            return _pack("What should I search for exactly? Give me a name, @handle, "
+                         "email, or a specific query — or say “deep dive on this profile” "
+                         "and I’ll enrich the profile currently in the case.",
+                         "clarify")
         res = _exec("web_search", query=query, num_results=6)
         return _pack(_summarize_tool_result("web_search", res), "web_search",
                      tools=[{"tool": "web_search", "params": {"query": query}}])

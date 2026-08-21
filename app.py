@@ -1261,7 +1261,7 @@ def _watson_backend() -> str:
     )
 
 
-def _watson_build_context(inv_id: str) -> tuple[dict, str, str, dict]:
+def _watson_build_context(inv_id: str, case_id: str = "") -> tuple[dict, str, str, dict]:
     """
     Load the investigation report and build Watson's system prompt + context.
     Returns (ctx_dict, target_name, system_content, report).
@@ -1297,6 +1297,25 @@ def _watson_build_context(inv_id: str) -> tuple[dict, str, str, dict]:
             f"Always cite sources. Distinguish CONFIRMED/PROBABLE/LOW CONFIDENCE findings.\n"
             f"Investigation data:\n{json.dumps(ctx, ensure_ascii=False, indent=2)}"
         )
+
+    # Tell the LLM which profile "this profile / ce compte" refers to, and how to
+    # deep-dive it — so it enriches the handle instead of web-searching the sentence.
+    if case_id:
+        try:
+            from skills.core.watson_intent import _current_profile
+            prof = _current_profile(report, case_id)
+        except Exception:
+            prof = None
+        if prof and prof.get("username"):
+            system_content += (
+                "\n\n## CURRENT CASE FOCUS\n"
+                f"The most recently added profile in the case is **{prof['platform']} "
+                f"@{prof['username']}** ({prof.get('url','')}). When the user says "
+                "“this profile / ce profil / ce compte / son insta” without giving a "
+                "handle, they mean THIS one. To “deep-dive / recherche approfondie” a "
+                "profile, call enrich_profile (plus sherlock_check and pivot_handle) on that "
+                "handle — never web_search the user's sentence verbatim."
+            )
 
     return ctx, target_name, system_content, report
 
@@ -1732,7 +1751,7 @@ def api_investigation_chat():
 
     # ── Build context ────────────────────────────────────────────
     try:
-        ctx, target_name, system_content, _report = _watson_build_context(inv_id)
+        ctx, target_name, system_content, _report = _watson_build_context(inv_id, case_id)
     except Exception as exc:
         return {"error": f"Could not load investigation: {exc}"}, 500
 
