@@ -924,7 +924,7 @@ def _exec_add_keyword(keyword: str = "", keywords=None, case_id: str | None = No
     return result
 
 
-_FACT_TYPES = {"email", "phone", "city", "alias", "birth_year", "keyword", "name", "note", "employer"}
+_FACT_TYPES = {"email", "phone", "city", "alias", "birth_year", "keyword", "name", "note", "employer", "education"}
 
 
 def _geocode(place: str, near: str = "") -> dict | None:
@@ -1064,6 +1064,9 @@ def _exec_add_fact(fact_type: str = "", value: str = "", case_id: str | None = N
     if ftype in ("work", "job", "company", "société", "societe", "entreprise",
                  "employeur", "travail", "boîte", "boite"):
         ftype = "employer"
+    if ftype in ("school", "université", "universite", "ecole", "école", "diplome",
+                 "diplôme", "formation", "studies", "études", "etudes"):
+        ftype = "education"
     if ftype not in _FACT_TYPES:
         return {"error": f"Unknown fact type '{fact_type}'. Use one of: {', '.join(sorted(_FACT_TYPES))}."}
 

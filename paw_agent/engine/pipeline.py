@@ -446,6 +446,32 @@ async def run_investigation(
                     emit(f"  🔎  Pivot @{pseudo} → " +
                          ", ".join(w["domain"] for w in _piv.get("web", [])[:5]) +
                          (f" · 🐦 @{gh.get('twitter')}" if gh.get("twitter") else ""))
+                # Surface the pivot's profiles (GitHub + web pages) in the report's
+                # "Web presence" section by merging them into name_search.
+                ns_rep = report.setdefault("name_search", {})
+                ns_profiles = ns_rep.setdefault("profiles", [])
+                _seen = {(p.get("url") or "").split("#")[0].rstrip("/") for p in ns_profiles}
+                def _add_profile(domain, url, title, platform="", username=""):
+                    key = (url or "").split("#")[0].rstrip("/")
+                    if not key or key in _seen:
+                        return
+                    _seen.add(key)
+                    entry = {"domain": domain, "url": url, "title": title, "seen_in": []}
+                    if platform:  entry["platform"] = platform
+                    if username:  entry["username"] = username
+                    ns_profiles.append(entry)
+                if gh.get("url"):
+                    _add_profile("github.com", gh["url"],
+                                 f"{gh.get('name') or pseudo} — GitHub"
+                                 + (f" ({gh['company']})" if gh.get("company") else ""),
+                                 platform="github", username=pseudo)
+                    ns_rep.setdefault("by_platform", {}).setdefault("github", pseudo)
+                    if gh.get("company") and not ns_rep.get("employer"):
+                        ns_rep["employer"] = gh["company"]
+                    if gh.get("location") and not ns_rep.get("location"):
+                        ns_rep["location"] = gh["location"]
+                for w in _piv.get("web", [])[:6]:
+                    _add_profile(w.get("domain", ""), w.get("url", ""), w.get("title", ""))
             except Exception:
                 pass
         emit("")

@@ -413,6 +413,14 @@
       transition: background .12s;
     }
     .pivot-ask-btn:hover { background: rgba(88,166,255,.18); }
+    .ns-add {
+      flex-shrink: 0; font-size: .66rem; padding: .08rem .4rem;
+      background: rgba(63,185,80,.10); border: 1px solid rgba(63,185,80,.30);
+      border-radius: 4px; color: #3fb950; cursor: pointer; white-space: nowrap;
+      transition: background .12s;
+    }
+    .ns-add:hover { background: rgba(63,185,80,.22); }
+    .ns-add:disabled { cursor: default; }
 
     /* ── Watson mascot (PAW blue slime) ── */
     /* Animate the <svg> BOX (GPU-composited) not inner <g> → smooth 60fps. */
@@ -2025,6 +2033,21 @@ ${body}
     return rows.map(r => r.join(',')).join('\r\n');
   }
 
+  // ── small "➕ case" buttons used in the Web-presence section ──────
+  function caseBtn(type, val, label) {
+    const call = `addFactToCase(${JSON.stringify(type)}, ${JSON.stringify(String(val))}, this)`;
+    return `<button class="ns-add" title="Add to case" onclick="${esc(call)}">${label || '➕'}</button>`;
+  }
+  function caseProfileBtn(p) {
+    const KNOWN = ['github','instagram','tiktok','twitter','linkedin','facebook','youtube','medium'];
+    let call;
+    if (p.platform && p.username && KNOWN.includes(p.platform))
+      call = `addConfirmedProfile(${JSON.stringify(p.username)}, ${JSON.stringify(p.platform)}, this)`;
+    else
+      call = `addFactToCase("note", ${JSON.stringify(String(p.url||''))}, this)`;
+    return `<button class="ns-add" title="Add to case" onclick="${esc(call)}">➕ case</button>`;
+  }
+
   function renderReport(r) {
     lastReport = r;
     if (r.case_id) currentCaseId = r.case_id;
@@ -2189,11 +2212,11 @@ ${body}
       if (ns.web_summary)
         nh += `<div style="font-size:.8rem;color:var(--text);line-height:1.5;margin-bottom:.7rem;border-left:2px solid var(--accent);padding-left:.6rem">🧠 ${esc(ns.web_summary)}</div>`;
       const idbits = [];
-      if (ns.employer)  idbits.push(`💼 <b>${esc(ns.employer)}</b>`);
-      if (ns.education) idbits.push(`🎓 ${esc(ns.education)}`);
-      if (ns.location)  idbits.push(`📍 ${esc(ns.location)}${ns.matched_city ? ' <span style="color:#3fb950">✓ matches param</span>' : ''}`);
+      if (ns.employer)  idbits.push(`💼 <b>${esc(ns.employer)}</b> ${caseBtn('employer', ns.employer)}`);
+      if (ns.education) idbits.push(`🎓 ${esc(ns.education)} ${caseBtn('education', ns.education)}`);
+      if (ns.location)  idbits.push(`📍 ${esc(ns.location)}${ns.matched_city ? ' <span style="color:#3fb950">✓ matches param</span>' : ''} ${caseBtn('city', ns.location)}`);
       if (idbits.length)
-        nh += `<div style="font-size:.8rem;margin-bottom:.7rem;display:flex;flex-wrap:wrap;gap:.8rem">${idbits.join('')}</div>`;
+        nh += `<div style="font-size:.8rem;margin-bottom:.7rem;display:flex;flex-wrap:wrap;gap:.8rem;align-items:center">${idbits.join('')}</div>`;
       const profs = ns.profiles || [];
       const crossSet = new Set((ns.cross_confirmed||[]).map(c => c.url));
       if (profs.length) {
@@ -2203,7 +2226,10 @@ ${body}
           const cross = crossSet.has(p.url) ? ` <span title="Seen across multiple searches" style="color:#3fb950;font-size:.66rem">⭑ cross-confirmed</span>` : '';
           const handle = p.username ? ` <span style="color:var(--muted)">@${esc(p.username)}</span>` : '';
           nh += `<div style="background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:7px;padding:.45rem .65rem;font-size:.78rem">
-            <a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600">${esc(p.domain)}</a>${handle}${cross}
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.domain)}</a>${handle}${cross}
+              ${caseProfileBtn(p)}
+            </div>
             ${p.title ? `<div style="color:var(--muted);font-size:.72rem;margin-top:.15rem">${esc(p.title)}</div>` : ''}
           </div>`;
         });
