@@ -497,7 +497,7 @@ def _exec_sherlock_check(username: str, timeout: int = 10) -> dict:
         # sherlock skill takes a list of usernames
         result = sherlock_run([username])
         return result
-    except Exception as exc:
+    except Exception:
         # Fallback: run sherlock CLI directly
         import subprocess, tempfile, shutil
         tmp = tempfile.mkdtemp()

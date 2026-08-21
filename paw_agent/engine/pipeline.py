@@ -366,7 +366,7 @@ async def run_investigation(
             # Seed found accounts directly into the report per platform
             _bp = ns.get("by_platform", {})
             if _bp:
-                emit(f"  ✅  Accounts found directly: " +
+                emit("  ✅  Accounts found directly: " +
                      ", ".join(f"{k} @{v}" for k, v in _bp.items()))
                 sm0 = report.setdefault("social_media", {})
                 for _plat, _u in _bp.items():
@@ -480,7 +480,7 @@ async def run_investigation(
                 # users — surface each as a candidate to verify (e.g. codejump vs c0dejump).
                 _cands = _piv.get("github_candidates", [])
                 if not gh.get("url") and _cands:
-                    emit(f"  🐙  GitHub candidates (verify which is the target): " +
+                    emit("  🐙  GitHub candidates (verify which is the target): " +
                          ", ".join(c["username"] for c in _cands))
                     for c in _cands:
                         _add_profile("github.com", c["url"],
@@ -502,7 +502,6 @@ async def run_investigation(
         emit("  ⏭  [Step 0.93–0.97] Social media skipped — need last name, pseudo, keyword or city alongside first name")
 
     # ── Step 0.93: Username pre-validation (maigret + sherlock, 36 sites) ──
-    _prevalidation: dict = {}
     if _ig_candidates:
         emit(f"  💭 [Step 0.93] Pre-validating {len(_ig_candidates)} candidates (maigret + sherlock, 36 sites)…")
         try:
@@ -616,7 +615,6 @@ async def run_investigation(
                 for un in _validated_usernames
             ]
 
-            _prevalidation = prevalidated
             report.setdefault("social_media", {})["maigret"] = prevalidated
 
         except Exception as exc:
@@ -722,7 +720,7 @@ async def run_investigation(
             emit("")
     if "social_media" in active_modules and _social_has_context \
             and not (report.get("name_search") or {}).get("linkedin"):
-        emit(f"  💭 [Step 0.95d] LinkedIn profile candidates…")
+        emit("  💭 [Step 0.95d] LinkedIn profile candidates…")
         try:
             li = await _linkedin_run(
                 firstname=firstname,
@@ -745,7 +743,7 @@ async def run_investigation(
                     if p.get("education"):
                         emit(f"       🎓 {p['education']}")
             else:
-                emit(f"  ℹ  LinkedIn SERP — no profiles found via search engine")
+                emit("  ℹ  LinkedIn SERP — no profiles found via search engine")
             if candidates:
                 emit(f"  📋  {len(candidates)} URL candidate(s) generated for manual verification")
             report["social_media"]["linkedin"] = li
@@ -863,7 +861,6 @@ async def run_investigation(
         _ph   = evidence.get("phone") or {}
         _mg   = evidence.get("maigret", {})
         _act  = evidence.get("activity_signals", {})
-        _dem  = report.get("demographics", {})
         _dip  = report.get("diplomas", {})
         _biz  = report.get("business", {})
         _plat = report.get("social_media", {}).get("platforms", {})
@@ -959,7 +956,6 @@ async def run_investigation(
             f"LOCATIONS: Comma-separated cities/regions that appear in the data.\n\n"
             f"Be specific and factual."
         )
-        _llm_ok = False
         for _attempt in range(2):   # retry once on cold-start timeout
             try:
                 synth = llm_completion(
@@ -982,7 +978,6 @@ async def run_investigation(
                 if llm_tl:  timeline_text  = llm_tl
                 if llm_loc: locations_text = llm_loc
                 _emit_tokens(synth)
-                _llm_ok = True
                 break
             except Exception as exc:
                 _exc_str = str(exc).lower()
@@ -992,7 +987,7 @@ async def run_investigation(
                     or "connection timed out" in _exc_str   # litellm.Timeout on slow model load
                 )
                 if _cold_start and _attempt == 0:
-                    emit(f"  ⚠  Ollama model loading (timed out) — retrying in 30s…")
+                    emit("  ⚠  Ollama model loading (timed out) — retrying in 30s…")
                     import time as _t; _t.sleep(30)
                     continue
                 emit(f"  ⚠  LLM synthesis unavailable ({type(exc).__name__}) — showing rule-based summary.")
@@ -1060,7 +1055,7 @@ async def run_investigation(
         # Cross-data scan: find matching emails already in the report
         cross_hits = _scan_report_emails(report, ig_email_patterns)
         if cross_hits:
-            emit(f"  🔗  Cross-data match — found in investigation data:")
+            emit("  🔗  Cross-data match — found in investigation data:")
             for h in cross_hits:
                 emit(f"  ✅    {h['email']}  [{h['source']}]  ({', '.join(h['reasons'])})")
             report["emails"]["ig_cross_match"] = cross_hits
@@ -1347,8 +1342,8 @@ async def run_investigation(
                     report["analysis"]    = _deterministic_analysis(report, pre_analysis, emit)
                     report["analysis"]["executive_summary"] = raw_analysis[:600] or \
                         report["analysis"].get("executive_summary", "")
-                    emit(f"  ✓  LLM summary kept as text; structured analysis built deterministically "
-                         f"(model returned invalid JSON)")
+                    emit("  ✓  LLM summary kept as text; structured analysis built deterministically "
+                         "(model returned invalid JSON)")
                 break
             except Exception as exc:
                 _exc_str = str(exc).lower()

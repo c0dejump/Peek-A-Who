@@ -136,10 +136,13 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
     agg: dict[str, dict] = {}     # norm url → aggregated entry (with recurrence)
     linkedin: list[dict] = []
     bio_candidates: list[str] = []
-    _fl = full.lower()
 
     for q in queries:
-        res = web_search(q, num_results=8)
+        # Real Google (headless browser) first — "tristan michel angers" surfaces far
+        # richer/reliable results there — then fall back to Bing/DDG. If Google
+        # captcha-blocks the session, the browser engine self-disables and the rest
+        # of the queries use the fallback automatically.
+        res = web_search(q, num_results=8, engines=["google", "bing", "ddg"])
         for r in res.get("results", []):
             url = r.get("url", "")
             dom = r.get("domain") or _domain(url)
