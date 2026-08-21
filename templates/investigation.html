@@ -511,6 +511,7 @@
     /* ── slime "events" (sticker-sheet inspired) ── */
     .paw-slime .star-eye, .paw-slime .ev-zzz, .paw-slime .ev-anger, .paw-slime .ev-crown {
       opacity: 0; transform-box: fill-box; transform-origin: center; }
+    .paw-slime .ev-crown { transition: opacity .45s ease; }   /* fade out when it times out */
     /* ⭐ star eyes — a confirmed profile / high-confidence hit */
     .mascot.star .star-eye { opacity: 1; animation: starPop .55s ease; }
     .mascot.star .eye, .mascot.star .eye2 { opacity: 0; }
@@ -3180,9 +3181,13 @@ ${body}
     clearTimeout(_evtTimer);
     _evtTimer = setTimeout(() => el.classList.remove(evt), evt === 'star' ? 1700 : 1500);
   }
-  function mascotCrown(on) {             // 👑 identity locked (persistent)
+  let _crownTimer = null;
+  function mascotCrown(on) {             // 👑 validated info — shows briefly then fades
     const el = document.getElementById('w-mascot');
-    if (el) el.classList.toggle('crowned', !!on);
+    if (!el) return;
+    clearTimeout(_crownTimer);
+    el.classList.toggle('crowned', !!on);
+    if (on) _crownTimer = setTimeout(() => el.classList.remove('crowned'), 7000);
   }
   function mascotError() {               // 💢 on repeated errors, else 😞
     _errCount++;
