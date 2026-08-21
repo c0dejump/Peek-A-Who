@@ -92,6 +92,10 @@ def get_current_config() -> dict:
         "backend":    backend,
         "ollama_url": env.get("OLLAMA_API_BASE", "http://localhost:11434"),
         "other_keys": {k: env.get(k, "") for k in OTHER_KEYS},
+        # Browser engine (real-Google search): reuse a logged-in Firefox profile to
+        # skip captchas, and/or run the browser visibly to solve one by hand.
+        "firefox_profile": env.get("BROWSER_FIREFOX_PROFILE", ""),
+        "browser_headful": env.get("BROWSER_HEADFUL", "") == "1",
     }
 
     for prov, meta in PROVIDERS.items():
@@ -123,6 +127,10 @@ def save_config(form: dict) -> None:
         val = form.get(k, "").strip()
         if val:
             updates[k] = val
+
+    # Browser engine settings (real-Google search)
+    updates["BROWSER_FIREFOX_PROFILE"] = form.get("firefox_profile", "").strip()
+    updates["BROWSER_HEADFUL"] = "1" if form.get("browser_headful") else "0"
 
     write_env(updates)
 

@@ -38,6 +38,36 @@ _google_blocked = False        # set once Google serves a captcha/"sorry" wall
 _BLOCK_MARKERS = ("unusual traffic", "/sorry/", "recaptcha", "captcha",
                   "our systems have detected")
 
+# Optional UI notifier — called with a dict when a captcha needs solving. The
+# pipeline wires this to its SSE event stream so a banner shows in the browser.
+_captcha_notifier = None
+
+
+def set_captcha_notifier(cb) -> None:
+    """Register a callback(dict) invoked when Google shows a captcha."""
+    global _captcha_notifier
+    _captcha_notifier = cb
+
+
+def _notify_captcha(info: dict) -> None:
+    cb = _captcha_notifier
+    if cb:
+        try:
+            cb(info)
+        except Exception:
+            pass
+
+
+def _headful() -> bool:
+    """Run a VISIBLE browser (so a human can solve a captcha)."""
+    import os
+    return os.environ.get("BROWSER_HEADFUL", "") == "1"
+
+
+def _firefox_profile() -> str:
+    import os
+    return os.environ.get("BROWSER_FIREFOX_PROFILE", "").strip()
+
 
 # ── Driver lifecycle ────────────────────────────────────────────────────────
 def _build_chrome():
@@ -79,19 +109,31 @@ def _build_firefox():
     from selenium import webdriver
     from selenium.webdriver.firefox.options import Options
     opts = Options()
-    opts.add_argument("--headless")
+    if not _headful():
+        opts.add_argument("--headless")
     opts.set_preference("general.useragent.override", _UA)
+    # A logged-in Firefox profile carries the user's Google cookies → no captcha.
+    prof = _firefox_profile()
+    if prof:
+        import os
+        if os.path.isdir(prof):
+            opts.add_argument("-profile")
+            opts.add_argument(prof)
     return webdriver.Firefox(options=opts)
 
 
 def _get_driver():
-    """Lazily start (and cache) a headless browser. Chromium first, then Firefox."""
+    """Lazily start (and cache) a browser. Firefox first when a Firefox profile is
+    configured (Chromium can't reuse it), otherwise Chromium first, then Firefox."""
     global _driver, _driver_kind, _unavailable
     if _unavailable:
         return None
     if _driver is not None:
         return _driver
-    for kind, builder in (("chrome", _build_chrome), ("firefox", _build_firefox)):
+    order = (("firefox", _build_firefox), ("chrome", _build_chrome)) \
+        if (_firefox_profile() or _headful()) else \
+        (("chrome", _build_chrome), ("firefox", _build_firefox))
+    for kind, builder in order:
         try:
             _driver = builder()
             _driver.set_page_load_timeout(25)
@@ -211,19 +253,55 @@ def google_search(query: str, region: str = "fr-fr", num_results: int = 10,
         driver = _get_driver()
         if driver is None:
             return []
+        import time as _t
         try:
             driver.get(url)
-            # tiny settle for late-rendered nodes
-            import time as _t
-            _t.sleep(0.4 + random.random() * 0.4)
+            _t.sleep(0.4 + random.random() * 0.4)   # settle late-rendered nodes
             html = driver.page_source
             probe = (html[:4000].lower() + " " + (driver.current_url or "").lower())
         except Exception:
             return []
         if any(m in probe for m in _BLOCK_MARKERS):
-            _google_blocked = True      # give up on Google for the rest of the session
-            return []
+            # In a VISIBLE browser the user can solve the captcha — notify the UI and
+            # wait for them to clear it, then re-read the results.
+            if _headful():
+                _notify_captcha({"message": "Google is asking for a captcha — solve it "
+                                            "in the browser window that opened, then it "
+                                            "continues automatically.",
+                                 "query": query})
+                solved_html = _wait_for_captcha_solved(driver, timeout=150)
+                if solved_html:
+                    html = solved_html
+                else:
+                    _google_blocked = True
+                    return []
+            else:
+                _notify_captcha({"message": "Google blocked the search with a captcha. "
+                                            "Set a Firefox profile (Config) to reuse your "
+                                            "cookies, or enable the visible browser to "
+                                            "solve it. Falling back to Bing/DDG.",
+                                 "query": query, "blocked": True})
+                _google_blocked = True      # give up on Google for the rest of the session
+                return []
     return _parse_google(html)[:num_results]
+
+
+def _wait_for_captcha_solved(driver, timeout: int = 150) -> str | None:
+    """Poll the visible browser until the captcha/'sorry' page is gone. Returns the
+    results HTML once solved, or None on timeout."""
+    import time as _t
+    deadline = _t.time() + timeout
+    while _t.time() < deadline:
+        _t.sleep(2.0)
+        try:
+            cur = (driver.current_url or "").lower()
+            html = driver.page_source
+        except Exception:
+            return None
+        probe = html[:4000].lower() + " " + cur
+        if not any(m in probe for m in _BLOCK_MARKERS) and "search?q=" in cur:
+            return html
+    return None
 
 
 def browser_available() -> bool:

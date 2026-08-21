@@ -163,6 +163,17 @@ async def run_investigation(
     emit    = _make_emit(callback)
     backend = _get_backend() if USE_LLM and _HAS_LLM else None
 
+    # Surface a Google-captcha prompt to the UI (banner) and the terminal.
+    try:
+        from skills.utils import browser_search as _bs
+        def _on_captcha(info: dict) -> None:
+            emit(f"  🧩  {info.get('message', 'Google captcha')}")
+            if event_callback:
+                event_callback({"type": "captcha", **info})
+        _bs.set_captcha_notifier(_on_captcha)
+    except Exception:
+        pass
+
     # Pre-flight Ollama health check
     if backend and backend.startswith("ollama/"):
         ok, err = _check_ollama()

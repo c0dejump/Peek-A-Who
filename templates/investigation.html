@@ -1399,6 +1399,8 @@
         _handleProgress(event);
       } else if (event.type === 'report') {
         renderReport(event.data);
+      } else if (event.type === 'captcha') {
+        showCaptchaBanner(event.message || 'Google needs a captcha to continue.', event.blocked);
       } else if (event.type === 'error') {
         appendLine('ERROR: ' + event.text);
         _progFinish();
@@ -1482,6 +1484,31 @@
       btn.textContent = '🔍 Save as Case';
       btn.disabled = false;
     }
+  }
+
+  function showCaptchaBanner(msg, blocked) {
+    let b = document.getElementById('captcha-banner');
+    if (!b) {
+      b = document.createElement('div');
+      b.id = 'captcha-banner';
+      b.style.cssText = [
+        'position:fixed','top:1.2rem','left:50%','transform:translateX(-50%)',
+        'background:#161b22','border:1px solid ' + (blocked ? '#d29922' : '#58a6ff'),
+        'border-radius:10px','padding:.7rem 1rem','max-width:560px',
+        'display:flex','align-items:center','gap:.7rem',
+        'box-shadow:0 6px 24px rgba(0,0,0,.6)','z-index:1000',
+        'font-size:.82rem','color:#c9d1d9',
+      ].join(';');
+      document.body.appendChild(b);
+    }
+    b.style.borderColor = blocked ? '#d29922' : '#58a6ff';
+    b.innerHTML =
+      `<span style="font-size:1.1rem">🧩</span>` +
+      `<span style="flex:1">${esc(msg)}</span>` +
+      (blocked ? `<a href="/config" target="_blank" style="color:#58a6ff;font-weight:700;text-decoration:none;border:1px solid rgba(88,166,255,.4);border-radius:6px;padding:.2rem .6rem">Config ↗</a>` : '') +
+      `<button onclick="this.parentNode.remove()" style="background:none;border:none;color:#8b949e;cursor:pointer;font-size:1rem;line-height:1;padding:0 .2rem">✕</button>`;
+    // auto-dismiss the "solve it" prompt once results resume (non-blocking case)
+    if (!blocked) { clearTimeout(b._t); b._t = setTimeout(() => b.remove(), 30000); }
   }
 
   function showCaseBanner(caseId) {

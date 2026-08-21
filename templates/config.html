@@ -461,6 +461,33 @@
     <p style="margin-top:.75rem; font-size:.75rem; color:var(--muted);">Custom MCP server support coming soon.</p>
   </div>
 
+  <!-- ── Browser engine (real-Google search) ── -->
+  <div class="card">
+    <div class="section-label">&#127760; Browser (real-Google search)</div>
+    <p style="margin:-.2rem 0 .8rem;color:var(--muted);font-size:.82rem">
+      The name search can query <strong>real Google</strong> via a browser for richer results.
+      Google often captchas an anonymous/headless session — point it at your logged-in
+      Firefox profile to reuse your cookies (no captcha), and/or run it visibly to solve one by hand.
+    </p>
+    <div class="field">
+      <label>Firefox profile path</label>
+      <input type="text" name="firefox_profile"
+             placeholder="/home/you/.mozilla/firefox/xxxx.default-release"
+             value="{{ cfg.firefox_profile }}" />
+      <span class="hint">Find it in Firefox at <strong>about:profiles</strong> → “Root Directory”.
+        Close that Firefox window before running (a profile can't be opened twice).</span>
+    </div>
+    <div class="field" style="margin-top:.6rem">
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+        <input type="checkbox" name="browser_headful" value="1" style="width:auto"
+               {% if cfg.browser_headful %}checked{% endif %} />
+        Show the browser window (so you can solve a captcha)
+      </label>
+      <span class="hint">Needs a display (WSLg / X server). When a captcha appears, a banner
+        prompts you to solve it in the window, then the search resumes automatically.</span>
+    </div>
+  </div>
+
   <!-- ── Optional API keys ── -->
   <div class="card">
     <div class="section-label">&#128273; Optional Tool Keys</div>
