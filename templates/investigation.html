@@ -508,6 +508,26 @@
     .mascot.working .eye-l, .mascot.working .eye-l2  { d: path("M16.6 24.7 Q19.3 25.8 22.2 26.6"); }  /* ╲ ╱ focused */
     .mascot.working .eye-r, .mascot.working .eye-r2  { d: path("M25.8 26.6 Q28.7 25.8 31.6 24.7"); }
 
+    /* ── slime "events" (sticker-sheet inspired) ── */
+    .paw-slime .star-eye, .paw-slime .ev-zzz, .paw-slime .ev-anger, .paw-slime .ev-crown {
+      opacity: 0; transform-box: fill-box; transform-origin: center; }
+    /* ⭐ star eyes — a confirmed profile / high-confidence hit */
+    .mascot.star .star-eye { opacity: 1; animation: starPop .55s ease; }
+    .mascot.star .eye, .mascot.star .eye2 { opacity: 0; }
+    @keyframes starPop { 0%{transform:scale(.2) rotate(-45deg)} 60%{transform:scale(1.3) rotate(10deg)} 100%{transform:scale(1) rotate(0)} }
+    /* 😴 Zzz — Raphael dozes off after a while idle */
+    .mascot.sleep .ev-zzz { opacity: 1; animation: zzzFloat 2.6s ease-in-out infinite; }
+    .mascot.sleep .eye { animation: none !important; }
+    .mascot.sleep .eye-l, .mascot.sleep .eye-l2 { d: path("M16.8 25.9 Q19.3 26.8 21.8 25.9"); }  /* sleepy ‿ */
+    .mascot.sleep .eye-r, .mascot.sleep .eye-r2 { d: path("M26.2 25.9 Q28.7 26.8 31.2 25.9"); }
+    @keyframes zzzFloat { 0%{opacity:.15;transform:translate(0,2px)} 50%{opacity:1;transform:translate(1px,-1px)} 100%{opacity:.15;transform:translate(2px,-3px)} }
+    /* 💢 anger vein — repeated errors */
+    .mascot.angry .ev-anger { opacity: 1; animation: angerPulse .45s ease-in-out 3; }
+    @keyframes angerPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.28)} }
+    /* 👑 crown — identity locked (confirmed). Persists across emotions. */
+    .mascot.crowned .ev-crown { opacity: 1; animation: crownDrop .55s cubic-bezier(.3,-.4,.4,1.5); }
+    @keyframes crownDrop { 0%{transform:translateY(-7px);opacity:0} 100%{transform:translateY(0);opacity:1} }
+
     /* ── random tricks while waiting (override base with !important) ── */
     .paw-slime .tophat, .paw-slime .magnifier { opacity: 0; transform-box: fill-box; transform-origin: center; }
     .paw-slime.salto   { animation: trickSalto .85s cubic-bezier(.3,.1,.3,1) !important; }
@@ -1101,6 +1121,28 @@
           <path class="eye2 eye-l2" d="M16.6 25.8 Q19.3 24.3 22.0 25.8"/>
           <path class="eye eye-r"   d="M26.0 25.8 Q28.7 24.3 31.4 25.8"/>
           <path class="eye2 eye-r2" d="M26.0 25.8 Q28.7 24.3 31.4 25.8"/>
+          <!-- ── event overlays (shown by mascot state classes) ── -->
+          <!-- ⭐ star eyes: on a confirmed profile / high-confidence hit -->
+          <path class="star-eye star-l" fill="#ffd23f" d="M19.3 22.4 L20.1 24.7 L22.5 25.1 L20.5 26.5 L21 28.9 L19.3 27.4 L17.6 28.9 L18.1 26.5 L16.1 25.1 L18.5 24.7 Z"/>
+          <path class="star-eye star-r" fill="#ffd23f" d="M28.7 22.4 L29.5 24.7 L31.9 25.1 L29.9 26.5 L30.4 28.9 L28.7 27.4 L27 28.9 L27.5 26.5 L25.5 25.1 L27.9 24.7 Z"/>
+          <!-- 😴 Zzz: shown when Raphael dozes off (idle a while) -->
+          <g class="ev-zzz" fill="#cfe8ff" font-family="sans-serif" font-weight="700">
+            <text class="z1" x="33" y="15" font-size="6">z</text>
+            <text class="z2" x="37.5" y="11" font-size="4.5">z</text>
+            <text class="z3" x="41" y="8" font-size="3.2">z</text>
+          </g>
+          <!-- 💢 anger / impact mark: on repeated errors -->
+          <g class="ev-anger" stroke="#ff3b3b" stroke-width="1.05" stroke-linecap="round" fill="none">
+            <path d="M34 8.6 V6 M34 15.4 V18 M30.6 12 H28 M37.4 12 H40
+                     M31.6 9.6 L29.8 7.8 M36.4 9.6 L38.2 7.8
+                     M31.6 14.4 L29.8 16.2 M36.4 14.4 L38.2 16.2"/>
+          </g>
+          <!-- 👑 crown: shown when the identity is locked (confirmed) -->
+          <g class="ev-crown">
+            <path d="M15.5 12.5 L17.5 6.5 L21 10 L24 5 L27 10 L30.5 6.5 L32.5 12.5 Z"
+                  fill="#ffcf3f" stroke="#d99e00" stroke-width=".8" stroke-linejoin="round"/>
+            <circle cx="24" cy="4.4" r="1.2" fill="#ff5d7a"/>
+          </g>
           <!-- detective hat (revealed during the 'hat' trick) -->
           <g class="tophat">
             <ellipse cx="24" cy="12.5" rx="15" ry="3.4" fill="#26314a"/>
@@ -1198,6 +1240,7 @@
   }
 
   function appendLine(text) {
+    if (typeof _bumpActivity === 'function') _bumpActivity();   // keep Raphael awake while logs stream
     const cls = classify(text);
     if (cls === 'line-empty') {
       const br = document.createElement('span');
@@ -1343,7 +1386,8 @@
     if (strip) strip.classList.remove('hidden');
 
     es = new EventSource('/run');
-    _investRunning = true; _investHadFinding = false; mascot('working');   // Raphael starts investigating
+    _investRunning = true; _investHadFinding = false; _errCount = 0;
+    mascotCrown(false); mascot('working');   // fresh run — Raphael starts investigating
 
     es.onmessage = function(e) {
       const event = JSON.parse(e.data);
@@ -1360,7 +1404,7 @@
         es.close();
         cursor.classList.add('hidden');
         setStatus('error', 'Error');
-        _investRunning = false; mascot('sad');
+        _investRunning = false; mascotError();
         btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
         setNavDone(true);
       } else if (event.type === 'token_usage') {
@@ -1390,7 +1434,7 @@
       es.close();
       cursor.classList.add('hidden');
       setStatus('error', 'Connection lost');
-      _investRunning = false; mascot('sad');
+      _investRunning = false; mascotError();
       btnRerun.disabled = false; document.getElementById('btn-save-case').disabled = false;
     };
   }
@@ -2196,6 +2240,7 @@ ${body}
 
     // ── Name web search / web presence ────────────────────────
     const ns = r.name_search || {};
+    if (ns.high_confidence && typeof mascotCrown === 'function') mascotCrown(true);  // 👑 identity locked
     if ((ns.profiles || []).length || ns.web_summary || ns.employer) {
       document.getElementById('sect-namesearch').style.display = 'block';
       let nh = '';
@@ -3098,37 +3143,71 @@ ${body}
     setTimeout(done, 1100);                                // safety
   }
 
-  function mascot(state) {  // 'idle' | 'thinking' | 'working' | 'happy' | 'sad'
+  // core emotions (mutually exclusive); 'star'/'angry' are transient overlays and
+  // 'crowned' is a persistent flag — none of those live in _CORE.
+  const _CORE = ['idle','thinking','working','happy','sad','sleep'];
+  function _mascotState() {
+    const el = document.getElementById('w-mascot');
+    return el ? (_CORE.find(c => el.classList.contains(c)) || 'idle') : 'idle';
+  }
+  function mascot(state) {  // 'idle' | 'thinking' | 'working' | 'happy' | 'sad' | 'sleep'
     const el = document.getElementById('w-mascot');
     if (!el) return;
     clearTimeout(_mascotTimer);
-    el.className = 'mascot ' + state;
-    // random tricks only while waiting
+    _CORE.forEach(c => el.classList.remove(c));
+    el.classList.add(state);              // preserves 'crowned' / 'star' / 'angry'
     clearInterval(_trickTimer);
-    if (state === 'thinking' || state === 'working') {
-      _trickTimer = setInterval(_doTrick, 1500);
-    }
+    if (state === 'thinking' || state === 'working') _trickTimer = setInterval(_doTrick, 1500);
     // transient states settle back — to 'working' if an investigation is still
     // streaming, otherwise to 'idle'
-    if (state === 'happy' || state === 'sad') {
-      _mascotTimer = setTimeout(() => {
-        el.className = 'mascot ' + (_investRunning ? 'working' : 'idle');
-      }, 1400);
-    }
+    if (state === 'happy' || state === 'sad')
+      _mascotTimer = setTimeout(() => mascot(_investRunning ? 'working' : 'idle'), 1400);
+    if (state !== 'sleep') _lastActivity = Date.now();
   }
 
-  // React to an investigation log line with a brief emotion (throttled so a burst
-  // of ✅ lines doesn't strobe the mascot). Positive markers → happy, hard fails → sad.
+  // ── slime events (sticker-sheet inspired) ──────────────────────
+  let _evtTimer = null, _errCount = 0, _lastActivity = Date.now();
+  function mascotEvent(evt) {            // 'star' | 'angry' — brief overlay
+    const el = document.getElementById('w-mascot');
+    if (!el) return;
+    el.classList.add(evt);
+    _lastActivity = Date.now();
+    clearTimeout(_evtTimer);
+    _evtTimer = setTimeout(() => el.classList.remove(evt), evt === 'star' ? 1700 : 1500);
+  }
+  function mascotCrown(on) {             // 👑 identity locked (persistent)
+    const el = document.getElementById('w-mascot');
+    if (el) el.classList.toggle('crowned', !!on);
+  }
+  function mascotError() {               // 💢 on repeated errors, else 😞
+    _errCount++;
+    if (_errCount >= 2) mascotEvent('angry'); else mascot('sad');
+  }
+  function _bumpActivity() {
+    _lastActivity = Date.now();
+    const el = document.getElementById('w-mascot');
+    if (el && el.classList.contains('sleep')) mascot('idle');   // wake up
+  }
+  // doze off after a while with nothing happening
+  setInterval(() => {
+    if (_investRunning) return;
+    if (_mascotState() === 'idle' && Date.now() - _lastActivity > 22000) mascot('sleep');
+  }, 4000);
+
+  // React to an investigation log line (throttled so a burst doesn't strobe).
+  // Strong hits → ⭐ star + 👑 crown; ordinary hits → happy; fails → sad.
   var _investRunning = false, _investHadFinding = false, _lastEmoteAt = 0;
   function _investEmote(text) {
     if (!text) return;
     const now = Date.now();
-    const good = /✅|🎯|✔|cross-confirmed|high confidence|accounts? found|profile\(s\) found|confirmed/i.test(text);
-    const bad  = /^✗|unavailable|captcha|blocked|no profile pages|not found/i.test(text);
-    if (good) _investHadFinding = true;
+    const strong = /high confidence|cross-confirmed|accounts? found directly|confirmed: *[1-9]|match confidence: *(8|9|100)/i.test(text);
+    const good   = /✅|✔|profile\(s\) found|\bconfirmed\b|\bvalid\b/i.test(text);
+    const bad    = /^\s*✗|unavailable|captcha|blocked|no profile pages|not found/i.test(text);
+    if (strong || good) _investHadFinding = true;
+    if (strong) { _lastEmoteAt = now; mascotEvent('star'); mascotCrown(true); return; }
     if (now - _lastEmoteAt < 2600) return;        // throttle
-    if (good)      { _lastEmoteAt = now; mascot('happy'); }
-    else if (bad)  { _lastEmoteAt = now; mascot('sad'); }
+    if (good)     { _lastEmoteAt = now; mascot('happy'); }
+    else if (bad) { _lastEmoteAt = now; mascot('sad'); }
   }
 
   function _wDot(state) {  // 'idle' | 'ready' | 'busy' | 'warming' | 'offline'
@@ -3136,7 +3215,7 @@ ${body}
     if (state === 'busy' || state === 'warming') mascot('thinking');
     else if (state === 'offline') mascot('sad');
     else if (document.getElementById('w-mascot') &&
-             !['happy','sad','working'].includes(document.getElementById('w-mascot').className.split(' ')[1]))
+             !['happy','sad','working'].includes(_mascotState()))
       mascot('idle');
     const d      = document.getElementById('w-dot');
     const sub    = document.getElementById('w-sub');
