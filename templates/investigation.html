@@ -431,12 +431,12 @@
       animation: slimeIdle 3s ease-in-out infinite;
     }
     .paw-slime .head  { fill: url(#slimeGrad); }
-    .paw-slime .eye   { fill: none; stroke: #0a0d14; stroke-width: 2.05;
+    .paw-slime .eye   { fill: none; stroke: #0a0d14; stroke-width: 1.5;
                         stroke-linecap: round; transform-box: fill-box; transform-origin: center;
                         transition: d .30s ease;   /* emotions morph the stroke shape */
                         animation: blink 6.5s ease-in-out infinite; }
     /* second stroke under each eye — thinner & smaller, shrinking from the INNER corner */
-    .paw-slime .eye2  { fill: none; stroke: #0a0d14; stroke-width: 1.5; stroke-linecap: round;
+    .paw-slime .eye2  { fill: none; stroke: #0a0d14; stroke-width: 1.15; stroke-linecap: round;
                         opacity: .6; transform: translateY(1.5px) scale(.58);
                         transform-box: fill-box; transition: d .30s ease; }
     .paw-slime .eye-l2 { transform-origin: 100% 50%; }  /* left eye: inner = right edge  */
@@ -2240,7 +2240,6 @@ ${body}
 
     // ── Name web search / web presence ────────────────────────
     const ns = r.name_search || {};
-    if (ns.high_confidence && typeof mascotCrown === 'function') mascotCrown(true);  // 👑 identity locked
     if ((ns.profiles || []).length || ns.web_summary || ns.employer) {
       document.getElementById('sect-namesearch').style.display = 'block';
       let nh = '';
@@ -3111,6 +3110,12 @@ ${body}
     window._watsonCaseId = CASE_ID_SESS;
     try { currentCaseId = CASE_ID_SESS; } catch (e) {}
     try { showCaseBanner(CASE_ID_SESS); } catch (e) {}
+    // 👑 if the linked case already holds validated info, Raphael wears the crown
+    fetch(`/cases/${CASE_ID_SESS}/data`).then(r => r.json()).then(c => {
+      const findings = c.findings ? Object.keys(c.findings).length : 0;
+      const facts    = c.facts    ? Object.keys(c.facts).length    : 0;
+      if ((findings > 0 || facts > 2) && typeof mascotCrown === 'function') mascotCrown(true);
+    }).catch(() => {});
   }
   let _wHistory  = [];   // [{role, content}]
   let _wCollapsed = false;
@@ -3126,7 +3131,7 @@ ${body}
   // ── set status dot ───────────────────────────────────────────
   // ── Mascot state driver ──────────────────────────────────────
   let _mascotTimer = null, _trickTimer = null;
-  const _TRICKS = ['salto', 'spin', 'wobble', 'hat', 'magnify'];
+  const _TRICKS = ['salto', 'spin', 'wobble', 'magnify'];   // no 'hat' — the 👑 crown owns the head
 
   function _doTrick() {
     const el = document.getElementById('w-mascot');
@@ -3204,7 +3209,7 @@ ${body}
     const good   = /✅|✔|profile\(s\) found|\bconfirmed\b|\bvalid\b/i.test(text);
     const bad    = /^\s*✗|unavailable|captcha|blocked|no profile pages|not found/i.test(text);
     if (strong || good) _investHadFinding = true;
-    if (strong) { _lastEmoteAt = now; mascotEvent('star'); mascotCrown(true); return; }
+    if (strong) { _lastEmoteAt = now; mascotEvent('star'); return; }   // 👑 is only for user-validated info
     if (now - _lastEmoteAt < 2600) return;        // throttle
     if (good)     { _lastEmoteAt = now; mascot('happy'); }
     else if (bad) { _lastEmoteAt = now; mascot('sad'); }
@@ -3440,6 +3445,7 @@ ${body}
       const data = await resp.json();
       thinking.remove();
       if (data.ok) {
+        if (typeof mascotCrown === 'function') mascotCrown(true);   // 👑 validated profile
         _wMsg('watson', `✅ @${username} added to the case (${found.platform}).`, {
           followups: [`Find more info on @${username}`, `What other accounts should I add?`]
         });
@@ -3660,7 +3666,8 @@ ${body}
         body: JSON.stringify({ case_id: caseId, fact_type: factType, value }),
       });
       const data = await resp.json();
-      if (data.ok) { btn.textContent = data.status === 'already_present' ? '✓ present' : '✓ added'; btn.style.opacity = '.6'; }
+      if (data.ok) { btn.textContent = data.status === 'already_present' ? '✓ present' : '✓ added'; btn.style.opacity = '.6';
+                     if (typeof mascotCrown === 'function') mascotCrown(true); }   // 👑 validated info in the case
       else { btn.textContent = orig; btn.disabled = false; alert('Could not add: ' + (data.error || 'unknown')); }
     } catch(e) { btn.textContent = orig; btn.disabled = false; alert('Request failed: ' + e); }
   }
@@ -3680,7 +3687,8 @@ ${body}
         body: JSON.stringify({ platform, username, url:'', relevance: 9, case_id: caseId }),
       });
       const data = await resp.json();
-      if (data.ok) { btn.textContent = '✓ added'; btn.style.opacity = '.6'; }
+      if (data.ok) { btn.textContent = '✓ added'; btn.style.opacity = '.6';
+                     if (typeof mascotCrown === 'function') mascotCrown(true); }   // 👑 validated profile
       else { btn.textContent = orig; btn.disabled = false; alert('Could not add: ' + (data.error || 'unknown')); }
     } catch(e) {
       btn.textContent = orig; btn.disabled = false; alert('Request failed: ' + e);
@@ -3838,6 +3846,7 @@ ${body}
             }
             // Watson mutated the case → tell the user + link to the (updated) graph
             if (evt.case_dirty) {
+              if (typeof mascotCrown === 'function') mascotCrown(true);   // 👑 validated info in the case
               const cid = (typeof _resolveCaseId === 'function') ? _resolveCaseId() : null;
               const note = document.createElement('div');
               note.style.cssText = 'margin-top:.5rem;font-size:.72rem;color:#3fb950';
