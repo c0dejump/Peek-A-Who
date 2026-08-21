@@ -163,9 +163,13 @@ def _summarize_deep(plat: str, un: str, enr: dict, shy: dict, piv: dict) -> str:
     web = piv.get("web") or (piv.get("handles", {}).get(un, {}) or {}).get("web") or []
     gh  = piv.get("github") or (piv.get("handles", {}).get(un, {}) or {}).get("github") or {}
     if gh and gh.get("url"):
-        who = " · ".join(b for b in [gh.get("name"), gh.get("location"),
+        who = " · ".join(b for b in [gh.get("display_name") or gh.get("name"), gh.get("location"),
                                      (f"🐦@{gh['twitter']}" if gh.get("twitter") else "")] if b)
         lines.append(f"• GitHub: {gh['url']}" + (f" ({who})" if who else ""))
+    for c in (piv.get("github_candidates") or []):
+        if not (gh and gh.get("url")):
+            lines.append(f"• GitHub candidate (verify): {c.get('url')}"
+                         + (f" — {c['name']}" if c.get("name") else ""))
     for w in web[:5]:
         lines.append(f"• {w.get('domain','')}: {w.get('url','')}")
     if len(lines) <= 2:

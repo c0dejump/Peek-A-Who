@@ -434,7 +434,8 @@ async def run_investigation(
         if pseudo:
             try:
                 from skills.social_media.pseudo_pivot import pivot_handle
-                _piv = await asyncio.get_event_loop().run_in_executor(None, pivot_handle, pseudo)
+                _piv = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: pivot_handle(pseudo, firstname=firstname, lastname=lastname))
                 gh = _piv.get("github") or {}
                 report.setdefault("social_media", {}).setdefault("maigret", {})["pseudo_pivot"] = {
                     "handles": {pseudo: _piv},
@@ -442,10 +443,15 @@ async def run_investigation(
                                  "location": gh.get("location", ""),
                                  "twitter": gh.get("twitter", "")},
                 }
+                _gh_user = _piv.get("handle_resolved") or gh.get("username") or pseudo
                 if _piv.get("web") or gh:
-                    emit(f"  🔎  Pivot @{pseudo} → " +
+                    _resolved = f" (resolved @{_gh_user})" if _gh_user != pseudo else ""
+                    emit(f"  🔎  Pivot @{pseudo}{_resolved} → " +
                          ", ".join(w["domain"] for w in _piv.get("web", [])[:5]) +
                          (f" · 🐦 @{gh.get('twitter')}" if gh.get("twitter") else ""))
+                    if gh.get("url"):
+                        emit(f"       🐙 GitHub: {gh['url']}" +
+                             (f"  ({gh.get('display_name')})" if gh.get("display_name") else ""))
                 # Surface the pivot's profiles (GitHub + web pages) in the report's
                 # "Web presence" section by merging them into name_search.
                 ns_rep = report.setdefault("name_search", {})
@@ -462,14 +468,25 @@ async def run_investigation(
                     ns_profiles.append(entry)
                 if gh.get("url"):
                     _add_profile("github.com", gh["url"],
-                                 f"{gh.get('name') or pseudo} — GitHub"
+                                 f"{gh.get('display_name') or _gh_user} — GitHub"
                                  + (f" ({gh['company']})" if gh.get("company") else ""),
-                                 platform="github", username=pseudo)
-                    ns_rep.setdefault("by_platform", {}).setdefault("github", pseudo)
+                                 platform="github", username=_gh_user)
+                    ns_rep.setdefault("by_platform", {}).setdefault("github", _gh_user)
                     if gh.get("company") and not ns_rep.get("employer"):
                         ns_rep["employer"] = gh["company"]
                     if gh.get("location") and not ns_rep.get("location"):
                         ns_rep["location"] = gh["location"]
+                # Ambiguous case: several handle variants exist as different GitHub
+                # users — surface each as a candidate to verify (e.g. codejump vs c0dejump).
+                _cands = _piv.get("github_candidates", [])
+                if not gh.get("url") and _cands:
+                    emit(f"  🐙  GitHub candidates (verify which is the target): " +
+                         ", ".join(c["username"] for c in _cands))
+                    for c in _cands:
+                        _add_profile("github.com", c["url"],
+                                     f"@{c['username']} — GitHub (candidate)"
+                                     + (f" · {c['name']}" if c.get("name") else ""),
+                                     platform="github", username=c["username"])
                 for w in _piv.get("web", [])[:6]:
                     _add_profile(w.get("domain", ""), w.get("url", ""), w.get("title", ""))
             except Exception:
