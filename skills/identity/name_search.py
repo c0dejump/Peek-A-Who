@@ -71,9 +71,42 @@ def _extract_handle(url: str, dom: str) -> tuple[str, str] | None:
             m = _re.search(pat, url, _re.I)
             if m:
                 u = m.group(1).strip("@").strip()
-                if u and u.lower() not in _NON_USER and 1 < len(u) <= 40:
-                    return platform, u
+                if not (u and u.lower() not in _NON_USER and 1 < len(u) <= 40):
+                    return None
+                # github/gitlab: a bare profile is github.com/<user>; a URL with a
+                # second path segment is a REPO (github.com/keycloak/keycloak) whose
+                # first segment is the org, not the person — reject it.
+                if platform == "github" and _re.search(r"(?:github|gitlab)\.com/[^/?#]+/[^/?#]", url, _re.I):
+                    return None
+                return platform, u
     return None
+
+
+def _norm(s: str) -> str:
+    return _re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def _handle_relevant(username: str, title: str, snip: str,
+                     firstname: str, lastname: str, pseudo: str) -> bool:
+    """A handle scraped from a name search is only 'the person's account' if it
+    plausibly relates to them — otherwise it's noise (an org/repo like keycloak)."""
+    nu = _norm(username)
+    fn, ln, ps = firstname.lower(), lastname.lower(), (pseudo or "").lower()
+    if ps:
+        nps = _norm(ps)
+        if nps and (nps in nu or nu in nps):
+            return True
+    if fn and len(fn) >= 3 and fn in nu:
+        return True
+    if ln and len(ln) >= 3 and ln in nu:
+        return True
+    if fn and ln:
+        combos = {_norm(fn + ln), _norm(ln + fn), _norm(fn[0] + ln), _norm(fn + ln[0])}
+        if nu in combos or any(c and c in nu for c in combos):
+            return True
+    # the page itself is clearly about the person (both names present)
+    text = (title + " " + snip).lower()
+    return bool(fn and ln and fn in text and ln in text)
 
 
 def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
@@ -122,13 +155,21 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
                 bio_candidates.append(snip.strip())
             if not any(dom == d or dom.endswith("." + d) for d in _PROFILE_DOMAINS):
                 continue
+            # Drop unrelated github/gitlab REPO pages (github.com/org/repo) that don't
+            # mention the person — noise like keycloak/keycloak, not their profile.
+            if ("github.com" in dom or "gitlab.com" in dom) and \
+               _re.search(r"(?:github|gitlab)\.com/[^/?#]+/[^/?#]", url, _re.I) and \
+               not (firstname.lower() in _ts and lastname.lower() in _ts):
+                continue
             key = url.split("?", 1)[0].rstrip("/")
             if key in agg:
                 agg[key]["queries"].add(q)
                 continue
             entry = {"domain": dom, "url": url, "title": title, "snippet": snip, "queries": {q}}
             hp = _extract_handle(url, dom)
-            if hp:
+            # Only treat it as the person's account if the handle actually relates
+            # to them — never surface an unrelated org/repo (e.g. github @keycloak).
+            if hp and _handle_relevant(hp[1], title, snip, firstname, lastname, pseudo):
                 entry["platform"], entry["username"] = hp
             agg[key] = entry
             if "linkedin.com/in/" in url or ("linkedin.com" in dom and firstname.lower() in title.lower()):
