@@ -374,7 +374,7 @@ async def run_investigation(
                 emit("  🔎  LinkedIn snippet → " + " · ".join(b for b in bits if b))
                 if ns.get("matched_city"):
                     emit(f"  ✅  Location matches a given city: {ns['matched_city']}")
-            # Seed found accounts directly into the report per platform
+            # Seed CORROBORATED accounts directly into the report per platform.
             _bp = ns.get("by_platform", {})
             if _bp:
                 emit("  ✅  Accounts found directly: " +
@@ -386,6 +386,12 @@ async def run_investigation(
                             {"username": _u, "display_name": "", "relevance": 8,
                              "url": next((p["url"] for p in ns["profiles"]
                                           if p.get("username") == _u), ""), "source": "name_search"})
+            # Name-collision candidates — same name in the handle but nothing corroborates
+            # them yet; list as leads to verify, do NOT assert them as the person's.
+            _bpc = ns.get("by_platform_candidates", {})
+            if _bpc:
+                emit("  ❔  Possible accounts (same name — verify, not confirmed): " +
+                     ", ".join(f"{k} @{v}" for k, v in _bpc.items()))
             for p in ns.get("profiles", [])[:6]:
                 emit(f"       🌐 {p['domain']}: {p['url']}")
             if not ns.get("profiles"):

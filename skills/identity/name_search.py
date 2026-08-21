@@ -242,10 +242,28 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
             matched_city = c
             break
 
-    by_platform: dict[str, str] = {}
+    # A handle that merely CONTAINS the name is a namesake risk (e.g. instagram
+    # @tristanmicheliii for a different Tristan Michel). Only call it a confirmed
+    # account when something corroborates it: the pseudo matches the handle, or the
+    # profile page mentions the matched city / employer / the person's role.
+    _np = _norm(pseudo) if pseudo else ""
+    by_platform: dict[str, str] = {}            # corroborated accounts
+    by_platform_candidates: dict[str, str] = {} # name-collision candidates (verify)
     for p in profiles:
-        if p.get("platform") and p.get("username") and p["platform"] not in by_platform:
-            by_platform[p["platform"]] = p["username"]
+        plat, un = p.get("platform"), p.get("username")
+        if not (plat and un):
+            continue
+        nu = _norm(un)
+        ptext = (p.get("title", "") + " " + p.get("snippet", "")).lower()
+        pseudo_match = bool(_np) and (_np in nu or nu in _np)
+        corroborated = (
+            pseudo_match
+            or (matched_city and matched_city.lower() in ptext)
+            or (employer and employer.lower() in ptext)
+            or (firstname.lower() in ptext and lastname.lower() in ptext and bool(_ROLE_RE.search(ptext)))
+        )
+        bucket = by_platform if corroborated else by_platform_candidates
+        bucket.setdefault(plat, un)
 
     # ── Confidence that we found the RIGHT individual (0.0 – 1.0) ─────────
     # The brute-force is only skipped above ~0.8, so this must reward signals
@@ -289,6 +307,7 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
         "cross_confirmed": cross_confirmed[:10],   # seen across ≥2 searches
         "linkedin": linkedin[:5],
         "by_platform": by_platform,
+        "by_platform_candidates": by_platform_candidates,
         "web_summary": bio,
         "employer": employer,
         "education": education,
