@@ -429,6 +429,8 @@ async def run_investigation(
     # ── Generate username candidates once (shared by steps 0.93–0.97) ──────
     _ig_candidates: list[str] = []
     _validated_usernames: list[str] = []  # confirmed on at least 1 platform
+    _targeted_social = False              # identity found → check only known handles
+    _targeted_handles: list[str] = []
 
     # Social media search requires enough context to produce non-trivial candidates.
     # firstname alone generates hyper-generic usernames (e.g. "thomas") that flood
@@ -443,10 +445,12 @@ async def run_investigation(
     )
 
     if "social_media" in active_modules and _name_found:
-        # The name search already surfaced real profiles — don't brute-force 36
-        # sites with generated variants (that's where the namesake noise comes from).
-        emit("  ⏭  [Step 0.93–0.97] Username brute-force skipped — identity already "
-             "found via the name search (use it; no need to make noise).")
+        # The name search already surfaced real profiles — skip the noisy brute-force
+        # of hundreds of GENERATED variants, but still run the TARGETED social checks
+        # (Instagram/Snapchat/TikTok presence + recovery hints) on the handles we know.
+        emit("  ⏭  [Step 0.93] Username brute-force skipped — identity found via the "
+             "name search. Running a targeted social check on the known handles instead.")
+        _piv: dict = {}
         # A given pseudo is a targeted, non-noisy lead → still pivot on it.
         if pseudo:
             try:
@@ -508,6 +512,22 @@ async def run_investigation(
                     _add_profile(w.get("domain", ""), w.get("url", ""), w.get("title", ""))
             except Exception:
                 pass
+        # Build a SMALL targeted candidate list from the handles we actually know
+        # (pseudo, resolved GitHub handle, accounts found by the name search). These
+        # feed the same Instagram/Snapchat/TikTok checks — without the brute-force.
+        _nsr = report.get("name_search", {})
+        _targeted = ([pseudo] if pseudo else []) \
+            + ([_piv["handle_resolved"]] if _piv.get("handle_resolved") else []) \
+            + list(_nsr.get("by_platform", {}).values()) \
+            + list(_nsr.get("by_platform_candidates", {}).values())
+        _seen_h: set = set()
+        _ig_candidates = [h for h in _targeted
+                          if h and not (h.lower() in _seen_h or _seen_h.add(h.lower()))][:8]
+        if _ig_candidates:
+            _targeted_social = True
+            _targeted_handles = list(_ig_candidates)
+            emit(f"  🎯  Targeted social check on {len(_ig_candidates)} known handle(s): "
+                 + ", ".join("@" + h for h in _ig_candidates))
         emit("")
     elif "social_media" in active_modules and _social_has_context:
         dept_codes = [k for k in city_extras if re.match(r"^\d{2}$", k)]
@@ -595,6 +615,11 @@ async def run_investigation(
 
             # Only validated usernames go to Instagram and subsequent steps
             _ig_candidates = _validated_usernames
+            if not _ig_candidates and _targeted_social and _targeted_handles:
+                # Validation inconclusive (e.g. maigret/sherlock not installed) — still
+                # check the KNOWN handles directly on Instagram rather than skip.
+                _ig_candidates = _targeted_handles
+                emit("  ℹ  Validation inconclusive — checking the known handle(s) on Instagram directly")
             if not _ig_candidates:
                 emit("  ⚠  No candidates confirmed — nothing to pass to next steps")
 
@@ -639,7 +664,9 @@ async def run_investigation(
         emit("")
 
     # ── Step 0.95: Instagram ─────────────────────────────────────
-    if "social_media" in active_modules and _social_has_context and not _name_found:
+    # Runs on the brute-force set (normal path) OR the small targeted set (identity
+    # already found) — so the Instagram check + recovery hints are never skipped.
+    if "social_media" in active_modules and _ig_candidates:
         emit(f"  💭 [Step 0.95] Instagram username search — {len(_ig_candidates)} candidates…")
         emit(f"  📱  First: {', '.join(_ig_candidates[:5])}")
         try:
