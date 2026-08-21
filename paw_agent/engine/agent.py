@@ -1196,6 +1196,17 @@ def _generate_ig_usernames(
         for sep in (".", "_", ""):
             _add(f"{fn}{sep}{ln}")
             _add(f"{ln}{sep}{fn}")
+        # vowel-stripped surname (michel → mchl) — a very common IG/handle style
+        ln_nv = re.sub(r"[aeiou]", "", ln)
+        if ln_nv and ln_nv != ln and len(ln_nv) >= 2:
+            for sep in (".", "_", ""):
+                _add(f"{fn}{sep}{ln_nv}")     # e.g. "tristan.mchl"
+                _add(f"{ln_nv}{sep}{fn}")
+        fn_nv = re.sub(r"[aeiou]", "", fn)
+        if fn_nv and fn_nv != fn and len(fn_nv) >= 2:
+            _add(f"{fn_nv}.{ln}")
+            if ln_nv and ln_nv != ln:
+                _add(f"{fn_nv}{ln_nv}")       # e.g. "trstnmchl"
         for abbr in (ln3, ln2, bigram):
             if abbr and abbr != ln:
                 for sep in (".", "_", ""):

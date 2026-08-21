@@ -431,6 +431,7 @@ async def run_investigation(
     _validated_usernames: list[str] = []  # confirmed on at least 1 platform
     _targeted_social = False              # identity found → check only known handles
     _targeted_handles: list[str] = []
+    _targeted_ig_extra: list[str] = []    # likely name-based IG handles (targeted mode)
 
     # Social media search requires enough context to produce non-trivial candidates.
     # firstname alone generates hyper-generic usernames (e.g. "thomas") that flood
@@ -523,11 +524,19 @@ async def run_investigation(
         _seen_h: set = set()
         _ig_candidates = [h for h in _targeted
                           if h and not (h.lower() in _seen_h or _seen_h.add(h.lower()))][:8]
-        if _ig_candidates:
+        _targeted_handles = list(_ig_candidates)
+        # The real Instagram handle is often a name variant Google never surfaced
+        # (e.g. tristan.mchl). Prepare a capped set of the most-likely name-based
+        # handles for the Instagram check only — NOT the 36-site brute-force.
+        if _social_has_context:
             _targeted_social = True
-            _targeted_handles = list(_ig_candidates)
-            emit(f"  🎯  Targeted social check on {len(_ig_candidates)} known handle(s): "
-                 + ", ".join("@" + h for h in _ig_candidates))
+            _dept_codes = [k for k in city_extras if re.match(r"^\d{2}$", k)]
+            _targeted_ig_extra = _generate_ig_usernames(
+                firstname, lastname, birth_year,
+                keywords=keywords, pseudo=pseudo, dept_codes=_dept_codes)[:20]
+        if _targeted_handles:
+            emit(f"  🎯  Targeted social check on {len(_targeted_handles)} known handle(s): "
+                 + ", ".join("@" + h for h in _targeted_handles))
         emit("")
     elif "social_media" in active_modules and _social_has_context:
         dept_codes = [k for k in city_extras if re.match(r"^\d{2}$", k)]
@@ -615,12 +624,7 @@ async def run_investigation(
 
             # Only validated usernames go to Instagram and subsequent steps
             _ig_candidates = _validated_usernames
-            if not _ig_candidates and _targeted_social and _targeted_handles:
-                # Validation inconclusive (e.g. maigret/sherlock not installed) — still
-                # check the KNOWN handles directly on Instagram rather than skip.
-                _ig_candidates = _targeted_handles
-                emit("  ℹ  Validation inconclusive — checking the known handle(s) on Instagram directly")
-            if not _ig_candidates:
+            if not _ig_candidates and not _targeted_social:
                 emit("  ⚠  No candidates confirmed — nothing to pass to next steps")
 
             # Activity enrichment on pre-validation hits
@@ -664,6 +668,13 @@ async def run_investigation(
         emit("")
 
     # ── Step 0.95: Instagram ─────────────────────────────────────
+    # Targeted mode (identity found): check the validated known handles + likely
+    # name-based variants (e.g. tristan.mchl) on Instagram — the real handle is
+    # often one Google never surfaced. This hits Instagram directly, not 36 sites.
+    if _targeted_social:
+        _ig_candidates = list(dict.fromkeys(
+            (_ig_candidates or []) + _targeted_handles + _targeted_ig_extra))[:24]
+
     # Runs on the brute-force set (normal path) OR the small targeted set (identity
     # already found) — so the Instagram check + recovery hints are never skipped.
     if "social_media" in active_modules and _ig_candidates:
