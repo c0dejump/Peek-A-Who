@@ -838,30 +838,60 @@ def _exec_record_to_case(platform: str, username: str, notes: str = "",
 
     result: dict = {"status": "recorded", "platform": platform, "username": username, "url": url}
 
+    # Best-effort enrichment so the graph node carries real info (bio, followers,
+    # avatar, hints) — the same enrichment the profile deep-dive uses.
+    enr: dict = {}
+    try:
+        from skills.social_media.enrich import enrich_profile
+        enr = enrich_profile(platform, username, url) or {}
+    except Exception:
+        enr = {}
+    result["enriched"] = enr
+
     if case_id:
         try:
             from paw_agent.case_store import get_store, _now, _short_id
             store = get_store()
             fid = _short_id("fct")
-            finding = {
-                fid: {
-                    "id":             fid,
-                    "type":           "profile",
-                    "platform":       platform,
-                    "username":       username,
-                    "url":            url,
-                    "display_name":   username,
-                    "relevance":      1,
-                    "manually_added": True,
-                    "source":         "watson",
-                    "added_at":       _now(),
-                    "notes":          notes,
-                }
+            fdata = {
+                "id":             fid,
+                # canonical type so the graph labels it "@username / platform" with
+                # the right colour & icon (NOT the generic "profile").
+                "type":           "social_profile",
+                "platform":       platform,
+                "username":       username,
+                "url":            enr.get("url") or url,
+                "display_name":   enr.get("display_name") or username,
+                "bio":            enr.get("bio", ""),
+                "followers":      enr.get("followers"),
+                "following":      enr.get("following"),
+                "is_verified":    enr.get("is_verified"),
+                "profile_pic":    enr.get("profile_pic", ""),
+                "email_hint":     enr.get("email_hint", ""),
+                "phone_hint":     enr.get("phone_hint", ""),
+                "relevance":      8,
+                "manually_added": True,
+                "source":         "watson",
+                "added_at":       _now(),
+                "notes":          notes,
             }
-            ok = store.update_findings(case_id, finding, [])
+            fdata = {k: v for k, v in fdata.items() if v not in (None, "")}
+            # Link the profile to the case's name node (like validate_profile does).
+            links = []
+            try:
+                case = store.get(case_id) or {}
+                anchor = next((f2 for f2, f in (case.get("facts") or {}).items()
+                               if f.get("type") == "name"), None)
+                if anchor:
+                    links.append({"from": anchor, "to": fid,
+                                  "type": "social_profile", "confidence": 0.8})
+            except Exception:
+                pass
+            ok = store.update_findings(case_id, {fid: fdata}, links)
             if ok:
                 result["added_to_case"] = True
                 result["case_id"] = case_id
+                result["finding_id"] = fid
             else:
                 result["case_error"] = f"Case '{case_id}' not found — finding not saved"
         except Exception as exc:
