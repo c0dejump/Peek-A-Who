@@ -216,18 +216,26 @@ def _parse_google(html: str) -> list[dict]:
             continue
         seen.add(key)
         title = h3.get_text(strip=True)
-        # Best-effort snippet: nearest ancestor block holding descriptive text.
-        snippet = ""
+        # Walk up to the result container, then prefer Google's snippet element
+        # (its class changes, so match a few known ones) before the text heuristic.
         block = a
-        for _ in range(4):
+        for _ in range(5):
+            if block.parent is None:
+                break
             block = block.parent
-            if block is None:
+            if block.name == "div" and len(block.get_text(" ", strip=True)) > len(title) + 40:
                 break
-            txt = block.get_text(" ", strip=True)
-            if len(txt) > len(title) + 40:
-                # strip the title prefix if present
-                snippet = txt.replace(title, "", 1).strip(" ·–-—|")[:300]
-                break
+        snippet = ""
+        if block is not None:
+            snip_el = block.select_one(
+                "div.VwiC3b, span.aCOpRe, div.IsZvec, div[data-sncf], "
+                "div[style*='line-clamp'], div.yXK7lf, div.MUxGbd")
+            if snip_el:
+                snippet = snip_el.get_text(" ", strip=True)[:300]
+            else:
+                txt = block.get_text(" ", strip=True)
+                if len(txt) > len(title) + 40:
+                    snippet = txt.replace(title, "", 1).strip(" ·–-—|")[:300]
         out.append({"title": title, "url": href, "snippet": snippet, "engine": "google"})
     return out
 

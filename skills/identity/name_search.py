@@ -55,6 +55,28 @@ _LISTING_MARKERS = ("all-freelances", "/freelances", "/search", "/recherche",
 _NAME_PAIR = _re.compile(r"\b[A-ZÀ-Ÿ][a-zà-ÿ]{2,}\s+[A-ZÀ-Ÿ][a-zà-ÿ]{2,}\b")
 
 
+# role/status words that mark a page as a real identity/bio page
+_ROLE_RE = _re.compile(
+    r"\b(d[ée]veloppeur|fondateur|ing[ée]nieur|[ée]tudiant|freelance|consultant|"
+    r"bas[ée] à|domicili|travaille|CEO|g[ée]rant|responsable|directeur|manager|"
+    r"student|engineer|developer|founder|based in|works? at|siret|siren|"
+    r"soci[ée]t[ée]|entreprise|portfolio|profil)\b", _re.I)
+
+# social URLs that are POSTS / VIDEOS / STATUSES, not a person's profile page
+_SOCIAL_NOISE = _re.compile(
+    r"facebook\.com/[^/?#]+/(?:posts|videos|photos|story|reel|events)/|"
+    r"facebook\.com/(?:watch|story\.php|events|groups|permalink)|"
+    r"instagram\.com/(?:p|reel|reels|tv|stories|explore)/|"
+    r"tiktok\.com/@[^/?#]+/(?:video|photo)/|tiktok\.com/(?:tag|music|discover|video)/|"
+    r"(?:twitter|x)\.com/[^/?#]+/status/|"
+    r"youtube\.com/(?:watch|shorts|playlist)|"
+    r"linkedin\.com/(?:posts|feed|pulse|jobs)/", _re.I)
+
+
+def _is_social_noise(url: str) -> bool:
+    return bool(_SOCIAL_NOISE.search(url or ""))
+
+
 def _looks_like_listing(url: str, snip: str) -> bool:
     """A directory/listing page (many names) rather than one person's page."""
     low = url.lower()
@@ -147,32 +169,41 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
             url = r.get("url", "")
             dom = r.get("domain") or _domain(url)
             title, snip = r.get("title", ""), r.get("snippet", "")
-            # collect descriptive bios: must mention BOTH names + a role/place word,
-            # and NOT be a directory/listing page (those list many people).
-            _ts = (title + " " + snip).lower()
-            if firstname.lower() in _ts and lastname.lower() in _ts and len(snip) >= 60 and \
-               not _looks_like_listing(url, snip) and \
-               _re.search(r"\b(d[ée]veloppeur|fondateur|ing[ée]nieur|[ée]tudiant|freelance|"
-                          r"consultant|bas[ée] à|domicili|travaille|CEO|gérant|responsable|"
-                          r"student|engineer|developer|founder|based in|works? at)\b", snip, _re.I):
+            _ts   = (title + " " + snip).lower()
+            _tl   = title.lower()
+            fn, ln = firstname.lower(), lastname.lower()
+            _both_names    = fn in _ts and ln in _ts
+            _both_in_title = fn in _tl and ln in _tl
+            _has_role      = bool(_ROLE_RE.search(_ts))
+            # collect descriptive bios: BOTH names + a role/place word, not a listing.
+            if _both_names and len(snip) >= 60 and not _looks_like_listing(url, snip) and _has_role:
                 bio_candidates.append(snip.strip())
-            if not any(dom == d or dom.endswith("." + d) for d in _PROFILE_DOMAINS):
+
+            # Never surface post/video/status URLs as a profile (facebook Zelda posts…).
+            if _is_social_noise(url):
                 continue
-            # Drop unrelated github/gitlab REPO pages (github.com/org/repo) that don't
-            # mention the person — noise like keycloak/keycloak, not their profile.
-            if ("github.com" in dom or "gitlab.com" in dom) and \
-               _re.search(r"(?:github|gitlab)\.com/[^/?#]+/[^/?#]", url, _re.I) and \
-               not (firstname.lower() in _ts and lastname.lower() in _ts):
+
+            is_profile_dom = any(dom == d or dom.endswith("." + d) for d in _PROFILE_DOMAINS)
+            hp = _extract_handle(url, dom) if is_profile_dom else None
+            handle_ok = bool(hp) and _handle_relevant(hp[1], title, snip, firstname, lastname, pseudo)
+
+            # Decide whether this result is really about the target:
+            #  • a name-relevant profile handle (malt/tristanmichel2, github/…), OR
+            #  • any profile-domain page whose title/snippet names the person, OR
+            #  • a rich identity page on ANY domain (riberadev.fr, lefigaro entreprises):
+            #    both names in the title, or both names + a role word in the snippet.
+            keep = handle_ok or \
+                   (is_profile_dom and _both_names) or \
+                   (_both_in_title or (_both_names and _has_role))
+            if not keep:
                 continue
+
             key = url.split("?", 1)[0].rstrip("/")
             if key in agg:
                 agg[key]["queries"].add(q)
                 continue
             entry = {"domain": dom, "url": url, "title": title, "snippet": snip, "queries": {q}}
-            hp = _extract_handle(url, dom)
-            # Only treat it as the person's account if the handle actually relates
-            # to them — never surface an unrelated org/repo (e.g. github @keycloak).
-            if hp and _handle_relevant(hp[1], title, snip, firstname, lastname, pseudo):
+            if handle_ok:
                 entry["platform"], entry["username"] = hp
             agg[key] = entry
             if "linkedin.com/in/" in url or ("linkedin.com" in dom and firstname.lower() in title.lower()):
@@ -198,7 +229,10 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
         m = _re.search(r"(?:fondateur|founder|CEO|g[ée]rant)\s+(?:de\s+(?:la\s+)?(?:structure\s+)?|of\s+)([A-Z][\w&.\- ]{2,30})", bio)
         if m: employer = m.group(1).strip()
     if bio and not location:
-        m = _re.search(r"(?:bas[ée]\s+à|domicili[ée]\s+à|based in|à)\s+([A-ZÀ-Ÿ][a-zà-ÿ\- ]{2,25})", bio)
+        # capture only the city (Title-case token, optional Title-case continuation
+        # like "Saint-Denis") — stops at lowercase words such as "et intervenant".
+        m = _re.search(r"(?:bas[ée]\s+à|domicili[ée]\s+à|based in|à)\s+"
+                       r"([A-ZÀ-Ÿ][a-zà-ÿ]+(?:[-\s][A-ZÀ-Ÿ][a-zà-ÿ]+){0,2})", bio)
         if m: location = m.group(1).strip()
 
     matched_city = ""
@@ -217,10 +251,12 @@ def run_sync(firstname: str, lastname: str, cities: list[str] | None = None,
     # The brute-force is only skipped above ~0.8, so this must reward signals
     # that *disambiguate* one person (a param that matched), not merely that
     # *somebody* with this name exists on the web.
-    _pseudo_q = f'"{full}" {pseudo}' if pseudo else None
-    _pseudo_hit = bool(pseudo) and (
-        any(_pseudo_q in p.get("seen_in", []) for p in profiles) or
-        pseudo.lower() in {v.lower() for v in by_platform.values()}
+    # A pseudo is only "confirmed" when it actually appears in a found handle or
+    # profile URL — not merely because a result showed up in the pseudo query.
+    _nps = _norm(pseudo) if pseudo else ""
+    _pseudo_hit = bool(_nps) and (
+        any(_nps in _norm(v) or _norm(v) in _nps for v in by_platform.values()) or
+        any(_nps in _norm(p.get("url", "")) for p in profiles)
     )
     _kw_hit = bool(keywords) and bio and any(
         (k or "").lower() in bio.lower() for k in keywords)
